@@ -1,0 +1,273 @@
+Normal
+    Clean Undies = '\uE018'
+    Wet Undies = '\uE01a'
+    Messy Undies = '\uE019'
+    wetandMessy Undies = '\uE01b'
+    
+    Clean = '\uE000';
+    Wet1 = '\uE004';
+    Messy1 = '\uE001';
+    Wet1AndMessy1 = '\uE005';
+    Wet1AndMessy2 = '\uE006';
+    Wet1AndMessy3 = '\uE007';
+
+    Wet2 = '\uE008';
+    Messy2 = '\uE002';
+    Wet2AndMessy1 = '\uE009';
+    Wet2AndMessy2 = '\uE00a';
+    Wet2AndMessy3 = '\uE00b';
+
+    Wet3 = '\uE00c';
+    Messy3 = '\uE003';
+    Wet3AndMessy1 = '\uE00d';
+    Wet3AndMessy2 = '\uE00e';
+    Wet3AndMessy3 = '\uE00f';
+
+    Wet4 = '\uE010';
+    Wet4AndMessy1 = '\uE011';
+    Wet4AndMessy2 = '\uE012';
+    Wet4AndMessy3 = '\uE013';
+
+    Wet5 = '\uE014';
+    Wet5AndMessy1 = '\uE015';
+    Wet5AndMessy2 = '\uE016';
+    Wet5AndMessy3 = '\uE017';
+
+SMALL
+    Clean Undies = '\uE134'
+    Wet Undies = '\uE136'
+    Messy Undies = '\uE135'
+    wetandMessy Undies = '\uE137'
+
+    Clean = '\uE11c';
+    Wet1 = '\uE120';
+    Messy1 = '\uE11d';
+    Wet1AndMessy1 = '\uE121';
+    Wet1AndMessy2 = '\uE122';
+    Wet1AndMessy3 = '\uE123';
+
+    Wet2 = '\uE124';
+    Messy2 = '\uE11e';
+    Wet2AndMessy1 = '\uE125';
+    Wet2AndMessy2 = '\uE126';
+    Wet2AndMessy3 = '\uE127'
+
+    Wet3 = '\uE128';
+    Messy3 = '\uE11f';
+    Wet3AndMessy1 = '\uE129';
+    Wet3AndMessy2 = '\uE12a';
+    Wet3AndMessy3 = '\uE12b';
+
+    Wet4 = '\uE12c';
+    Wet4AndMessy1 = '\uE12d';
+    Wet4AndMessy2 = '\uE12e';
+    Wet4AndMessy3 = '\uE12f';
+
+    Wet5 = '\uE130';
+    Wet5AndMessy1 = '\uE131';
+    Wet5AndMessy2 = '\uE132';
+    Wet5AndMessy3 = '\uE133';
+
+    {
+        "type": "bitmap",
+        "file": "minecraft:custom/clean.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE01c"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/mess1.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE01d"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/mess2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE01e"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/mess3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE01f"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet1.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE020"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet1mess1.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE021"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet1mess2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE022"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet1mess3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE023"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE024"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet2mess1.png",
+        "ascent": 20,
+        "height": 50,
+        "chars": ["\uE025"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet2mess2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE026"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet2mess3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE027"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE028"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet3mess1.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE029"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet3mess2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE02a"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet3mess3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE02b"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet4.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE02c"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet4mess1.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE02d"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet4mess2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE02e"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet4mess3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE02f"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet5.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE030"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet5mess1.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE031"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet5mess2.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE032"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/wet5mess3.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE033"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/undies_clean.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE034"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/undies_mess.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE035"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/undies_wet.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE036"]
+        },
+     {
+        "type": "bitmap",
+        "file": "minecraft:custom/undies_wetmess.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE037"]
+        },
+   {
+        "type": "bitmap",
+        "file": "minecraft:custom/undies_wet.png",
+        "ascent": 15,
+        "height": 50,
+        "chars": ["\uE040"]
+        },

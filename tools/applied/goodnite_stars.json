@@ -1,0 +1,13 @@
+{
+  "designName": "goodnite_stars",
+  "displayName": "Girls Goodnite Pull-Up (Stars)",
+  "category": 1,
+  "designId": 1,
+  "cleanCmd": 626060,
+  "wetCmd": 626061,
+  "dirtyCmd": 626062,
+  "wetDirtyCmd": 626063,
+  "methodName": "GoodniteStars",
+  "giveKey": "goodnite_stars",
+  "folderBasename": "goodnite-girl-star"
+}

@@ -1,0 +1,84 @@
+{
+    "sources": [
+        {
+            "type": "single",
+            "resource": "minecraft:custom/copper_boots"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/copper_helm"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/copper_leggings"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/copper_tunic"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/emerald_boots"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/emerald_helmet"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/emerald_leggings"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/emerald_tunic"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/obsidian_boots"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/obsidian_helmet"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/obsidian_leggings"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/obsidian_tunic"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/redstone_boots"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/redstone_helmet"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/redstone_leggings"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/redstone_tunic"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/sculk_boots"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/sculk_helmet"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/sculk_leggings"
+        },
+        {
+            "type": "single",
+            "resource": "minecraft:custom/sculk_tunic"
+        }
+    ]
+}

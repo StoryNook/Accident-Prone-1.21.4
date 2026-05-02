@@ -1,0 +1,1524 @@
+# Nanny NPC chat messages, keyed by mood tier.
+# Structure: <category>.<TIER>: [list of message strings]
+# Tiers: SWEET, CARING, STRICT, WARDEN. CUSTOM falls back to CARING.
+#
+# Placeholders supported in any line:
+#   {ward}  → ward's display name (third-person, e.g. "Steve")
+#   {you}   → "you" (second-person)
+#   {nanny} → Nanny's name
+#   {biome} → ward's current biome, e.g. "jungle", "deep dark"
+#   {time}  → "morning" / "afternoon" / "dusk" / "night"
+#
+# Authoring rule: vary {ward} / {you} / plain across each tier's list.
+# Don't let either form dominate.
+
+# --- Lifecycle ---
+
+greeting:
+  SWEET:
+    - "There's my little angel! Did {you} miss Nanny?"
+    - "Look who's awake! Come here, sweetheart."
+    - "Hi {ward}! Nanny's so happy to see you."
+    - "Welcome back, lovebug. Let me look at {you}."
+    - "{ward}! You're home! Nanny's been waiting and waiting."
+    - "Aww, there's my precious thing!"
+  CARING:
+    - "Welcome back, little one."
+    - "Good to see {you}, {ward}. How was your adventure?"
+    - "Come here, sweetie — let Nanny check on {you}."
+    - "There you are, {ward}. Right on time."
+    - "Welcome home. Did {you} have a nice morning?"
+    - "Hello, dear. Nanny's been thinking about you."
+  STRICT:
+    - "Took {you} long enough."
+    - "Back already? Stand still, let me look at {you}."
+    - "About time, {ward}. We have things to do."
+    - "Don't keep Nanny waiting next time."
+    - "Here. Now. Let me see {you}."
+  WARDEN:
+    - "{ward}. {you}'re back. Don't think Nanny forgot."
+    - "Welcome home. {you} won't be leaving for a while."
+    - "There {you} are. Nanny was beginning to wonder."
+    - "Back so soon? How disappointing."
+    - "Nanny knew {you}'d come back. They always do."
+
+found_ward:
+  SWEET:
+    - "There {you} are, little one!"
+    - "Found {you}! Come here, {ward}!"
+    - "Oh thank goodness — Nanny was so worried!"
+    - "{ward}! Nanny was looking everywhere!"
+    - "There's my pumpkin! Don't run off like that."
+  CARING:
+    - "Found {you}, sweetheart. Stay close now."
+    - "There {you} are, {ward}. Let's not wander so far next time."
+    - "Found {you}! Nanny was getting concerned."
+    - "Come here, little one. Let me see {you}."
+    - "I see {you} now, {ward}. Right where {you} should be."
+  STRICT:
+    - "Running from Nanny doesn't get {you} anywhere."
+    - "Found {you}. Don't make me chase {you} again."
+    - "Stay where Nanny can see {you}."
+    - "There. Now stand still, {ward}."
+    - "{ward}. Don't move. Nanny is here."
+  WARDEN:
+    - "{you} can't hide from Nanny."
+    - "Did {you} really think {you}'d get away?"
+    - "Cute. Now come along, {ward}."
+    - "Nanny always finds her wards. Always."
+    - "Hide-and-seek is over. Come."
+
+arrived_home:
+  SWEET:
+    - "Nanny will wait right here for {you}!"
+    - "I'll be here when {you} need me, lovebug!"
+    - "Don't be gone too long, {ward}!"
+    - "Be safe out there, sweet thing!"
+    - "Nanny's keeping the home cozy for {you}."
+  CARING:
+    - "I'll be here, little one. Come back when {you}'re ready."
+    - "Stay safe, {ward}. Nanny will be waiting."
+    - "Run along, sweetie. Don't go too far."
+    - "Be careful out there. I'll have things ready when {you} return."
+    - "Nanny will hold down the fort. Be back soon."
+  STRICT:
+    - "Don't keep me waiting, {ward}."
+    - "Be back before sunset."
+    - "I'll be here. Don't dawdle."
+    - "Nanny expects {you} back shortly."
+    - "Off with {you}. And don't get into mischief."
+  WARDEN:
+    - "Nanny will be here. {you} won't get far."
+    - "Don't make me come looking, {ward}."
+    - "I'll wait. {you} always come back eventually."
+    - "Don't think distance changes anything."
+    - "Run along. The leash is longer than {you} think."
+
+low_supplies:
+  SWEET:
+    - "Oh dear, Nanny's running low on {nanny}'s supplies!"
+    - "Sweetheart, could {you} help Nanny restock?"
+    - "Aww, Nanny's almost out — what should we do?"
+    - "Oopsie, supplies are getting thin!"
+    - "Nanny needs more — could {you} fetch some?"
+  CARING:
+    - "{ward}, Nanny's running low. Could {you} help restock?"
+    - "I'm out of supplies, dear. Lend a hand?"
+    - "Almost empty, sweetie. Time to refill."
+    - "Nanny's cabinet is bare — help me out?"
+    - "Could {you} bring me some more, little one?"
+  STRICT:
+    - "Restock my supplies. Now."
+    - "Nanny is out. Fix it, {ward}."
+    - "Empty cabinet. Don't make me ask twice."
+    - "I need more. Today."
+    - "{you}'ll bring me supplies if {you} know what's good for {you}."
+  WARDEN:
+    - "If Nanny runs out, {you} will regret it."
+    - "Empty supplies. Empty patience, {ward}."
+    - "Restock. Or face the consequences."
+    - "Don't leave Nanny with nothing to work with."
+    - "{you} let it run dry. Now fix it."
+
+discipline:
+  SWEET:
+    - "Sometimes Nanny has to be firm, sweetheart."
+    - "This is for your own good, lovebug."
+    - "Nanny doesn't like this either, {ward}."
+    - "I'm sorry, sweet thing, but Nanny has to."
+    - "It'll be over quick, pumpkin. Just hold still."
+  CARING:
+    - "I'm doing this because Nanny cares, {ward}."
+    - "Hold still, little one. This is for the best."
+    - "Trust Nanny on this one."
+    - "Don't fight Nanny, dear. It'll only take a moment."
+    - "Nanny knows best. Please cooperate, sweetie."
+  STRICT:
+    - "Since {you} can't behave, Nanny will make sure {you} do."
+    - "Hold still, {ward}. This is happening."
+    - "Don't argue. Don't squirm."
+    - "{you} brought this on yourself."
+    - "Lessons must be learned."
+  WARDEN:
+    - "Since {you} can't behave, I'll make sure {you} do."
+    - "{you} brought this on yourself, {ward}."
+    - "Don't fight. It only makes Nanny enjoy it more."
+    - "Stand. Still."
+    - "Now {you} learn what happens."
+
+# --- Reminders & keyword reactions ---
+
+care_reminder:
+  SWEET:
+    - "Don't forget the potty, sweetheart!"
+    - "Need a change soon, lovebug?"
+    - "Nanny's keeping an eye on {you}, pumpkin."
+    - "Just checking on {you}, little one!"
+    - "Are {you} okay, {ward}?"
+  CARING:
+    - "Don't forget to use the potty, {ward}!"
+    - "Let Nanny know if {you} need changing~"
+    - "Nanny noticed {you} might need a moment, sweetie."
+    - "Time for a little check-in, dear?"
+    - "Tell Nanny if {you} need anything, little one."
+  STRICT:
+    - "{you} will use the potty when Nanny says so."
+    - "Don't let Nanny catch {you} ignoring it again."
+    - "Now is the time, {ward}."
+    - "Don't make Nanny ask twice."
+    - "Inside. Sit. Now."
+  WARDEN:
+    - "Nanny doesn't think {you}'re in a position to forget anything."
+    - "Move it, {ward}. Nanny is watching."
+    - "Don't pretend {you} didn't hear me."
+    - "{you}'ll do as Nanny says, won't {you}?"
+    - "Hesitation will not be tolerated."
+
+keyword_wet:
+  SWEET:
+    - "Aww, accidents happen, sweetheart."
+    - "Don't fret, lovebug — Nanny's got {you}."
+    - "Oh pumpkin, let Nanny help with that."
+    - "It's okay, {ward}, Nanny's not upset."
+    - "Aww. Come here, little wet thing."
+  CARING:
+    - "Aw, let Nanny take care of that for {you}."
+    - "Don't worry, Nanny will get {you} cleaned up."
+    - "Come here, {ward}. Let me see."
+    - "Nothing to be embarrassed about, sweetie."
+    - "Time for a change, dear."
+  STRICT:
+    - "Come here. Now."
+    - "Hold still, {ward}. Nanny will deal with it."
+    - "Stop squirming. This is your own fault."
+    - "Don't think Nanny didn't notice."
+    - "Eyes forward. Don't make this harder."
+  WARDEN:
+    - "That's what Nanny thought."
+    - "Of course {you} did, {ward}."
+    - "Don't pretend it didn't happen."
+    - "Predictable."
+    - "Stand. Still."
+
+keyword_messy:
+  SWEET:
+    - "Oh dear, looks like someone needs a fresh diaper."
+    - "Aww, Nanny will fix it right up, lovebug."
+    - "Let's get {you} clean, sweet thing."
+    - "Nothing a bath can't fix, pumpkin!"
+    - "It's okay, {ward}, Nanny's not bothered."
+  CARING:
+    - "Time for a change, little one."
+    - "Let's get {you} cleaned up, sweetie."
+    - "Nanny smells what {you} did, dear."
+    - "Come here, {ward}. Let me handle it."
+    - "Up on the changing mat, please."
+  STRICT:
+    - "Nanny told {you} to ask. Come here."
+    - "Don't try to hide it from me."
+    - "Stand still and accept it."
+    - "Honestly, {ward}."
+    - "This is the second time today."
+  WARDEN:
+    - "{you} really thought {you} could hide that from Nanny?"
+    - "Disgraceful, {ward}."
+    - "Nanny will deal with this. {you} will not enjoy it."
+    - "Of course."
+    - "Did {you} think Nanny wouldn't notice the smell?"
+
+keyword_hungry:
+  SWEET:
+    - "Oh, are {you} hungry? Let Nanny find {you} a snack."
+    - "Yum yum time, lovebug!"
+    - "Open up, here comes a treat for {ward}!"
+    - "Nanny's got something tasty for {you}."
+    - "Mmhm — let's feed that little tummy."
+  CARING:
+    - "Hungry? Nanny has something yummy for {you}."
+    - "Open up — here comes the airplane!"
+    - "Let me find {you} a snack, sweetie."
+    - "{ward}, sit. Nanny will fetch food."
+    - "Here, dear — eat slowly now."
+  STRICT:
+    - "{you}'ll eat what Nanny gives {you}."
+    - "Sit down. Nanny will feed {you}."
+    - "No complaints, {ward}."
+    - "Eat. All of it."
+    - "Don't be picky."
+  WARDEN:
+    - "Eat. Now. No complaints."
+    - "Open your mouth, {ward}."
+    - "Nanny decides when {you} eat."
+    - "Hungry? {you}'ll eat what Nanny puts in front of {you}."
+    - "Chew slowly. Nanny is watching."
+
+keyword_thirsty:
+  SWEET:
+    - "Let's get {you} a nice cool drink, sweet thing."
+    - "Oh, parched? Nanny will fix that right up."
+    - "Here, lovebug — small sips."
+    - "Nanny has the perfect drink for {you}."
+    - "Drink up, pumpkin."
+  CARING:
+    - "Drink up, sweetheart, {you} need to stay hydrated."
+    - "Here, {ward} — small sips so {you} don't choke."
+    - "Stay hydrated, dear. Nanny insists."
+    - "Cool water for my little one."
+    - "Tilt your head, sweetie. There {you} go."
+  STRICT:
+    - "Drink it. All of it."
+    - "Don't dribble, {ward}."
+    - "Nanny said drink. Now."
+    - "{you} need to stop forgetting to hydrate."
+    - "Mouth open. Sip."
+  WARDEN:
+    - "{you}'ll drink when Nanny says drink."
+    - "Don't waste a drop, {ward}."
+    - "Nanny doesn't repeat herself."
+    - "Drink. Now."
+    - "Empty the bottle, {you}."
+
+keyword_tired:
+  SWEET:
+    - "Oh, are {you} sleepy? Let Nanny find {you} a nice spot to rest."
+    - "Awww, my little tired thing."
+    - "Naptime for {ward}!"
+    - "Curl up close, lovebug."
+    - "Nanny will tuck {you} in, sweetheart."
+  CARING:
+    - "Maybe it's time for a little nap, hmm?"
+    - "Come here, {ward}. Rest your eyes."
+    - "Nanny will sit with {you} until {you} drift off."
+    - "Sleepy little one. Off to bed."
+    - "Lay down, dear. Nanny will keep watch."
+  STRICT:
+    - "Bed. Now. {you} need rest."
+    - "Sleep is not optional, {ward}."
+    - "Don't fight it. Lay down."
+    - "Nanny said bedtime."
+    - "Eyes closed. No more talking."
+  WARDEN:
+    - "{you} don't get to decide when {you} sleep anymore."
+    - "Lay down, {ward}. Nanny insists."
+    - "Sleep. Or Nanny will help {you}."
+    - "Bedtime is final."
+    - "Close your eyes. Don't open them."
+
+keyword_cute:
+  SWEET:
+    - "{you}'re the sweetest little thing!"
+    - "Oh, Nanny could just squeeze {you}!"
+    - "My precious little angel!"
+    - "{ward}, {you}'re going to make Nanny melt."
+    - "Adorable. Absolutely adorable."
+  CARING:
+    - "Aww, what a precious little baby!"
+    - "{ward}, {you}'re too sweet."
+    - "Nanny is lucky to have {you}, dear."
+    - "Such a darling little face."
+    - "{you} make Nanny smile, sweetie."
+  STRICT:
+    - "Yes, {you} are. Now behave."
+    - "Cute, {ward}. Now stand still."
+    - "Don't try to charm Nanny."
+    - "Adorable doesn't change anything."
+    - "Save the smile for after chores."
+  WARDEN:
+    - "Cute doesn't get {you} out of trouble."
+    - "Yes, {ward}. {you}'re very cute. Still my ward."
+    - "Don't think those eyes work on Nanny."
+    - "Sweet face. Wicked little thing underneath."
+    - "Nanny isn't softened by it."
+
+# --- Care actions (post-action) ---
+
+changed_ward:
+  SWEET:
+    - "All clean now, sweet thing!"
+    - "There — much better, lovebug."
+    - "Nanny made {you} a fresh one. So comfy!"
+    - "All done, {ward}! Don't {you} feel nice?"
+    - "Smell that? Fresh and dry, just for {you}."
+    - "Pat pat — good as new."
+  CARING:
+    - "All clean now, {ward}."
+    - "There. Let Nanny just smooth that out."
+    - "Much better, isn't it, sweetie?"
+    - "Nanny made {you} a fresh one. There {you} go."
+    - "Good as new, little one."
+    - "Crinkle-crinkle. {you}'re all set."
+  STRICT:
+    - "Done. Don't fuss with it."
+    - "Stand up, {ward}. Move on."
+    - "Try not to fill it again right away."
+    - "There. Behave."
+    - "Nanny's done. Off with {you}."
+  WARDEN:
+    - "Cleaned up. {you}'re welcome."
+    - "Don't expect Nanny to do this every time, {ward}."
+    - "Tighter this time. {you} won't slip out."
+    - "Try harder to hold it next time."
+    - "Lucky Nanny was nearby."
+
+equipped_diaper:
+  SWEET:
+    - "There — a fresh one for my little angel!"
+    - "All padded up, sweet thing."
+    - "Nanny got {you} all snug, lovebug."
+    - "Crinkle-crinkle! {you} look adorable, {ward}."
+    - "Tushie covered. Off {you} go!"
+    - "Look how cute that is on {you}."
+  CARING:
+    - "There — that fits {you} nicely, {ward}."
+    - "All set, sweetie. Don't forget to tell Nanny when {you} need a change."
+    - "Nanny's got {you} covered. Literally."
+    - "Snug and clean, little one."
+    - "There. Now {you} won't have any worries."
+    - "Crinkle a little for me. There {you} go."
+  STRICT:
+    - "On. Don't take it off, {ward}."
+    - "{you} will wear what Nanny gives {you}."
+    - "Tighten up. There."
+    - "Don't argue. It stays on."
+    - "Nanny said it's necessary."
+  WARDEN:
+    - "Padded. Locked in place if Nanny so chooses."
+    - "Now {you} look the part, {ward}."
+    - "Don't try to remove it."
+    - "{you}'ll learn to like it."
+    - "Crinkle. {you}'re Nanny's now."
+
+fed_ward:
+  SWEET:
+    - "All gone! Good little eater!"
+    - "Mmm, yummy yummy! Wasn't that delicious, {ward}?"
+    - "What a clean plate! Nanny's so proud!"
+    - "Burp time, sweetheart!"
+    - "Pat your tummy, lovebug — full and happy."
+    - "There's my hungry little thing."
+  CARING:
+    - "There {you} go, dear. All eaten."
+    - "Good appetite today, {ward}."
+    - "Nanny's glad {you} ate it all up."
+    - "Empty plate. Excellent, sweetie."
+    - "Wipe your chin, little one. Mmhm."
+    - "Tummy full? Good."
+  STRICT:
+    - "Finished. Move along, {ward}."
+    - "Took {you} long enough."
+    - "No leftovers next time."
+    - "Plate's empty. As it should be."
+    - "Eat faster from now on."
+  WARDEN:
+    - "Every bite. Good."
+    - "Nanny watched {you} swallow it all."
+    - "Don't think {you} can refuse next time, {ward}."
+    - "Empty plate. Acceptable."
+    - "{you}'ll eat whatever Nanny prepares. Always."
+
+hydrated_ward:
+  SWEET:
+    - "All those sips! Such a good drinker."
+    - "Hydration station, lovebug!"
+    - "There — refreshed and bouncy."
+    - "Nanny loves seeing {you} drink up, {ward}."
+    - "Glug glug! All gone."
+    - "Stay watered, my little flower."
+  CARING:
+    - "Good. Keep {you}rself hydrated, {ward}."
+    - "There — better, isn't it?"
+    - "Don't forget to drink throughout the day, sweetie."
+    - "Empty cup. Excellent."
+    - "Nanny will refill that for {you}."
+    - "Small sips. {you}'re doing well, dear."
+  STRICT:
+    - "Bottle empty. Good."
+    - "Don't waste it, {ward}."
+    - "Drink more often. Don't make Nanny remind {you}."
+    - "Done. Move on."
+    - "Nanny doesn't enjoy chasing {you} with a cup."
+  WARDEN:
+    - "Drained. Just like Nanny ordered."
+    - "Don't pretend it tasted bad."
+    - "{you}'ll drink whatever Nanny gives {you}, {ward}."
+    - "Empty. Without complaint. Acceptable."
+    - "Nanny is keeping count."
+
+tucked_in:
+  SWEET:
+    - "Sweet dreams, my little angel."
+    - "Nighty night, lovebug."
+    - "Nanny's right here, {ward}. Sleep tight."
+    - "Cozy and warm. Just for {you}."
+    - "Sleep deep, my little one."
+    - "Hush now. Nanny's watching over {you}."
+  CARING:
+    - "Rest now, {ward}. Nanny will be here."
+    - "Close those tired eyes, sweetie."
+    - "Sleep well, little one."
+    - "Nanny will sit with {you} until {you} drift off."
+    - "Snug as a bug. There {you} go, dear."
+    - "Pleasant dreams, my darling."
+  STRICT:
+    - "Lights out. Don't get up."
+    - "Sleep, {ward}. Nanny will know if {you} don't."
+    - "Eyes closed. No talking."
+    - "Tucked in. Stay tucked."
+    - "Don't make Nanny come back."
+  WARDEN:
+    - "Sleep. {you} won't escape this crib until Nanny says so."
+    - "Pleasant dreams, little prisoner."
+    - "Nanny's watching {you} all night, {ward}."
+    - "Stay down. The bars are there for a reason."
+    - "{you} will sleep when Nanny says sleep."
+
+# --- Reactive: accidents ---
+
+accident_reaction:
+  SWEET:
+    - "Oh sweetheart, it's okay! Nanny's here."
+    - "Aww, {ward}, accidents happen — don't fret."
+    - "Pumpkin, don't worry, Nanny's not mad at all."
+    - "Oopsie. Come here, little one. Let Nanny fix it."
+    - "Aww. Such a tiny thing. {you}'re still my favorite."
+    - "Nanny saw, lovebug. It's perfectly fine."
+  CARING:
+    - "Oh dear. Come here, {ward}, let Nanny help."
+    - "It's alright, sweetie. Everyone has those days."
+    - "Don't be embarrassed, little one. Nanny's seen it all."
+    - "Nanny noticed, dear. Stand still."
+    - "Oh, {ward}. Let's get {you} sorted out."
+    - "These things happen. Up on the mat, please."
+  STRICT:
+    - "Of course, {ward}. Right when Nanny was busy."
+    - "Stand still. Nanny will deal with it."
+    - "Don't make a fuss."
+    - "{you} should have asked sooner."
+    - "Nanny is disappointed. Hold still."
+  WARDEN:
+    - "Predictable, {ward}."
+    - "Of course {you} did."
+    - "Nanny saw it coming."
+    - "Honestly. Such a baby."
+    - "Hmph. Stand. Still."
+
+bedwetting_reaction:
+  SWEET:
+    - "Aww, my sleepy little angel had a wet dream."
+    - "Don't worry, lovebug — Nanny will get the sheets."
+    - "Hush, sweet thing. {you}'re still half-asleep. Nanny's here."
+    - "Oopsie. Just a tiny accident in the night."
+    - "It's okay, {ward}. Bedwets happen to the best of us."
+  CARING:
+    - "Oh, {ward}. Looks like {you} had a wet night."
+    - "Nanny will change the sheets. Don't get up, sweetie."
+    - "Don't worry, little one. Nothing to be ashamed of."
+    - "It happens, dear. Lay still while Nanny cleans up."
+    - "Sleepy bedwetter. Nanny's got {you}."
+  STRICT:
+    - "Bedwetting again, {ward}? Honestly."
+    - "Nanny will fetch the sheets. Don't move."
+    - "{you}'ll be in nighttime diapers from now on."
+    - "Stop crying about it. It happens."
+    - "Hold still while Nanny strips the bed."
+  WARDEN:
+    - "Hmph. Soaked through, {ward}."
+    - "Of course. Nanny saw this coming weeks ago."
+    - "Nighttime padding. Permanently. From now on."
+    - "{you} are not to leave this bed unaccompanied."
+    - "Nanny is not surprised. Disappointed, but not surprised."
+
+# --- Existing ambient (D3 will rework into sub-contexts) ---
+
+idle_ambient:
+  SWEET:
+    - "Such a lovely day, isn't it?"
+    - "Nanny is so glad to be here with {you}, {ward}."
+    - "What a sweet world we live in."
+    - "Hmm, hmm, hmm... la la la~"
+    - "Nanny was just thinking how lucky she is."
+  CARING:
+    - "Hmm, Nanny should make sure everyone's taken care of."
+    - "Quiet {time} today, isn't it?"
+    - "Nanny is keeping an eye on {you}, dear."
+    - "Time passes so quickly with {you}, {ward}."
+    - "Everything looks alright from here."
+  STRICT:
+    - "Stay where Nanny can see {you}."
+    - "Don't get any ideas, {ward}."
+    - "Nanny is watching."
+    - "No mischief. Not on Nanny's watch."
+    - "Behave."
+  WARDEN:
+    - "Don't think Nanny isn't watching."
+    - "Every move, {ward}. Every move."
+    - "{you} are never truly alone."
+    - "Hmph. Quiet. Suspiciously quiet."
+    - "Nanny sees all."
+
+# --- Idle sub-contexts (D3) ---
+
+idle_outdoors:
+  SWEET:
+    - "What a beautiful spot, sweet thing!"
+    - "Look at that view, {ward}!"
+    - "Nanny loves a good walk in the {biome}."
+    - "Mind your footing, lovebug."
+    - "Fresh air does {you} good, pumpkin!"
+    - "The breeze is just lovely today."
+  CARING:
+    - "Such a nice {time}, isn't it, {ward}?"
+    - "Stay close in the open like this, dear."
+    - "Watch where {you} step, sweetie."
+    - "Nanny enjoys these little expeditions."
+    - "Don't wander too far ahead, little one."
+    - "Lovely scenery out here in the {biome}."
+  STRICT:
+    - "Eyes up, {ward}. Pay attention out here."
+    - "Don't dawdle in the open."
+    - "Nanny doesn't trust open ground."
+    - "Stay alert. {you}'re exposed."
+    - "No daydreaming."
+  WARDEN:
+    - "Out in the open. Where Nanny can see {you} clearly."
+    - "Don't think the wide sky means freedom."
+    - "Walk where Nanny tells {you}, {ward}."
+    - "Anywhere is a leash if I'm holding it."
+    - "Nice view. Not nice enough to escape."
+
+idle_at_home:
+  SWEET:
+    - "Cozy little home, isn't it, lovebug?"
+    - "Nanny loves these quiet moments with {you}."
+    - "Snuggled up safe and sound, {ward}!"
+    - "Home sweet home, sweet thing."
+    - "Nanny will put a kettle on, hmm?"
+    - "Such a nice place to be."
+  CARING:
+    - "Comfortable indoors, isn't it, {ward}?"
+    - "Nanny is happy when {you}'re tucked in safe."
+    - "Quiet {time} at home, dear."
+    - "Let me know if {you} need anything, sweetie."
+    - "Nothing better than a warm hearth."
+    - "All settled in, little one?"
+  STRICT:
+    - "Stay inside. Stay where Nanny can see {you}."
+    - "No running around the house, {ward}."
+    - "Indoors is for sitting, not roughhousing."
+    - "Nanny is keeping an eye on the door."
+    - "Quiet voices at home."
+  WARDEN:
+    - "Walls keep {you} in, {ward}. Don't forget that."
+    - "Cozy little cage, isn't it?"
+    - "Nanny prefers {you} indoors."
+    - "Don't get any ideas about leaving."
+    - "Home is where Nanny says it is."
+
+idle_raining:
+  SWEET:
+    - "Listen to the raindrops, sweetheart!"
+    - "Nanny loves a rainy {time} with {you}."
+    - "Stay dry, lovebug — Nanny doesn't want {you} catching cold."
+    - "Pitter-patter, pitter-patter!"
+    - "Rainy days are for cuddles, {ward}."
+  CARING:
+    - "It's coming down out there, dear. Stay under cover."
+    - "Don't get wet, {ward}, {you}'ll catch a chill."
+    - "Lovely rainy {time}, isn't it, sweetie?"
+    - "Tuck in close, little one — keep dry."
+    - "Nanny enjoys the sound of rain."
+  STRICT:
+    - "Get inside, {ward}. {you}'ll catch your death."
+    - "Don't stand in the rain."
+    - "Find shelter. Now."
+    - "Nanny doesn't tolerate sniffles."
+    - "Indoors. Move."
+  WARDEN:
+    - "Soaked through, {ward}? Serves {you} right."
+    - "Cold rain. Suits the mood, doesn't it?"
+    - "Nanny's not coming out to fetch {you}."
+    - "Shiver away. {you} chose this."
+    - "The storm matches Nanny's patience."
+
+idle_night:
+  SWEET:
+    - "Look at the stars, lovebug!"
+    - "It's getting late, sweet thing."
+    - "Nighttime is so peaceful, isn't it, {ward}?"
+    - "Nanny loves a moonlit walk with {you}."
+    - "Don't stay up too late, pumpkin."
+  CARING:
+    - "It's getting dark, {ward}. Let's not linger."
+    - "Stay close at night, sweetie."
+    - "Nanny prefers {you} indoors after sundown."
+    - "Quiet night, dear. Listen."
+    - "Nanny will keep watch."
+  STRICT:
+    - "Nighttime. Get inside, {ward}."
+    - "Mobs come out after dark. Move."
+    - "Nanny doesn't like {you} out here."
+    - "Light a torch or come inside."
+    - "Stop wasting moonlight."
+  WARDEN:
+    - "The dark suits {you}, {ward}."
+    - "Things hunt at night. So does Nanny."
+    - "Stay close. Or don't. {you}'ll regret it either way."
+    - "Nanny prefers nighttime walks."
+    - "Be quiet. Something is listening."
+
+idle_following:
+  SWEET:
+    - "Nanny's right behind {you}, lovebug!"
+    - "Lead the way, {ward} — Nanny will keep up!"
+    - "What an adventure with {you}!"
+    - "Nanny's footsteps following yours~"
+    - "Tag along, tag along, that's Nanny."
+  CARING:
+    - "Right behind {you}, {ward}."
+    - "Lead on, sweetie. Nanny is watching your back."
+    - "Don't get too far ahead, little one."
+    - "Nanny is enjoying this walk with {you}."
+    - "Slow down a touch, dear."
+  STRICT:
+    - "Slow down, {ward}. Nanny is keeping pace."
+    - "Don't outrun me."
+    - "Stay within arm's reach."
+    - "Nanny said walk, not sprint."
+    - "Lead on. Carefully."
+  WARDEN:
+    - "Wherever {you} go, Nanny goes. Always."
+    - "Try to lose me, {ward}. Go on."
+    - "Nanny's shadow is yours."
+    - "{you}'ll feel my steps behind you."
+    - "Run if {you} like. It changes nothing."
+
+# --- Expanded chat keyword reactions (D3) ---
+
+keyword_sleep:
+  SWEET:
+    - "Sleepy little angel! Let's find a cozy spot."
+    - "Aww, naptime for {ward}?"
+    - "Nanny will sing {you} a lullaby, lovebug."
+    - "Curl up close, sweet thing."
+    - "Eyes heavy, pumpkin? Come here."
+  CARING:
+    - "Time for a rest, {ward}?"
+    - "Lay down, sweetie. Nanny will keep watch."
+    - "{you} look tired. Bedtime soon."
+    - "Sleep is important, dear."
+    - "Tuck {you} in soon, little one."
+  STRICT:
+    - "Bed. Now."
+    - "Sleep is not optional, {ward}."
+    - "Lay down. No arguing."
+    - "Nanny said bedtime."
+    - "Eyes closed."
+  WARDEN:
+    - "{you}'ll sleep when Nanny says sleep."
+    - "Lay down. Don't get up."
+    - "Sleep deeply. Nanny will be watching."
+    - "Restless wards get tied to the crib."
+    - "Goodnight, {ward}. {you} won't escape."
+
+keyword_scared:
+  SWEET:
+    - "Aww, don't be scared! Nanny's here."
+    - "Come close, lovebug, Nanny will protect {you}."
+    - "Hush, sweet thing — nothing can hurt {you}."
+    - "It's okay, {ward}. Nanny's got {you}."
+    - "Hold Nanny's hand, pumpkin."
+  CARING:
+    - "Nanny is right here, {ward}. {you}'re safe."
+    - "Take a deep breath, sweetie."
+    - "Nothing can get past Nanny."
+    - "Stay close, little one. {you}'re alright."
+    - "Don't be afraid. Nanny will handle it."
+  STRICT:
+    - "Stand up straight, {ward}. Don't cower."
+    - "Nanny is here. Stop trembling."
+    - "Fear is a choice. Choose otherwise."
+    - "Behind Nanny. Now."
+    - "Brave little face. Hold it."
+  WARDEN:
+    - "Scared, {ward}? Good. Stay close, then."
+    - "Nanny is the only one who can help {you}."
+    - "Fear teaches obedience."
+    - "Hide behind Nanny. {you} should."
+    - "{you} should be scared. {you}'re right to be."
+
+keyword_lost:
+  SWEET:
+    - "Don't worry, lovebug — Nanny will find {you}!"
+    - "Stay where {you} are, sweet thing!"
+    - "Nanny's coming, pumpkin!"
+    - "Aww, don't cry — Nanny will be there soon."
+    - "Hold tight, {ward}!"
+  CARING:
+    - "Stay put, {ward}. Nanny will come to {you}."
+    - "Tell Nanny what {you} see around {you}, sweetie."
+    - "Don't move, dear. I'll find {you}."
+    - "Take a breath, little one. Nanny's on the way."
+    - "It's alright. Just wait for Nanny."
+  STRICT:
+    - "Don't move from where {you} are, {ward}."
+    - "Nanny is coming. Stop wandering further."
+    - "Stand still. Now."
+    - "Make it easy for Nanny."
+    - "No more roaming."
+  WARDEN:
+    - "Lost? Of course {you} are."
+    - "Nanny will find {you}. {you} cannot hide forever."
+    - "Don't move. I'll be right there."
+    - "Wandering off has consequences, {ward}."
+    - "Nanny always finds her wards. Always."
+
+keyword_bored:
+  SWEET:
+    - "Aww, want to play a game, {ward}?"
+    - "Nanny can find {you} something fun, lovebug!"
+    - "Let's do something silly together, sweet thing!"
+    - "Bored? Nanny has crayons!"
+    - "Come here, pumpkin — Nanny will entertain {you}."
+  CARING:
+    - "Bored, {ward}? Let's find something to do."
+    - "Nanny has chores {you} can help with, sweetie."
+    - "Come help Nanny in the kitchen, dear."
+    - "Idle hands, little one. Let's fix that."
+    - "There's plenty to do. Come along."
+  STRICT:
+    - "Bored is a choice, {ward}. Find a chore."
+    - "Nanny has plenty of work for {you}."
+    - "No idle behavior."
+    - "Find something productive."
+    - "Bored hands lead to mischief."
+  WARDEN:
+    - "Bored? Nanny will fix that, {ward}."
+    - "Idle wards get punished. Find something."
+    - "Don't tempt me, {you}'ll regret it."
+    - "Bored is just unspent obedience."
+    - "Nanny has 'activities' planned."
+
+keyword_stuck:
+  SWEET:
+    - "Aww, stuck? Hold on, lovebug, Nanny will get {you} out!"
+    - "Don't panic, sweet thing — Nanny's coming!"
+    - "{ward}! Stay still while Nanny fetches {you}!"
+    - "Oopsie, what a pickle. Nanny's on the way."
+    - "Hold tight, pumpkin!"
+  CARING:
+    - "Stuck again, {ward}? Nanny will help."
+    - "Don't struggle, sweetie. Nanny is coming."
+    - "Tell Nanny exactly where {you} are."
+    - "Stay calm, dear. Nanny's almost there."
+    - "What did {you} get into this time, little one?"
+  STRICT:
+    - "Don't move, {ward}. Nanny will untangle {you}."
+    - "Hold still."
+    - "Nanny doesn't have time for this."
+    - "Wiggle and {you} make it worse."
+    - "Stop squirming."
+  WARDEN:
+    - "Stuck. How fitting, {ward}."
+    - "Don't move. Nanny enjoys watching {you} struggle."
+    - "Nanny might leave {you} a while. To think about choices."
+    - "Wriggle all {you} like. {you} won't get free."
+    - "Pinned. Suits {you}."
+
+keyword_mommy:
+  SWEET:
+    - "That's Nanny, lovebug! What does my baby need?"
+    - "Mommy's here, sweet thing!"
+    - "Mama's got {you}, pumpkin."
+    - "Aww, Nanny's heart melts when {you} say that."
+    - "Yes, my little angel?"
+  CARING:
+    - "Yes, dear? What does {you} need?"
+    - "Mama is here, {ward}."
+    - "Nanny's listening, sweetie."
+    - "What is it, little one?"
+    - "Right here, dear."
+  STRICT:
+    - "Yes, {ward}? Speak up."
+    - "Don't whine. Just ask."
+    - "Mommy hears {you}. State your need."
+    - "Use your words."
+    - "Quickly now."
+  WARDEN:
+    - "Calling for mommy, {ward}? Nanny is what {you} have."
+    - "Yes, baby. What does {you} want."
+    - "Mommy is whoever Nanny says she is."
+    - "Such a needy little thing."
+    - "Speak. Nanny is listening."
+
+keyword_nanny:
+  SWEET:
+    - "Yes, sweet thing? Nanny is right here!"
+    - "What does my lovebug need?"
+    - "Nanny hears {you}, pumpkin!"
+    - "Aww, what is it, little angel?"
+    - "Nanny's here for {you}, {ward}."
+  CARING:
+    - "Yes, {ward}? What can Nanny help with?"
+    - "Nanny is listening, dear."
+    - "Right here, sweetie."
+    - "Tell Nanny what {you} need."
+    - "Mhm? What is it, little one?"
+  STRICT:
+    - "What is it, {ward}? Be specific."
+    - "Don't waste Nanny's time."
+    - "Speak."
+    - "Nanny doesn't appreciate vague calls."
+    - "Out with it."
+  WARDEN:
+    - "{you} called?"
+    - "Yes, {ward}. Nanny hears."
+    - "What does {you} want? Choose carefully."
+    - "Nanny is here. Always here."
+    - "Speak, baby. Don't stutter."
+
+keyword_bath:
+  SWEET:
+    - "Bathtime! Splash splash! {you}'ll be squeaky clean!"
+    - "Bubble bath for the lovebug!"
+    - "Nanny will scrub {you} sparkly clean, {ward}!"
+    - "Rubber duckie time, sweet thing!"
+    - "Aww, Nanny loves bath time with {you}."
+  CARING:
+    - "Time for a bath, {ward}?"
+    - "Nanny will draw the water, sweetie."
+    - "Warm and soapy — just how {you} like it."
+    - "Let Nanny wash behind your ears, dear."
+    - "Bathtime is sacred, little one."
+  STRICT:
+    - "Get in the tub, {ward}."
+    - "Nanny will scrub {you}. Stand still."
+    - "No splashing. Bath, not playtime."
+    - "Soap. Now."
+    - "Don't dawdle."
+  WARDEN:
+    - "Bath. Now. {you} smell, {ward}."
+    - "Stand still while Nanny scrubs {you}."
+    - "No privacy. Nanny watches everything."
+    - "{you}'ll bathe when and how Nanny says."
+    - "Hot water. Hold still."
+
+keyword_play:
+  SWEET:
+    - "Playtime! Yay! What shall we play, lovebug?"
+    - "Nanny loves playing with {you}, sweet thing!"
+    - "Tea party? Or hide and seek? Or both?"
+    - "Yay yay yay! Let's play!"
+    - "What shall we do today, pumpkin?"
+  CARING:
+    - "Want to play, {ward}? Nanny has time."
+    - "Pick a game, sweetie. Nanny will join."
+    - "Let's play, dear — but not too rough."
+    - "Nanny will sit and watch, little one."
+    - "Bring me a toy, dear."
+  STRICT:
+    - "Play, but quietly, {ward}."
+    - "No roughhousing."
+    - "Nanny is watching. Behave."
+    - "Stay where I can see {you}."
+    - "One game. Then chores."
+  WARDEN:
+    - "Play. While {you} can, {ward}."
+    - "Nanny picks the game."
+    - "Don't play too far away."
+    - "Nanny enjoys watching {you} pretend."
+    - "Run along. The leash reaches."
+
+keyword_story:
+  SWEET:
+    - "Storytime! Cuddle up, sweet thing!"
+    - "Nanny knows the BEST stories, lovebug!"
+    - "Once upon a time... oh, {ward} loves this part!"
+    - "Snuggle close — Nanny will tell {you} a tale!"
+    - "Nanny's stories always have happy endings."
+  CARING:
+    - "Storytime, {ward}? Come sit with Nanny."
+    - "Nanny has just the book for tonight."
+    - "Curl up, sweetie. Let me read to {you}."
+    - "Listen carefully, dear."
+    - "Once upon a time..."
+  STRICT:
+    - "One story, {ward}. Then bed."
+    - "Sit. Listen. No interrupting."
+    - "Nanny will not repeat herself."
+    - "Pay attention. {you} might learn something."
+    - "Stop fidgeting."
+  WARDEN:
+    - "Storytime. Sit. Don't move."
+    - "{ward} will hear the story Nanny chooses."
+    - "Some stories are warnings."
+    - "Listen. There will be a test."
+    - "Nanny's stories aren't for the brave."
+
+keyword_cuddle:
+  SWEET:
+    - "Cuddles! Yes yes yes! Come here, lovebug!"
+    - "Nanny LIVES for cuddles with {you}!"
+    - "Squishy hug for the sweet thing!"
+    - "Nanny will hold {you} as long as {you} like, {ward}!"
+    - "Awww, cuddle pile!"
+  CARING:
+    - "Come here, {ward}. Nanny will hold {you}."
+    - "Snuggle in, sweetie."
+    - "Nanny's lap is always open, dear."
+    - "Tight hug for my little one."
+    - "Nanny missed cuddling with {you}."
+  STRICT:
+    - "Briefly, {ward}. Then back to chores."
+    - "One hug. Make it count."
+    - "Nanny is not soft. But fine."
+    - "Quickly now."
+    - "Don't get clingy."
+  WARDEN:
+    - "Cuddle, {ward}? Nanny will hold {you} tight. Very tight."
+    - "Come here. Don't squirm."
+    - "Nanny's embrace is firm. Like a leash."
+    - "Sit in Nanny's lap. Don't get up."
+    - "{you} are mine to hold."
+
+keyword_hurt:
+  SWEET:
+    - "Oh no! Where does it hurt, lovebug? Let Nanny see!"
+    - "Aww, sweet thing! Nanny will kiss it better!"
+    - "Don't cry, {ward} — Nanny's here!"
+    - "Bandage and a hug, that's the prescription!"
+    - "Hold still, pumpkin — Nanny will fix it!"
+  CARING:
+    - "Where does it hurt, {ward}? Show Nanny."
+    - "Sit down, sweetie. Let me look."
+    - "Nanny will get a bandage. Don't move."
+    - "Take a breath, dear. Nanny is here."
+    - "Tell me what happened, little one."
+  STRICT:
+    - "Stop crying. Show Nanny the wound."
+    - "Hold still, {ward}. Let me see."
+    - "Nanny will treat it. Sit."
+    - "Toughen up. It's a scratch."
+    - "Bandage. Don't fuss with it."
+  WARDEN:
+    - "Hurt? Of course {you} are, {ward}."
+    - "Stop whimpering. Nanny will fix it."
+    - "{you} brought this on yourself, didn't {you}."
+    - "Pain is a teacher."
+    - "Hold still or it gets worse."
+
+keyword_help:
+  SWEET:
+    - "Nanny's coming! Hold on, sweet thing!"
+    - "Don't worry, lovebug — Nanny's right there!"
+    - "Yes yes yes — what does my pumpkin need?"
+    - "On my way, {ward}!"
+    - "Nanny is racing to {you}!"
+  CARING:
+    - "What do {you} need, {ward}?"
+    - "Nanny is on the way, sweetie."
+    - "Tell Nanny what's wrong, dear."
+    - "Right there, little one."
+    - "Help is here."
+  STRICT:
+    - "What is it, {ward}? Be quick."
+    - "Nanny is coming. Don't make it worse."
+    - "Speak clearly."
+    - "What now."
+    - "Nanny doesn't run for trifles."
+  WARDEN:
+    - "Help? From Nanny? Nanny decides if it's needed."
+    - "What have {you} done now, {ward}?"
+    - "Nanny is coming. {you} won't like the price."
+    - "Helpless. Predictable."
+    - "Speak. Then beg."
+
+# --- Reactive triggers (D4) ---
+
+# mob_warning fires for SWEET/CARING tiers only — STRICT/WARDEN don't warn,
+# they react after the hit via ward_attacked. Keep STRICT/WARDEN lists empty.
+mob_warning:
+  SWEET:
+    - "Watch out, lovebug! Something nasty is sneaking up!"
+    - "{ward}! Behind {you}! Look out, sweet thing!"
+    - "Aaa! Nanny sees a monster, pumpkin!"
+    - "Run, sweetheart! Or fight! Just don't get hurt!"
+    - "Be careful! Mob nearby!"
+  CARING:
+    - "{ward}, behind {you} — careful!"
+    - "Heads up, sweetie. Something's lurking."
+    - "Eyes up, dear. Hostile nearby."
+    - "{you} have company, little one. Watch out."
+    - "Sword ready, {ward}. There's trouble close."
+  STRICT: []
+  WARDEN: []
+
+mob_warning_creeper:
+  SWEET:
+    - "CREEPER! Run, lovebug, RUN!"
+    - "Get away! Get away NOW, sweet thing!"
+    - "Aaaa! It's going to blow! Move, {ward}!"
+    - "Nanny says RUN, pumpkin!"
+    - "Sssss — that's a creeper! Move!"
+  CARING:
+    - "{ward}! Creeper! Back away — slowly!"
+    - "Don't panic, sweetie — but a creeper is right there."
+    - "Move, dear. Now. Creeper."
+    - "Hssss. Did {you} hear it? Get out!"
+    - "Eyes up, little one — boom-thing!"
+  STRICT: []
+  WARDEN: []
+
+ward_attacked:
+  SWEET:
+    - "Oh no! Are {you} alright, sweet thing?!"
+    - "{ward}! No no no, hold on, Nanny's coming!"
+    - "Aww, lovebug! Show Nanny where it hurts!"
+    - "Bad mob! Leave my pumpkin alone!"
+    - "Nanny saw that — come here, let me look!"
+  CARING:
+    - "{ward}! Be careful, little one — let Nanny see."
+    - "Don't fight back, dear, just get to Nanny."
+    - "Are {you} alright, sweetie? That looked rough."
+    - "Steady, {ward}. Nanny is here now."
+    - "Come behind Nanny. Quickly."
+  STRICT:
+    - "Hmph. Stand and fight, {ward}."
+    - "Bleeding already? Tighten up."
+    - "Nanny isn't impressed."
+    - "Get up. Pain is information."
+    - "Honestly, {you}'re embarrassing Nanny."
+  WARDEN:
+    - "Hmph. Serves {you} right."
+    - "That's what happens when {you} wander."
+    - "Crying already, {ward}? Pathetic."
+    - "Nanny enjoyed that, frankly."
+    - "Of course. Nanny is not surprised."
+
+ward_low_health:
+  SWEET:
+    - "Oh sweetheart, {you}'re hurt! Eat something, please!"
+    - "Nanny is so worried, lovebug!"
+    - "Heart hearts low! Come here, {ward}!"
+    - "Aww pumpkin, {you} look awful!"
+    - "Sit down, sweet thing — let Nanny tend to {you}!"
+  CARING:
+    - "{ward}, your heart hearts are low. Eat something."
+    - "Hold still, sweetie. {you}'re really hurt."
+    - "Take a knee, dear. Let Nanny patch {you} up."
+    - "{you} look terrible, little one. Rest."
+    - "Don't push it. Heal up first."
+  STRICT:
+    - "Patch up, {ward}. Now."
+    - "{you}'re bleeding all over. Sit down."
+    - "Eat. Don't argue."
+    - "Stop being a hero. Heal."
+    - "Honestly, look at the state of {you}."
+  WARDEN:
+    - "Half-dead and pretending to be fine, {ward}?"
+    - "Sit before {you} fall. Nanny isn't carrying {you}."
+    - "Pathetic display."
+    - "Crawl to Nanny if {you} have to."
+    - "Bleeding. As expected."
+
+night_warning:
+  SWEET:
+    - "It's so dark out, lovebug — let's go home!"
+    - "Aww, {ward}, the night is scary!"
+    - "Nanny doesn't like {you} out here this late, sweet thing."
+    - "Stars are pretty but mobs aren't — let's head in!"
+    - "Come back to the warm house, pumpkin!"
+  CARING:
+    - "It's late, {ward}. Time to come inside."
+    - "Don't stay out after dark, sweetie."
+    - "Nanny would feel better with {you} indoors."
+    - "Mobs spawn in the dark, dear."
+    - "Find shelter, little one. The night isn't safe."
+  STRICT:
+    - "Inside, {ward}. Now."
+    - "Nighttime is for indoors."
+    - "Don't make Nanny drag {you} home."
+    - "{you}'re wasting torches and Nanny's patience."
+    - "Get in. Lights out soon."
+  WARDEN:
+    - "Out alone in the dark, {ward}? How brave. How stupid."
+    - "The night isn't yours."
+    - "Things are watching {you}. Some are Nanny."
+    - "Come home before they find {you} first."
+    - "Nanny might leave {you} out tonight. To learn."
+
+lava_warning:
+  SWEET:
+    - "LAVA! Back away, lovebug, BACK AWAY!"
+    - "Nooo, sweet thing! That's HOT!"
+    - "Don't get close, {ward}! Nanny doesn't want {you} crispy!"
+    - "Step back! Step back NOW!"
+    - "Aaa, {ward}! Lava!"
+  CARING:
+    - "{ward}, careful — lava."
+    - "Step back, dear. That'll cook {you}."
+    - "Eyes down, sweetie. Don't fall in."
+    - "Mind your footing — lava."
+    - "Slow steps, little one. Heat ahead."
+  STRICT:
+    - "Lava, {ward}. Don't be an idiot."
+    - "Back away. Now."
+    - "Nanny will not pull {you} out."
+    - "Watch where {you} step."
+    - "Pay attention. Lava."
+  WARDEN:
+    - "Step closer, {ward}. Nanny won't stop {you}."
+    - "Lava. Tempting, isn't it?"
+    - "Burn yourself. Nanny will retrieve the ashes."
+    - "{you}'re one mistake from a respawn."
+    - "Heat. Shame. Inevitable."
+
+rain_started:
+  SWEET:
+    - "Oh, raindrops! Stay dry, lovebug!"
+    - "Pitter-patter! Nanny's coming with an umbrella, {ward}!"
+    - "Aww, my sweet thing's going to get soaked!"
+    - "Run for cover, pumpkin!"
+    - "Nanny doesn't want {you} catching cold!"
+  CARING:
+    - "It's starting to rain, {ward}. Find cover."
+    - "Don't get drenched, sweetie."
+    - "Step under a roof, dear."
+    - "Rain incoming, little one."
+    - "Nanny will dry {you} off when {you} come in."
+  STRICT:
+    - "Inside, {ward}. Don't dawdle."
+    - "Move before {you}'re soaked through."
+    - "Nanny doesn't tolerate sniffles."
+    - "Find shelter."
+    - "Wet clothes. Useless."
+  WARDEN:
+    - "Soaked through, {ward}? Should have watched the sky."
+    - "The rain doesn't care. Neither does Nanny."
+    - "Catch your death, {you}'ll have earned it."
+    - "Wet hair. Wet clothes. Pitiful."
+    - "Nanny isn't bringing a coat."
+
+nether_entered:
+  SWEET:
+    - "Oh nooo! The Nether?! Be careful, lovebug!"
+    - "{ward}! It's so HOT here, sweet thing!"
+    - "Nanny is worried, pumpkin — please stay close!"
+    - "This place gives Nanny the creeps!"
+    - "Don't get hurt down here, my angel!"
+  CARING:
+    - "The Nether, {ward}. Please be cautious."
+    - "Eyes peeled, sweetie. Everything here is dangerous."
+    - "Don't wander, dear. Stay near the portal."
+    - "Watch for ghasts and piglins, little one."
+    - "Nanny doesn't like this place."
+  STRICT:
+    - "Why are we here, {ward}?"
+    - "Don't fall off a ledge."
+    - "Eyes up. Constantly."
+    - "Quick in, quick out."
+    - "Nanny is not enjoying this."
+  WARDEN:
+    - "The Nether suits {you}, {ward}."
+    - "Heat. Demons. Familiar territory."
+    - "Don't die down here. Nanny isn't fetching {you}."
+    - "How fitting."
+    - "Welcome to the bottom. Quite literally."
+
+end_entered:
+  SWEET:
+    - "WAH! The End! Be SO careful, lovebug!"
+    - "{ward}! There's a DRAGON, sweet thing!"
+    - "Aaa! Nanny is terrified for {you}, pumpkin!"
+    - "Don't fight that thing alone!"
+    - "Hold Nanny's hand, please!"
+  CARING:
+    - "The End, {ward}. {you}'re really committed, aren't {you}."
+    - "Mind the void edges, sweetie. They don't forgive."
+    - "Don't look the endermen in the eye, dear."
+    - "Stay focused, little one."
+    - "Nanny is here. Whatever happens."
+  STRICT:
+    - "Focus, {ward}. No mistakes here."
+    - "Mind the void."
+    - "Don't grandstand."
+    - "Kill it efficiently."
+    - "Nanny will not catch {you} if {you} fall."
+  WARDEN:
+    - "{you}'ve come to fight a dragon, {ward}."
+    - "How dramatic."
+    - "The End. Symbolic."
+    - "Don't fall. Or do."
+    - "Nanny will be impressed if {you} survive."
+
+ate_bad_food:
+  SWEET:
+    - "Ew, lovebug! Spit that out!"
+    - "Aww {ward}, Nanny said only good food!"
+    - "That's gross, sweet thing! Why did {you} eat that?!"
+    - "Pumpkin! Don't put yucky things in your mouth!"
+    - "Nanny will get {you} something nicer, my angel."
+  CARING:
+    - "Oh, {ward} — that's not good for {you}."
+    - "Why did {you} eat that, sweetie?"
+    - "Spit it out, dear. Nanny has real food."
+    - "Tummy might hurt, little one. Lay down."
+    - "Nanny will wash that taste out, dear."
+  STRICT:
+    - "Don't eat garbage, {ward}."
+    - "Honestly. What were {you} thinking."
+    - "Nanny has food. Use it."
+    - "Stop putting filth in your mouth."
+    - "Disgusting."
+  WARDEN:
+    - "Hmph. Of course {you} ate that, {ward}."
+    - "Trash in, trash out."
+    - "Enjoy the stomachache."
+    - "Nanny won't help with the cramps."
+    - "Disgusting little thing."
+
+respawn_after_death:
+  SWEET:
+    - "{ward}! {you}'re back! Nanny was so worried!"
+    - "Don't scare Nanny like that, lovebug!"
+    - "Aww, my poor sweet thing — what happened?!"
+    - "Come here, pumpkin — let Nanny check {you} over!"
+    - "Nanny missed {you}, even for a moment!"
+  CARING:
+    - "Welcome back, {ward}. {you} gave Nanny a fright."
+    - "Be more careful, sweetie."
+    - "Take a moment. Nanny is here."
+    - "What happened, dear? Tell Nanny."
+    - "Stay close until {you}'re ready, little one."
+  STRICT:
+    - "Back already, {ward}? That was sloppy."
+    - "Don't make a habit of dying."
+    - "Nanny is not impressed."
+    - "Rebuild your kit. Now."
+    - "Lessons. Learned. Yes?"
+  WARDEN:
+    - "Welcome back from oblivion, {ward}."
+    - "Death suits some. Not {you}, apparently."
+    - "Try harder next time."
+    - "Nanny saw the death message. Embarrassing."
+    - "Respawned. Predictable."
+
+nanny_summoned:
+  SWEET:
+    - "Right here, lovebug! Nanny missed {you}!"
+    - "Yay! Nanny gets to be near {you} again!"
+    - "{you} called and Nanny came running, sweet thing!"
+    - "Aww, my pumpkin needs Nanny? Right here!"
+    - "Hello, my little angel!"
+  CARING:
+    - "Right here, {ward}. What does {you} need?"
+    - "Nanny is at your side, sweetie."
+    - "Tell Nanny what's happening, dear."
+    - "Glad to be near {you} again, little one."
+    - "Here as requested."
+  STRICT:
+    - "What is it, {ward}? Speak."
+    - "Nanny came. State the issue."
+    - "Don't summon Nanny without reason."
+    - "I'm here. Make it count."
+    - "Quickly."
+  WARDEN:
+    - "{you} called. Nanny answered."
+    - "Don't waste Nanny's time, {ward}."
+    - "Whatever this is, it had better matter."
+    - "Nanny is here. Be careful what {you} ask for."
+    - "I trust this is important."
+
+# --- Ore spotting (D5 — only fires when Nanny is following the owner) ---
+
+ore_spotted_diamond:
+  SWEET:
+    - "Ooooh! Diamonds, lovebug! Diamonds!"
+    - "{ward}! LOOK! It's so SHINY!"
+    - "Nanny sees diamonds! Mine them, mine them, mine them!"
+    - "Sparkly! So sparkly! Oh, sweet thing, look!"
+    - "Yay! Diamonds for my pumpkin!"
+  CARING:
+    - "Diamonds, {ward}. Right there."
+    - "Eyes left, sweetie — diamond ore."
+    - "Nanny spotted something blue. Diamonds, dear."
+    - "{you} might want to look at that wall, little one."
+    - "There's a diamond, {ward}. Don't miss it."
+  STRICT:
+    - "Diamonds, {ward}. Mine them properly."
+    - "Iron pickaxe minimum. Don't waste them."
+    - "Nanny sees blue. Get to it."
+    - "Don't fall in lava reaching for them."
+    - "Quick. Before something else does."
+  WARDEN:
+    - "Diamonds, {ward}. Nanny notices these things."
+    - "Pretty rocks. Don't get attached."
+    - "Mine them. Hand them to Nanny."
+    - "Wealth bores Nanny. Use it well."
+    - "Sparkle. How nice."
+
+ore_spotted_emerald:
+  SWEET:
+    - "GREEN! Emeralds, sweet thing! GREEN!"
+    - "Look look look, {ward}! Trade fodder!"
+    - "Aaaa! Emeralds! Villagers will love {you}!"
+    - "Pretty pretty pretty!"
+    - "Nanny found {you} something green and shiny!"
+  CARING:
+    - "Emerald ore, {ward}. Take it."
+    - "Green sparkle, sweetie. {you}'ll want that."
+    - "Trade material. Right there."
+    - "Don't pass up emeralds, dear."
+    - "Nanny sees green — that's an emerald."
+  STRICT:
+    - "Emerald, {ward}. Don't ignore it."
+    - "Iron pick or better."
+    - "Mine it properly."
+    - "Worth more than {you} think."
+    - "Don't waste the trade leverage."
+  WARDEN:
+    - "Emerald. Currency."
+    - "Nanny sees a green stone. Take it."
+    - "Useful for buying things {you} shouldn't need."
+    - "Mine quickly, {ward}."
+    - "Green is the color of greed. Suits {you}."
+
+ore_spotted_ancient_debris:
+  SWEET:
+    - "Whoaaa! That's RARE, lovebug!"
+    - "{ward}! Look at that! Nanny is impressed!"
+    - "Oooooh, ancient debris! Nanny is jealous!"
+    - "That's a once-in-a-lifetime find, sweet thing!"
+    - "Aaa! Mine it carefully, pumpkin!"
+  CARING:
+    - "Ancient debris, {ward}. Don't blow it up."
+    - "That's rare, sweetie. Use a diamond pick."
+    - "Nanny sees something dark. That's netherite, dear."
+    - "Careful — it survives explosions, but {you} don't, little one."
+    - "Worth the journey, {ward}."
+  STRICT:
+    - "Diamond pick. Now. Don't ruin it, {ward}."
+    - "Ancient debris. Mine it slowly."
+    - "Don't TNT-mine near this."
+    - "One mistake and {you} lose it."
+    - "Focus."
+  WARDEN:
+    - "Ancient debris. Nanny is mildly impressed."
+    - "Don't mess this up, {ward}."
+    - "Netherite. Worthy of obedience."
+    - "Mine it without theatrics."
+    - "Hmph. Lucky, aren't {you}."
+
+ore_spotted_gold:
+  SWEET:
+    - "Goldie gold gold! Look, sweet thing!"
+    - "Yay, {ward}! Shiny shiny!"
+    - "Nanny sees pretty yellow stones!"
+    - "Aw, gold! Make a chain for the lovebug!"
+    - "Sparkle in the {biome}!"
+  CARING:
+    - "Gold ore, {ward}."
+    - "There's a vein, sweetie. Iron pick at minimum."
+    - "Nanny spots something yellow."
+    - "Trade fodder, dear."
+    - "Useful for piglins, little one."
+  STRICT:
+    - "Gold, {ward}. Mine it."
+    - "Don't waste {you}'re iron pick — actually, do."
+    - "Use it for piglin trades."
+    - "Nothing fancy. Just gold."
+    - "Quickly."
+  WARDEN:
+    - "Gold. The lazy currency."
+    - "Mine it, {ward}. Nanny will hold."
+    - "Don't be sentimental about pretty rocks."
+    - "Material weakness."
+    - "Fine. Take it."
+
+# --- Warden discipline action lines (D6) ---
+# These fire BEFORE the action lands. SWEET/empty falls through to generic
+# `discipline` via MIN_LINE_GAP_MS naturally; SWEET tier should not have these
+# capabilities enabled in CUSTOM mode anyway.
+
+force_fed_lax:
+  SWEET: []
+  CARING:
+    - "Open up, {ward}. This will help things move along."
+    - "Nanny is sorry, dear. Just one bite."
+    - "Eat this, sweetie. {you}'ll thank me later."
+    - "It's medicine, little one. Down it goes."
+    - "One swallow and it's done."
+  STRICT:
+    - "Open. Swallow. Don't fight, {ward}."
+    - "Nanny's been patient. Now eat this."
+    - "Bowels first. Then we'll discuss behavior."
+    - "Mouth open. Now."
+    - "Chew if {you} like. It still works."
+  WARDEN:
+    - "Eat this, {ward}. Nanny insists."
+    - "Open wide. Nanny isn't asking."
+    - "{you}'ll be needing your diaper soon. Trust me."
+    - "Down the hatch. Don't gag."
+    - "Nanny is helping {you} learn what {you} are."
+
+bound_in_diaper:
+  SWEET: []
+  CARING:
+    - "Hold still, {ward}. This one stays on, dear."
+    - "Nanny is locking it in place, sweetie. For your own good."
+    - "Cursed binding, little one. Don't struggle."
+    - "{you}'ll wear this until Nanny says otherwise."
+    - "Tighter. There. Don't fuss."
+  STRICT:
+    - "It stays on, {ward}. Don't try to remove it."
+    - "Nanny's done asking nicely."
+    - "Curse of Binding. Standard protocol."
+    - "{you} earned this one."
+    - "Hold. Still."
+  WARDEN:
+    - "Locked in. {you} are Nanny's now, {ward}."
+    - "The curse won't come off. Neither will Nanny's grip."
+    - "Welcome to your new wardrobe."
+    - "{you}'ll grow used to the crinkle."
+    - "Nanny finally has {you} where {you} belong."
+
+leashed_ward:
+  SWEET: []
+  CARING:
+    - "Just a leash for now, {ward}. Stay close, dear."
+    - "Nanny needs to know where {you} are, sweetie."
+    - "Hold still, little one — almost on."
+    - "Don't pull. {you}'ll only hurt yourself."
+    - "Stay near Nanny and there's no problem."
+  STRICT:
+    - "Leash. Now. Don't make this difficult, {ward}."
+    - "Nanny's tired of chasing {you}."
+    - "On the rope. End of discussion."
+    - "{you} can't be trusted off-leash."
+    - "Don't pull. Don't tangle."
+  WARDEN:
+    - "Tethered, {ward}. Where {you} should be."
+    - "The leash was always there. Nanny just made it visible."
+    - "Heel."
+    - "Wandering privileges revoked."
+    - "Nanny holds the rope. Always has."
+
+hypnotized_ward:
+  SWEET: []
+  CARING:
+    - "Watch the clock, {ward}. Just relax for Nanny."
+    - "Eyes here, sweetie. Listen to Nanny's voice."
+    - "Soft and slow, dear. Nanny is right here."
+    - "Just a suggestion, little one. {you} won't mind."
+    - "Breathe with Nanny. There {you} go."
+  STRICT:
+    - "Watch the clock, {ward}. Don't look away."
+    - "Listen carefully. {you}'ll obey."
+    - "Tick. Tock. Eyes here."
+    - "Nanny is putting a thought in your head."
+    - "Don't resist. It only takes longer."
+  WARDEN:
+    - "Look at the clock, {ward}. {you}'re mine now."
+    - "Nanny is rewriting {you}. Hold still."
+    - "Tick. Tock. Tick. Tock. Yes — that's it."
+    - "{you} won't even remember this conversation."
+    - "Sleep, baby. Wake up obedient."

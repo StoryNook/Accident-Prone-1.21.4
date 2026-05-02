@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.storynook</groupId>
+	<artifactId>Accident-Prone</artifactId>
+	<version>1.2.5</version>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+	</properties>
+
+	<repositories>
+		<!-- This adds the Spigot Maven repository to the build -->
+		<repository>
+			<id>spigot-repo</id>
+			<url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+		</repository>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+		<repository>
+			<id>citizens-repo</id>
+			<url>https://repo.citizensnpcs.co/</url>
+		</repository>
+		<repository>
+			<id>placeholderapi-repo</id>
+			<url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<!-- <dependency>
+			<groupId>com.github.MilkBowl</groupId>
+			<artifactId>VaultAPI</artifactId>
+			<version>1.7</version>
+			<scope>provided</scope>
+		</dependency> -->
+		<dependency>
+			<groupId>mineverse.Aust1n46.chat</groupId>
+			<artifactId>VentureChat</artifactId>
+			<version>3.7.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.citizensnpcs</groupId>
+			<artifactId>citizens-main</artifactId>
+			<version>2.0.33-SNAPSHOT</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+			<scope>test</scope>
+		</dependency>
+		<!--This adds the Spigot API artifact to the build -->
+		<dependency>
+			<groupId>org.spigotmc</groupId>
+			<artifactId>spigot-api</artifactId>
+			<version>1.19-R0.1-SNAPSHOT</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>me.clip</groupId>
+			<artifactId>placeholderapi</artifactId>
+			<version>2.11.6</version>
+			<scope>provided</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>3.1.0</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>3.0.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.8.0</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>2.22.1</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>3.0.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-install-plugin</artifactId>
+					<version>2.5.2</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-deploy-plugin</artifactId>
+					<version>2.8.2</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+		<plugins>
+			<!--
+			  Re-zip the resource pack from the unpacked source folder before
+			  resources are copied to target/classes. This guarantees the
+			  StoryNook1.2.4.zip bundled in the JAR always reflects the latest
+			  edits under src/main/resources/StoryNook1.2.4/.
+			-->
+			<plugin>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>rebuild-resource-pack-zip</id>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<!--
+								  1. Sync any hand-edited design icons from
+								     <design-folder>/icons/ into textures/item/
+								     so the zip captures the latest source PNGs.
+								  2. Rebuild the resource pack zip from the unpacked folder.
+								-->
+								<exec executable="python3" failonerror="true">
+									<arg value="${project.basedir}/tools/generate_design_json.py" />
+									<arg value="--sync-icons" />
+								</exec>
+								<delete file="${project.basedir}/src/main/resources/StoryNook1.2.4.zip" />
+								<zip destfile="${project.basedir}/src/main/resources/StoryNook1.2.4.zip"
+								     basedir="${project.basedir}/src/main/resources/StoryNook1.2.4" />
+								<echo message="Rebuilt StoryNook1.2.4.zip from src/main/resources/StoryNook1.2.4/" />
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

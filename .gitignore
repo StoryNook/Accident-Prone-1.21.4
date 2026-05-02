@@ -1,0 +1,11 @@
+.worktrees/
+target/
+*.class
+.DS_Store
+*.iml
+.idea/
+.vscode/
+.claude/
+__pycache__/
+*.pyc
+docs/superpowers/

@@ -1,0 +1,287 @@
+# Welcome Book content. Edit freely - admin edits are preserved when the plugin
+# upgrades; new sections shipped by the plugin will be merged in automatically.
+#
+# - 'order' controls section order. Remove a section ID from this list to hide it.
+# - Each section has 'heading' (auto-bolded at the top of its first page) and 'body'
+#   (plain prose, auto word-wrapped into book pages).
+# - 'requires' is optional. Omitted = always shown. May be a single config-flag name
+#   or a list (all must be true). Names use the FLATTENED keys loaded into the
+#   plugin's globalConfig (e.g. 'Messing', not 'Settings_Menu.Messing').
+
+order:
+  - welcome
+  - settings
+  - hydration
+  - bladder_bowels
+  - toilets
+  - toilet_smarts
+  - balance
+  - accidents
+  - incontinence
+  - messing
+  - diapers
+  - changing
+  - show_undies
+  - pants
+  - washer
+  - diaper_pail
+  - laxatives
+  - caregivers
+  - minfill_toggle
+  - hardcore
+  - nanny
+  - cribs
+  - stuffies
+  - cursed_diapers
+  - hypnosis
+  - membership
+  - tips
+  - links
+
+sections:
+
+  welcome:
+    heading: "Welcome to Accident Prone!"
+    body: |
+      This plugin adds bathroom needs to your Minecraft adventure. You'll have a bladder, bowels, and hydration to manage.
+
+      This book is generated from your server's current settings, so it only covers the features your admin has enabled. If those settings change, run /welcomebook for an updated copy.
+
+      Enjoy your adventure!
+
+  settings:
+    heading: "Getting Started: /settings"
+    body: |
+      Open the settings menu with /settings. Nothing in this plugin affects you until you opt in there.
+
+      Inside, you can choose what aspects you want enabled for yourself: messing, caregivers, visible underwear, and more. Your admin controls which of those toggles are available.
+
+      Tip: if you want a fresh book later, run /welcomebook.
+
+  hydration:
+    heading: "Hydration"
+    body: |
+      Once opted in, you'll see water droplets above your hunger bar. That's your hydration.
+
+      Any drink fills it back up: water bottles, milk, potions, anything liquid.
+
+      If you let it run dry, you'll catch mining fatigue until you drink. Stay topped up before long trips.
+
+  bladder_bowels:
+    heading: "Bladder & Bowels"
+    body: |
+      Your bladder and bowels fill over time. They fill faster while sprinting, near water, or after lots of drinking.
+
+      Watch the icons next to your hydration. When they hit the warning threshold (set by your admin), you'll be told it's time to find a toilet.
+
+      Hold it too long and an accident becomes very likely.
+
+  toilets:
+    heading: "Toilets"
+    body: |
+      Craft a toilet with an Iron Trapdoor on top of a Cauldron.
+
+      Place it down, remove any leggings you're wearing, then right-click the toilet to sit on it.
+
+      /pee and /poop work too: while seated on a toilet they relieve you into the toilet, off the toilet they cause an accident.
+
+  toilet_smarts:
+    heading: "Reading the Need"
+    requires: Accidents
+    body: |
+      Toilets only help when you actually need to go. If a stat hasn't been warning you recently, sitting down won't empty it - you'll just hear "I didn't actually have to go that badly."
+
+      If you really mean to go, use /pee or /poop while seated. They'll empty into the toilet (no diaper involved).
+
+      The more incontinent you become, the rarer your warnings get and the smaller your reaction window. To make up for it, you can use the toilet proactively when a stat gets close to the danger zone.
+
+  balance:
+    heading: "Your Balance"
+    requires: Show_Balance
+    body: |
+      The number at the top of your scoreboard is your in-game economy balance, fetched from whatever currency plugin your server runs.
+
+      Large balances are abbreviated so the number stays readable: $99,999 stays as-is, but $1,500,000 shows as $1.5M.
+
+      If your server doesn't have an economy plugin installed, this line won't appear at all.
+
+  accidents:
+    heading: "Accidents"
+    requires: Accidents
+    body: |
+      If you don't make it in time, you'll have an accident.
+
+      Accidents come with side effects: slowness, weakness, sometimes poison or damage. The exact effect depends on what you're wearing and how full you were.
+
+      Changing yourself (or being changed) clears the effects.
+
+  incontinence:
+    heading: "Incontinence"
+    requires: Incontinence
+    body: |
+      Each accident slowly raises your incontinence level. The higher it is, the more often surprise leaks happen on their own.
+
+      You can lock your current level with /lockincon, and unlock it again with /unlockincon. Locking it freezes it where it is so accidents won't push it any higher.
+
+      Bedwetting is a separate, sleep-only form: any incontinence you have can leak while you sleep.
+
+  messing:
+    heading: "Messing"
+    requires: Messing
+    body: |
+      Messing covers the solid-side of accidents. If your admin has it enabled, you can opt in or out of it independently from wetting in /settings.
+
+      With messing off, only your bladder fills. With it on, your bowels fill too, and you can have either kind of accident.
+
+  diapers:
+    heading: "Diapers & Underwear"
+    requires: Diapers
+    body: |
+      Diapers and underwear soak up accidents instead of letting them ruin your pants.
+
+      There are three absorbency tiers, plus the option to wear up to four layered. Higher tiers and more layers hold more before they leak through.
+
+      Disposable types fill up and need to be removed. Cloth types can be washed.
+
+  changing:
+    heading: "Changing"
+    requires: Diapers
+    body: |
+      Right-click yourself with a clean diaper or pair of underwear to change into it. Run /change to remove what you're wearing.
+
+      Changing clears any active accident effects.
+
+      If your admin has Hardcore mode enabled, you can't change yourself - you'll need a caregiver, a Nanny NPC, or another permitted player to handle changes for you.
+
+  show_undies:
+    heading: "Show Undies"
+    requires: Show_Undies
+    body: |
+      With Show Undies on, your underwear or diaper is visible to other players when you aren't wearing leggings.
+
+      Wet or messy diapers show their state too. If that's not your cup of tea, keep some pants on or disable the feature in /settings.
+
+  pants:
+    heading: "Pants"
+    requires: Accidents
+    body: |
+      Pants are cosmetic leggings made from wool. Craft them in the same shape as leather leggings, but using wool of a single color.
+
+      They show your underwear less, and visibly change appearance if you have an accident in them. A washer can clean them up again.
+
+  washer:
+    heading: "Washer"
+    requires: Accidents
+    body: |
+      Craft a washer with a Bucket of Water on top of a Furnace. Place it down and right-click to open it.
+
+      Put fuel in the bottom slot and your dirty pants or underwear in the input slot. When the burn finishes, the garment comes out clean.
+
+  diaper_pail:
+    heading: "Diaper Pail"
+    requires: Diapers
+    body: |
+      Used disposable diapers pile up fast. The diaper pail handles them.
+
+      Craft one with an Iron Trapdoor on top of a Barrel. Place it down and toss used disposables in.
+
+      Once it's full enough, it pays you back with fresh refills - the world's most rewarding recycling.
+
+  laxatives:
+    heading: "Laxatives"
+    requires:
+      - Diapers
+      - Messing
+    body: |
+      Laxatives speed up bowel filling for a while after eating one. Useful when you don't want to wait, risky when you don't have a toilet nearby.
+
+      Treat them as a tool, not a snack.
+
+  caregivers:
+    heading: "Caregivers"
+    requires: Caregivers
+    body: |
+      Caregivers are other players you trust to look after you. Use /caregiver to manage who's on your list.
+
+      A caregiver can change you, lock or unlock your incontinence, and (in Hardcore mode) is one of the only ways to get changed at all.
+
+  minfill_toggle:
+    heading: "Custom Warning Levels"
+    requires: MinFilltoggle
+    body: |
+      The MinFill toggle lets you pick your own warning threshold instead of using the server default.
+
+      Use /minfill to set the level at which the plugin starts warning you to find a toilet. Lower numbers mean earlier warnings.
+
+  hardcore:
+    heading: "Hardcore Mode"
+    requires: Hardcore
+    body: |
+      Hardcore mode locks you out of changing yourself. You'll need a caregiver, a Nanny NPC, or another permitted player to handle changes for you.
+
+      If your admin also has Lock_Optin_with_Hardcore enabled, you can't even opt back out of the plugin while Hardcore is on - the choice has to come from a caregiver.
+
+  nanny:
+    heading: "Nanny NPC"
+    requires: Nanny
+    body: |
+      Your Nanny is a personal NPC caregiver bonded to you. When this feature is enabled, an admin can grant you a Nanny Egg. Right-click on the ground to summon her, then use /nanny settings to configure her name, appearance, and the wards she looks after.
+
+      She follows you when asked, returns home when you're away, and stays available for the players you list as wards.
+
+  cribs:
+    heading: "Cribs"
+    body: |
+      Cribs are placeable furniture. Right-click one to lie down. Resting in a crib helps you recover and is a comfortable spot to ride out the night.
+
+      They pair nicely with stuffies and pacifiers.
+
+  stuffies:
+    heading: "Stuffies"
+    body: |
+      Stuffies are plush companions. Hold one to feel a little better; place one in a crib for decoration.
+
+      They're cosmetic, but they're cute, and that counts for a lot.
+
+  cursed_diapers:
+    heading: "Hidden: Cursed Diapers"
+    requires: Binding_Diapers
+    body: |
+      A Halloween special. Combine any underwear with a Curse of Binding book in a crafting table to make a Cursed Diaper.
+
+      Only you, the crafter, see that it's cursed. Whoever else wears it will start receiving your accidents instead of you having them.
+
+      If multiple people are wearing your cursed items, one is picked at random each time. Both of you have to be online for the curse to fire.
+
+  hypnosis:
+    heading: "Hidden: Hypnosis"
+    requires: Hypno
+    body: |
+      Craft a Hypnosis Clock by combining a Clock with a Curse of Binding book. The clock starts with a random trigger word.
+
+      Use /hypno <word> <wetting|messing> while holding the clock to set a custom trigger and type. Only you can see the trigger written on it.
+
+      Right-click another player while holding the clock to cast it on them - if they've opted in via /settings. Once cast, any time they say the trigger word, the matching accident fires.
+
+  membership:
+    heading: "AI Nanny Tier"
+    requires: Membership
+    body: |
+      If your server has membership enabled, you can unlock an AI-powered chat tier for your Nanny by linking your Patreon or Subscribestar account.
+
+      Run /nanny link patreon or /nanny link subscribestar to start, or ask an admin if your server uses a different unlock method.
+
+  tips:
+    heading: "Tips & Tricks"
+    body: |
+      - Watch the icons above your hunger bar. They'll warn you long before things get desperate.
+      - Higher-tier diapers and more layers buy you more time, but they're not invincible.
+      - Drink before you sleep. Dehydration in the morning is a rough start.
+      - Crib + stuffy + the right diaper makes for a very safe night.
+
+  links:
+    heading: "Community"
+    body: |
+      Find us, support the project, and chat with other players:
+
+      Discord, Patreon, and Subscribestar links are listed at the bottom of the /settings menu.

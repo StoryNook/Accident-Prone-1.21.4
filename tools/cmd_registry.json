@@ -1,0 +1,8 @@
+{
+  "base": 626060,
+  "step": 4,
+  "next": 626064,
+  "allocations": [
+    { "design": "goodnite_stars", "cleanCmd": 626060 }
+  ]
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Accident-Prone — Link your account</title>
+<meta name="robots" content="noindex">
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 520px; margin: 4em auto; padding: 0 1em; color: #222; }
+  h1 { font-size: 1.5em; }
+  .code { background: #f4f4f4; padding: 1em; border-radius: 8px;
+          font-family: monospace; font-size: 1.4em; word-break: break-all; }
+  button { margin-top: 1em; padding: .6em 1.2em; font-size: 1em; cursor: pointer; }
+  .err { color: #b00; }
+</style>
+</head>
+<body>
+  <h1>Almost done!</h1>
+  <p id="msg">Reading your authorization code...</p>
+  <div id="codebox" class="code" style="display:none"></div>
+  <button id="copy" style="display:none">Copy code</button>
+  <p id="instr" style="display:none">
+    Then run in Minecraft:<br>
+    <code id="cmd"></code>
+  </p>
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  var code = p.get('code');
+  var state = p.get('state');
+  var provider = (window.location.hash || '#patreon').slice(1) || 'patreon';
+  var msg = document.getElementById('msg');
+  if (!code || !state) {
+    msg.className = 'err';
+    msg.textContent = 'Missing authorization code or state. Please try /nanny link again in Minecraft.';
+    return;
+  }
+  var combined = code + '|' + state;
+  document.getElementById('codebox').textContent = combined;
+  document.getElementById('codebox').style.display = '';
+  document.getElementById('cmd').textContent = '/nanny link ' + provider + ' ' + combined;
+  document.getElementById('instr').style.display = '';
+  msg.textContent = 'Copy this code, then paste it into Minecraft:';
+  var btn = document.getElementById('copy');
+  btn.style.display = '';
+  btn.onclick = function(){
+    navigator.clipboard.writeText(combined).then(function(){ btn.textContent = 'Copied!'; });
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+Full_Incon:
+- §cOh no! Someone has no control!
+High_Incon:
+- §cOh no! You are losing control!
+- §cSome one likes using their pants, huh?
+- §cAre you even trying anymore?
+- §cSeems like someone is losing control
+Medium_Incon:
+- §cYou should try to make it to the potty next time.
+- §cToo many accidents and you won't be able to control it.
+Genaric:
+- §cOh no! You had an accident...
+Bedwetting:
+- §cOh no! You wet the bed!
+- §cLooks like you should have worn protection last night.
+- §cThat's not sweat....
+- §cMight be worth trying a night time diaper.
+Ligtening_Accidnet:
+- §cYou got so scared by the lightning that you had an accident!
+Fear_Wetting:
+- §cYou got so scared you peed yourself!
+Fear_Messing:
+- §cYou go so scared you pooped yourself!
+Binding_Accident:
+- §b?caster? §cused your underwear.
+- §cSomeone just used your underwear.
+- §b?caster? §cthanks you for your service.
+Caster_Accident:
+- §gYou just used §b?target?'s §gdiaper.
+- §gIt's nice not needing to use the toilet when you have others.
+- §gPrefect, didn't use mine this time.
+Could_Not_Hold:
+- §cYou couldn't hold it anymore.
+Desperate_Pee:
+- §6You REALLY need to pee!
+Desperate_Poop:
+- §6You REALLY need to Poop!
+Genaric_Desperate:
+- §6You can't hold it much longer!
+Need_To_Pee:
+- §6You need to pee!
+Need_To_Poop:
+- §6You need to Poop!
+Body_Betrayed:
+- §cYour body has betrayed you. You couldn't hold it.
+Tickling:
+- §cThe tickling made you lose control!
+Peeing_self:
+- §cYou just peed yourself.
+Pooping_Self:
+- §cYou just pooped yourself.
+# Sent when a player sits on a toilet but no stat was eligible for relief
+# (recent warning window passed AND not incontinent enough for proactive relief).
+Toilet_False_Alarm: §7You sit down... but you didn't actually have to go that badly.
+Laxative:
+- §4It seems like your tummy is upset, was it something you ate?
+Rash:
+- §cYou are taking damage from a rash.
+Rash_Clear:
+- §aYour rash seems to be clearing up.
+Hypno_Wetting:
+- §dA wave of warmth spreads through you before you can stop it.
+- §dYou feel an unwelcome warmth as your body betrays you completely.
+- §dHelpless against the urge, warmth spreads before you can react.
+Hypno_Messing:
+- §dYour body bears down with a mind of its own, leaving you helpless to stop it.
+- §dAn unstoppable pressure builds and releases before you can react.
+- §dYou feel yourself push involuntarily, unable to hold back.

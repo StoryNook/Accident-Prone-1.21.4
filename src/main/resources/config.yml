@@ -1,0 +1,155 @@
+#Fill rates determine how quickly the bladder or bowels fills.
+#Some actions act as multipliers, like running, being near water, or over hydrating
+Bladder_Fill_Rate: 0.3
+Bowel_Fill_Rate: 0.1
+
+#MinFill is used to determine how low their bladder or bowels has to be, before they get a warning to use the toilet
+# 30 means 3 icons, as each icon is 10
+MinFill: 30
+
+#Accidents means if a player doesn't respond to the warning in time, they could end up having an accident
+#If the player is in normal underwear, or is wearing pants (no leggings) they might need to use a washer to clean them
+Accidents: true
+
+#Diapers offer a layer of protection in case accidents happen.
+#Different settings will determine on how a player interacts with diapers.
+#Changing time, rashes, able to change or not, ect.
+Diapers: true
+
+# Rash system: tracks skin irritation from wearing wet/soiled diapers.
+# Rash points (RP) accumulate based on diaper state and decay when clean.
+# Health effects fire when RP crosses the threshold and stop when it drops back down.
+# Getting changed resets RP to 0.
+Rash:
+  # none     - no health effect (RP still accumulates, visible in /stats)
+  # poison   - Poison I while above threshold (cannot kill)
+  # damage   - direct damage per 2s tick (goes through armor, cannot kill)
+  # health_reduction - reduces max health by a fixed number of hearts while above threshold
+  mode: poison
+  # RP to accumulate before effects begin
+  threshold: 250
+  # damage mode: HP dealt per 2s tick (bottoms out at half a heart, cannot kill)
+  # health_reduction mode: hearts of max health removed while above threshold (1 heart = 2 HP)
+  amount: 1
+  # Apply Slowness I while rash is active (stacks with diaper-fullness slowness)
+  rash_slowness: true
+
+#Control what other players can change
+Settings_Menu:
+#Can they choose to opt out of messing?
+  Messing: true
+#Are they allowed to have caregivers
+  Caregivers: true
+#Show undies determines what everyone can see. If enabled, and they have noi leggings on, their diaper will be visable
+  Show_Undies: true
+#Can they control their incontince levels, or are they stuck with how it's setup
+  Incontinence: true
+#Hardcore prevents them from changing themselves, requiring the need for Caregivers, NPCs, or NannyBots
+  Hardcore: true
+#Allow them to pick their own minfill levels
+  MinFilltoggle: true
+  # Master toggle for the Nanny membership system. When false,
+  # AI tier remains locked (AlwaysLockedProvider) and /nanny link is hidden.
+  Membership: false
+
+#If they are in hardcore, they won't be able to just flip off the plugin and opt-out
+Lock_Optin_with_Hardcore: true
+
+# Show the player's economy balance at the top of the sidebar scoreboard.
+# Requires PlaceholderAPI; silently hidden if PlaceholderAPI isn't installed
+# or if the placeholder below can't be resolved to a number.
+Show_Balance: true
+
+# PlaceholderAPI placeholder used to fetch the balance. Default is Vault's
+# economy placeholder. Swap in another economy plugin's placeholder if you
+# don't use Vault (e.g. %coinsengine_balance%, %playerpoints_points%).
+Balance_Placeholder: "%vault_eco_balance%"
+
+# Toilet relief tuning. Sitting on a toilet only empties bladder or bowels if the
+# system thinks the player actually needs to go: either a recent warning fired
+# for that stat, or the player is incontinent enough that the proactive override
+# applies. Each stat is evaluated independently. Only takes effect when
+# Accidents is on; otherwise the toilet keeps its legacy "empty everything" behavior.
+Toilet:
+  # Seconds after a "Need_To_*" or "Desperate_*" warning during which sitting on
+  # the toilet will still relieve that stat. This is the window at incontinence 1.
+  Warning_Window_Max_Seconds: 60
+  # Same window at incontinence 10. Window scales linearly between max and min --
+  # highly incontinent players have to react faster to a warning.
+  Warning_Window_Min_Seconds: 5
+
+# Warning message frequency. Highly incontinent players don't get reliable
+# warnings -- this models the unpredictability of being incontinent.
+# Probability scales linearly with the relevant per-stat incontinence.
+Warnings:
+  # Probability that a warning is actually sent at incontinence 1.
+  Probability_Max: 1.0
+  # Probability at incontinence 10. ~1/1000 by default -- the player has to
+  # rely on watching their stats themselves and on the toilet's proactive override.
+  Probability_Min: 0.001
+
+# Nanny NPC System
+Nanny:
+  enabled: true
+  Owner_Timeout_Days: 14
+  Max_Server_Nannies: 50
+  Default_Home_Radius: 50
+  Default_Mood: CARING
+  Default_Chest_Mode: INVENTORY_ONLY
+  Default_Crafting_Mode: BASIC
+  # Care thresholds — when to act on each ward
+  Default_Change_Threshold: 70   # diaper wetness/fullness % at which Nanny initiates a change
+  Default_Feed_Threshold: 14     # food level (0-20) below which Nanny feeds
+  Default_Hydration_Threshold: 30  # hydration (0-100) below which Nanny gives a melon slice
+  Membership:
+    enabled: false
+    Allow_Linking: true
+    Redirect_URI: "https://accident-prone.io/oauth-redirect"
+    Permission:
+      enabled: false
+      node: "accidentprone.nanny.ai_unlocked"
+    Patreon:
+      enabled: false
+      Client_ID: ""
+      Client_Secret: ""
+      Tier_Required: []
+      Campaign_ID: ""
+    Subscribestar:
+      enabled: false
+      Client_ID: ""
+      Client_Secret: ""
+      Tier_Required: []
+  Chat:
+    enabled: true
+    Default_Tier: BASIC
+    Default_Respond_To: OWNER
+    Local_Radius: 30
+    Min_Words: 3              # skip messages with fewer than this many words
+    Ambient_Chance: 1         # percent chance Nanny chimes in unprompted on a passing message
+    AI:
+      Provider: OPENAI
+      API_Key: ""
+      Model: "gpt-4o-mini"
+      Required_Membership_Tier: ""
+      Chat_Cooldown_Seconds: 30
+      Context_Event_Count: 25
+      Context_Chat_Count: 10
+      Endpoint: ""            # AI HTTP endpoint URL; empty disables AI tier entirely
+
+#Listed in the /settings menu so they can get in touch with your discord, or offer easy was for them to support you
+Links:
+  Discord_Link: https://discord.gg/ARsZxjC4ts
+  Patreon_Link: https://www.patreon.com/c/Storynook
+  Subscribestar_Link: https://subscribestar.adult/story-nook
+
+Secret_Menu:
+  Binding_Diapers: true
+  Hyponsis: true
+  Hypno_Duration_Days: 3
+  Hypno_Max_Triggers: 0
+
+# Encryption at rest. Empty Key_Path uses <plugin-folder>/.crypto.key.
+# Override to an absolute path on a separate filesystem for hardening.
+# Supports ${ENV_VAR} expansion. See docs/security/hardening.md.
+Crypto:
+  Key_Path: ""
