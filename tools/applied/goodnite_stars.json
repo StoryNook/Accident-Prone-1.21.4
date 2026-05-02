@@ -9,5 +9,6 @@
   "wetDirtyCmd": 626063,
   "methodName": "GoodniteStars",
   "giveKey": "goodnite_stars",
+  "equippableKey": "goodnite_stars",
   "folderBasename": "goodnite-girl-star"
 }
