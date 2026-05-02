@@ -84,3 +84,14 @@ def test_build_leather_leggings_items_json_nests_trim_select_in_fallback():
     assert "minecraft:iron" in materials
     # Default fallback is plain leather_leggings model
     assert fallback["fallback"]["model"] == "minecraft:item/leather_leggings"
+
+
+from tools.migrate_to_1_21_4.generators import build_equipment_json
+
+def test_build_equipment_json_emits_humanoid_leggings_layer():
+    result = build_equipment_json("underwear")
+    assert result == {
+        "layers": {
+            "humanoid_leggings": [{"texture": "minecraft:underwear"}]
+        }
+    }

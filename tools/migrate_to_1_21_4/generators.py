@@ -115,3 +115,17 @@ def build_leather_leggings_items_json(
             "entries": entries,
         }
     }
+
+
+def build_equipment_json(equipment_id: str) -> dict:
+    """Build assets/minecraft/equipment/<equipment_id>.json.
+
+    The texture key resolves to
+    assets/minecraft/textures/entity/equipment/humanoid_leggings/<equipment_id>.png
+    via the layer type prefix in the path.
+    """
+    return {
+        "layers": {
+            "humanoid_leggings": [{"texture": f"minecraft:{equipment_id}"}]
+        }
+    }
