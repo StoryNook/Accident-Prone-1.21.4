@@ -25,8 +25,10 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -44,11 +46,72 @@ import com.storynook.nanny.NannyPolicy;
 public class Changing implements Listener{
     static HashMap<UUID, Boolean> Justchanged = new HashMap<>();
     static HashMap<UUID, Double> distanceinBlocks = new HashMap<>();
-    
+
     private static Plugin plugin;
     public Changing(Plugin plugin) {
         this.plugin = plugin;
-    }  
+    }
+
+    /**
+     * 1.21.4 migration: maps known armor CustomModelData values to their
+     * vanilla equippable model id. Used to lazy-stamp items created before
+     * Wave 3 of the migration so they render correctly when worn.
+     *
+     * Source: tools/migration/equipment-definitions.json (kept in sync by hand —
+     * if you add a new armor CMD, add it here too).
+     */
+    private static final java.util.Map<Integer, String> ARMOR_CMD_TO_EQUIPMENT_ID = java.util.Map.ofEntries(
+        java.util.Map.entry(626001, "diapers_thick"),
+        java.util.Map.entry(626002, "undies"),
+        java.util.Map.entry(626003, "pull-up"),
+        java.util.Map.entry(626009, "diaper"),
+        java.util.Map.entry(626015, "pants"),
+        java.util.Map.entry(626016, "pants_wet"),
+        java.util.Map.entry(626017, "pants_mess"),
+        java.util.Map.entry(626018, "pants_wetmess"),
+        java.util.Map.entry(626022, "diaper_wet"),
+        java.util.Map.entry(626023, "diaper_mess"),
+        java.util.Map.entry(626024, "diaper_wetmess"),
+        java.util.Map.entry(626025, "diapers_thick_wet"),
+        java.util.Map.entry(626026, "diapers_thick_mess"),
+        java.util.Map.entry(626027, "diapers_thick_wetmess"),
+        java.util.Map.entry(626028, "pull-up_wet"),
+        java.util.Map.entry(626029, "pull-up_mess"),
+        java.util.Map.entry(626030, "pull-up_wetmess"),
+        java.util.Map.entry(626031, "undies_wet"),
+        java.util.Map.entry(626032, "undies_mess"),
+        java.util.Map.entry(626033, "undies_wetmess")
+    );
+
+    /**
+     * Lookup the equippable model id for a known armor CMD, or null if the
+     * CMD is not a known armor item (e.g. inventory icon, custom design CMD,
+     * non-armor custom item).
+     */
+    public static String equipmentIdForCmd(int cmd) {
+        return ARMOR_CMD_TO_EQUIPMENT_ID.get(cmd);
+    }
+
+    /**
+     * Idempotently stamp the equippable component on a stack whose CMD is a
+     * known armor CMD but whose equippable component has not yet been set
+     * (e.g. items created in player inventories before the 1.21.4 migration).
+     * No-op if the stack is null, has no CMD, already has equippable, or its
+     * CMD is not in the armor map.
+     */
+    public static void stampEquippableIfArmorCMD(ItemStack stack) {
+        if (stack == null) return;
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null || !meta.hasCustomModelData() || meta.hasEquippable()) return;
+        String equipId = ARMOR_CMD_TO_EQUIPMENT_ID.get(meta.getCustomModelData());
+        if (equipId == null) return;
+        EquippableComponent equip = meta.getEquippable();
+        equip.setSlot(EquipmentSlot.LEGS);
+        equip.setModel(NamespacedKey.minecraft(equipId));
+        meta.setEquippable(equip);
+        stack.setItemMeta(meta);
+    }
+
 
     // @EventHandler
     // public void onPlayerInteractWithEntity(PlayerInteractEntityEvent event) {
@@ -304,6 +367,10 @@ public class Changing implements Listener{
                     ItemMeta meta = diaper.getItemMeta();
                     meta.setDisplayName("Thick Diaper");
                     meta.setCustomModelData(626003);
+                    EquippableComponent equip = meta.getEquippable();
+                    equip.setSlot(EquipmentSlot.LEGS);
+                    equip.setModel(NamespacedKey.minecraft("pull-up"));
+                    meta.setEquippable(equip);
                     diaper.setItemMeta(meta);
                     resetAndUpdateStats(stats, diaper, target, target);
                     this.cancel();
@@ -375,6 +442,11 @@ public class Changing implements Listener{
         if (stats == null) return;
         ItemMeta meta = cleanDiaper.getItemMeta();
         if (meta == null || !meta.hasCustomModelData()) return;
+        // 1.21.4 lazy-stamp: legacy items in player inventories (created
+        // before Wave 3 of the migration) lack the equippable component.
+        // Re-equipping is the primary user-visible touch point, so stamp
+        // the component here before the leggings are re-rendered.
+        stampEquippableIfArmorCMD(cleanDiaper);
         resetAndUpdateStats(stats, cleanDiaper, target, target);
     }
             

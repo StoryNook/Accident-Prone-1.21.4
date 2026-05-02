@@ -6,13 +6,16 @@ import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.scoreboard.ScoreboardManager;
 
 import com.storynook.Plugin;
@@ -90,6 +93,10 @@ public class HUDMenu implements Listener{
         ItemStack showunderwear = new ItemStack(Material.SLIME_BALL); // Custom button
         ItemMeta showunderwearmeta = showunderwear.getItemMeta();
         showunderwearmeta.setCustomModelData(626001);
+        EquippableComponent showunderwearEquip = showunderwearmeta.getEquippable();
+        showunderwearEquip.setSlot(EquipmentSlot.LEGS);
+        showunderwearEquip.setModel(NamespacedKey.minecraft("diapers_thick"));
+        showunderwearmeta.setEquippable(showunderwearEquip);
         if (toggleFillmeta != null) {
             List<String> lore = Arrays.asList(
                 "Currently: " + (stats.getshowunderwear() ? ChatColor.GREEN + "On" : ChatColor.RED + "Off"),

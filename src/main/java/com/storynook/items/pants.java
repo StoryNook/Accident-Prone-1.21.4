@@ -14,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 
@@ -32,6 +33,10 @@ public class pants {
         meta.setDisplayName("Pants");
         meta.setColor(getColorFromWool(woolMaterial));
         meta.setCustomModelData(626015);
+        EquippableComponent equip = meta.getEquippable();
+        equip.setSlot(EquipmentSlot.LEGS);
+        equip.setModel(NamespacedKey.minecraft("pants"));
+        meta.setEquippable(equip);
         item.setItemMeta(meta);
         meta.setUnbreakable(true);
         AttributeModifier modifier = new AttributeModifier(UUID.randomUUID(), "generic.armor", 0, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.LEGS);

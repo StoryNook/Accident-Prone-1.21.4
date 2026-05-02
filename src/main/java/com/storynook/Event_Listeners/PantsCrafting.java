@@ -21,6 +21,8 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
+import org.bukkit.NamespacedKey;
 
 import com.storynook.Plugin;
 import com.storynook.PlayerStatsManagement.PlayerStats;
@@ -72,6 +74,10 @@ public class PantsCrafting implements Listener{
                 LeatherArmorMeta meta = (LeatherArmorMeta) coloredLeggings.getItemMeta();
                 meta.setDisplayName("Pants");
                 meta.setCustomModelData(626015);
+                EquippableComponent equip = meta.getEquippable();
+                equip.setSlot(EquipmentSlot.LEGS);
+                equip.setModel(NamespacedKey.minecraft("pants"));
+                meta.setEquippable(equip);
                 meta.setUnbreakable(true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES);
                 meta.setColor(color);
@@ -150,9 +156,17 @@ public class PantsCrafting implements Listener{
             Color color = Color.fromRGB(Integer.parseInt("F7FFF4", 16));
             meta.setColor(color);
             int category = stats.getUnderwearType();
-            meta.setCustomModelData(com.storynook.DesignRegistry.getVisibleCmd(
+            int visibleCmd = com.storynook.DesignRegistry.getVisibleCmd(
                 category, stats.getUnderwearDesign(),
-                stats.getDiaperWetness(), stats.getDiaperFullness()));
+                stats.getDiaperWetness(), stats.getDiaperFullness());
+            meta.setCustomModelData(visibleCmd);
+            String equipId = Changing.equipmentIdForCmd(visibleCmd);
+            if (equipId != null) {
+                EquippableComponent equip = meta.getEquippable();
+                equip.setSlot(EquipmentSlot.LEGS);
+                equip.setModel(NamespacedKey.minecraft(equipId));
+                meta.setEquippable(equip);
+            }
             switch (category) {
                 case 0: meta.setDisplayName("Underwear"); break;
                 case 1: meta.setDisplayName("Pullup"); break;

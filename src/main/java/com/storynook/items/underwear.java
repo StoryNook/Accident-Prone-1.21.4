@@ -12,7 +12,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.RecipeChoice;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -95,6 +97,10 @@ public class underwear {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("Diaper");
         meta.setCustomModelData(626009);
+        EquippableComponent equip = meta.getEquippable();
+        equip.setSlot(EquipmentSlot.LEGS);
+        equip.setModel(NamespacedKey.minecraft("diaper"));
+        meta.setEquippable(equip);
         item.setItemMeta(meta);
         diaper = item;
         return item;
@@ -115,6 +121,10 @@ public class underwear {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("Thick Diaper");
         meta.setCustomModelData(626001);
+        EquippableComponent equip = meta.getEquippable();
+        equip.setSlot(EquipmentSlot.LEGS);
+        equip.setModel(NamespacedKey.minecraft("diapers_thick"));
+        meta.setEquippable(equip);
         item.setItemMeta(meta);
         thickdiaper = item;
         return item;
@@ -135,6 +145,10 @@ public class underwear {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("Pullup");
         meta.setCustomModelData(626003);
+        EquippableComponent equip = meta.getEquippable();
+        equip.setSlot(EquipmentSlot.LEGS);
+        equip.setModel(NamespacedKey.minecraft("pull-up"));
+        meta.setEquippable(equip);
         item.setItemMeta(meta);
         pullup = item;
         return item;
@@ -155,6 +169,10 @@ public class underwear {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("Underwear");
         meta.setCustomModelData(626002);
+        EquippableComponent equip = meta.getEquippable();
+        equip.setSlot(EquipmentSlot.LEGS);
+        equip.setModel(NamespacedKey.minecraft("undies"));
+        meta.setEquippable(equip);
         item.setItemMeta(meta);
         underwear = item;
         return item;

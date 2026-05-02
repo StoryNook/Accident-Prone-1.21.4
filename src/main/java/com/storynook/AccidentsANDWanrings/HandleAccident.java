@@ -1,9 +1,13 @@
 package com.storynook.AccidentsANDWanrings;
 
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 
 import com.storynook.PlaySounds;
 import com.storynook.Plugin;
@@ -232,10 +236,36 @@ public class HandleAccident {
         if (leggings != null && leggings.getType() == Material.LEATHER_LEGGINGS) {
             LeatherArmorMeta meta = (LeatherArmorMeta) leggings.getItemMeta();
             if (meta.getCustomModelData() == 626015 || meta.getCustomModelData() == 626016 || meta.getCustomModelData() == 626017) {
-                meta.setCustomModelData(modelData);
+                String equipId = pantsEquipmentIdForCmd(modelData);
+                setPantsState(meta, modelData, equipId);
                 leggings.setItemMeta(meta);
                 return;
             }
+        }
+    }
+
+    /**
+     * Apply both the CMD and the matching equippable component to a pants meta.
+     * 1.21.4 leather_leggings rendering uses the equippable model ref, so both
+     * must move together when the wet/messy state changes.
+     */
+    private static void setPantsState(ItemMeta meta, int cmd, String equipmentId) {
+        meta.setCustomModelData(cmd);
+        if (equipmentId != null) {
+            EquippableComponent equip = meta.getEquippable();
+            equip.setSlot(EquipmentSlot.LEGS);
+            equip.setModel(NamespacedKey.minecraft(equipmentId));
+            meta.setEquippable(equip);
+        }
+    }
+
+    private static String pantsEquipmentIdForCmd(int cmd) {
+        switch (cmd) {
+            case 626015: return "pants";
+            case 626016: return "pants_wet";
+            case 626017: return "pants_mess";
+            case 626018: return "pants_wetmess";
+            default: return null;
         }
     }
 }

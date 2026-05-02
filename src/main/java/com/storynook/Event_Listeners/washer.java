@@ -23,8 +23,10 @@ import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.FurnaceInventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.EquippableComponent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -227,16 +229,24 @@ public class washer implements Listener{
                     ItemMeta meta = result.getItemMeta();
                     
                     if (meta != null) {
-                        if (meta.getCustomModelData() == 626016 || 
+                        if (meta.getCustomModelData() == 626016 ||
                         meta.getCustomModelData() == 626017 ||
                         meta.getCustomModelData() == 626018) {
                             meta.setCustomModelData(626015);
+                            EquippableComponent pantsEquip = meta.getEquippable();
+                            pantsEquip.setSlot(EquipmentSlot.LEGS);
+                            pantsEquip.setModel(NamespacedKey.minecraft("pants"));
+                            meta.setEquippable(pantsEquip);
                             meta.setLore(null);
                         }
-                        else if (meta.getCustomModelData() == 626019 || 
-                        meta.getCustomModelData() == 626020 || 
+                        else if (meta.getCustomModelData() == 626019 ||
+                        meta.getCustomModelData() == 626020 ||
                         meta.getCustomModelData() == 626021) {
                             meta.setCustomModelData(626002);
+                            EquippableComponent undiesEquip = meta.getEquippable();
+                            undiesEquip.setSlot(EquipmentSlot.LEGS);
+                            undiesEquip.setModel(NamespacedKey.minecraft("undies"));
+                            meta.setEquippable(undiesEquip);
                             meta.setDisplayName("Underwear");
                             meta.setLore(null);
                         }
