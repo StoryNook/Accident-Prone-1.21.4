@@ -17,3 +17,18 @@ def test_parse_slime_ball_overrides_returns_cmd_to_model_map():
         626002: "item/underwear",
         627000: "item/crib_acacia",
     }
+
+
+from tools.migrate_to_1_21_4.parsers import parse_leather_leggings_overrides
+
+def test_parse_leather_leggings_overrides_separates_cmds_and_trim():
+    data = json.loads((FIXTURES / "legacy_leather_leggings.json").read_text())
+    cmds, trims = parse_leather_leggings_overrides(data)
+    assert cmds == {
+        626001: "minecraft:item/diaper_thick",
+        626015: "minecraft:item/pants",
+    }
+    assert trims == {
+        0.1: "minecraft:item/leather_leggings_quartz_trim",
+        0.2: "minecraft:item/leather_leggings_iron_trim",
+    }
