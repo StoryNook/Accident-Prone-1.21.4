@@ -62,3 +62,25 @@ def test_build_items_json_emits_range_dispatch_in_ascending_order():
     assert thresholds == sorted(thresholds)
     assert thresholds == [625000.0, 626001.0, 626002.0]
     assert model["entries"][0]["model"]["model"] == "minecraft:item/sound_enable"
+
+
+from tools.migrate_to_1_21_4.generators import build_leather_leggings_items_json
+
+def test_build_leather_leggings_items_json_nests_trim_select_in_fallback():
+    cmd_map = {626015: "minecraft:item/pants", 626001: "minecraft:item/diaper_thick"}
+    trim_map = {
+        0.1: "minecraft:item/leather_leggings_quartz_trim",
+        0.2: "minecraft:item/leather_leggings_iron_trim",
+    }
+    result = build_leather_leggings_items_json(cmd_map, trim_map)
+    model = result["model"]
+    assert model["type"] == "minecraft:range_dispatch"
+    fallback = model["fallback"]
+    assert fallback["type"] == "minecraft:select"
+    assert fallback["property"] == "minecraft:trim_material"
+    # cases is a list of {when: <material>, model: ...}
+    materials = [c["when"] for c in fallback["cases"]]
+    assert "minecraft:quartz" in materials
+    assert "minecraft:iron" in materials
+    # Default fallback is plain leather_leggings model
+    assert fallback["fallback"]["model"] == "minecraft:item/leather_leggings"
