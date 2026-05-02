@@ -42,3 +42,23 @@ def test_parse_cit_properties_extracts_cmd_and_texture():
     assert result.cmd == 626002
     assert result.texture == "underwear"
     assert result.match_items == "leather_leggings"
+
+
+from tools.migrate_to_1_21_4.generators import build_items_json
+
+def test_build_items_json_emits_range_dispatch_in_ascending_order():
+    cmd_map = {
+        626002: "item/underwear",
+        626001: "item/diaper_thick",
+        625000: "item/sound_enable",
+    }
+    result = build_items_json("slime_ball", cmd_map)
+    model = result["model"]
+    assert model["type"] == "minecraft:range_dispatch"
+    assert model["property"] == "minecraft:custom_model_data"
+    assert model["scale"] == 1.0
+    assert model["fallback"]["model"] == "minecraft:item/slime_ball"
+    thresholds = [e["threshold"] for e in model["entries"]]
+    assert thresholds == sorted(thresholds)
+    assert thresholds == [625000.0, 626001.0, 626002.0]
+    assert model["entries"][0]["model"]["model"] == "minecraft:item/sound_enable"
