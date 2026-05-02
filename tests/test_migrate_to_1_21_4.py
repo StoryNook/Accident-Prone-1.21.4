@@ -117,3 +117,15 @@ def test_enforce_cit_cmds_have_models_aborts_on_missing():
         assert "626099" in str(e)
     else:
         raise AssertionError("expected ValueError")
+
+
+from tools.migrate_to_1_21_4.java_patcher import equipment_id_for_cmd
+
+def test_equipment_id_for_cmd_returns_id_when_known():
+    cit_artifact = [
+        {"cmd": 626002, "equipment_id": "underwear", "match_items": "leather_leggings"},
+        {"cmd": 626015, "equipment_id": "pants", "match_items": "leather_leggings"},
+    ]
+    assert equipment_id_for_cmd(cit_artifact, 626002) == "underwear"
+    assert equipment_id_for_cmd(cit_artifact, 626015) == "pants"
+    assert equipment_id_for_cmd(cit_artifact, 999999) is None
