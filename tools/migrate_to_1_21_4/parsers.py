@@ -42,14 +42,22 @@ def parse_leather_leggings_overrides(data: dict) -> Tuple[Dict[int, str], Dict[f
     return cmds, trims
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
 
 
 @dataclass
 class CitEntry:
     cmd: int
-    texture: str
+    texture: str  # value from texture.leather_layer_2 — basename of source PNG, scoped to its folder
     match_items: str
+    # Set by the caller (typically _parse_all_cit) when context is known.
+    # equipment_id must be globally unique across all CIT entries — derived
+    # from the .properties filename stem because texture-name collisions exist
+    # in the legacy pack (e.g., pants/leather_layer_2.png + diapers/leather_layer_2.png).
+    equipment_id: str = ""
+    properties_path: Optional[Path] = None
 
 
 def parse_cit_properties(raw: str) -> CitEntry:

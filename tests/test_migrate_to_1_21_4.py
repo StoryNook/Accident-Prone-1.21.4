@@ -95,3 +95,25 @@ def test_build_equipment_json_emits_humanoid_leggings_layer():
             "humanoid_leggings": [{"texture": "minecraft:underwear"}]
         }
     }
+
+
+from tools.migrate_to_1_21_4.orchestrator import enforce_cit_cmds_have_models
+
+def test_enforce_cit_cmds_have_models_passes_when_complete():
+    cit_cmds = {626001, 626002}
+    slime_cmds = {626001, 626002, 626009}
+    leggings_cmds = {626001, 626002}
+    # No exception
+    enforce_cit_cmds_have_models(cit_cmds, slime_cmds, leggings_cmds)
+
+
+def test_enforce_cit_cmds_have_models_aborts_on_missing():
+    cit_cmds = {626001, 626002, 626099}  # 626099 is in CIT but not in any models file
+    slime_cmds = {626001, 626002}
+    leggings_cmds = {626001, 626002}
+    try:
+        enforce_cit_cmds_have_models(cit_cmds, slime_cmds, leggings_cmds)
+    except ValueError as e:
+        assert "626099" in str(e)
+    else:
+        raise AssertionError("expected ValueError")
