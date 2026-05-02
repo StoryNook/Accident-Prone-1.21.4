@@ -88,7 +88,14 @@ the script errors out and asks you to pass `--category` or rename.
    - infers `designId` from the next free slot in that category
    - reserves the next free CMD block (tracked in `tools/cmd_registry.json`)
    - **directly edits `images.json`** to add 3*N font entries
-   - writes `tools/pending_design.json` with everything `/add-design` needs
+   - if `icons/` is present, writes `models/item/<design>_<state>.json` per
+     state and appends `range_dispatch` entries to
+     `assets/minecraft/items/slime_ball.json` (sorted by threshold)
+   - if `armor/clean.png` is present, writes
+     `assets/minecraft/equipment/<equippableKey>.json` and copies the source
+     PNG to `assets/minecraft/textures/entity/equipment/humanoid_leggings/<equippableKey>.png`
+   - writes `tools/pending_design.json` (including an `equippableKey` field)
+     with everything `/add-design` needs
 3. **Run `/add-design`** in Claude Code. It appends one `register(...)` line
    to `DesignRegistry.init()`, runs `mvn package`, and archives the manifest
    to `tools/applied/`.
@@ -129,14 +136,10 @@ optional except the first.
        ├── messy.png      (optional — falls back to wet→clean)
        └── wetmessy.png   (optional — falls back to messy→wet→clean)
 
-2. optifine/cit/special/<same-folder-basename>/    (worn-armor — optional)
-   ├── clean.png          (required if folder exists)
-   ├── wet.png            (optional, same fallback chain as icons)
-   ├── messy.png
-   ├── wetmessy.png
-   └── layer_2_overlay.png (the cloth/fabric overlay; copy from optifine/cit/pullups/
-                            as a starting point. Without it the overlay layer is blank
-                            but the design still renders.)
+2. <design-folder>/armor/                          (worn-armor — optional, 1.21.4 native)
+   └── clean.png          (required if folder exists; wired into
+                           assets/minecraft/equipment/<equippableKey>.json
+                           and textures/entity/equipment/humanoid_leggings/<equippableKey>.png)
 
 3. tools/applied/<name>.json                       (manifest archive — written by /add-design)
 ```
@@ -145,17 +148,22 @@ optional except the first.
   Required. Follow the stage-suffix convention below.
 - **Inventory icons** (`icons/` subfolder): the slime-ball textures shown when
   the item is in the hotbar / inventory. The script generates
-  `models/item/<design>_<state>.json` for each icon PNG and splices predicate
-  overrides into `slime_ball.json`. Only `clean.png` is required; missing
-  states fall back through the chain (wetmessy → messy → wet → clean).
-- **Worn-armor textures** (`optifine/cit/special/<folder>/`): the textures
-  rendered on the player's legs while the design is equipped. The script
-  generates one OptiFine `.properties` file per CMD (`<design>.properties`,
-  `<design>_wet.properties`, `<design>_messy.properties`,
-  `<design>_wetmessy.properties`) with `type=armor`, `matchItems=leather_leggings`,
-  and `components.custom_model_data=<cmd>`. Same fallback chain as icons.
-  Without this folder, the worn item shows as a vanilla leather leggings
-  (no custom rendering).
+  `models/item/<design>_<state>.json` for each icon PNG and appends entries
+  to the `range_dispatch` model in `assets/minecraft/items/slime_ball.json`
+  (one entry per state CMD; entries are kept sorted ascending by threshold).
+  Only `clean.png` is required; missing states fall back through the chain
+  (wetmessy → messy → wet → clean).
+- **Worn-armor texture** (`armor/clean.png`): the body texture rendered on
+  the player's legs while the design is equipped. The script writes a
+  vanilla equipment definition at
+  `assets/minecraft/equipment/<equippableKey>.json` (humanoid_leggings layer)
+  and copies `clean.png` to
+  `assets/minecraft/textures/entity/equipment/humanoid_leggings/<equippableKey>.png`.
+  The `equippableKey` defaults to the design name (giveKey) and is recorded
+  in `tools/applied/<name>.json` so `/add-design` can pass it to the
+  `register(...)` call. Without an `armor/` folder, the worn item shows as a
+  vanilla leather leggings (no custom rendering). OptiFine CIT is no longer
+  used — see [resource-pack-1-21-4.md](resource-pack-1-21-4.md).
 
 The script emits a `note:` for every folder it skips and tells you exactly
 what's missing. Drop in additional files and re-run any time — it's
@@ -217,15 +225,16 @@ requested. No NPEs from missing designs.
 
 ## Files touched per new design
 
-| File                                                            | Edit                                            |
-| --------------------------------------------------------------- | ----------------------------------------------- |
-| `images.json`                                                   | +3*N font entries (script)                      |
-| `models/item/slime_ball.json`                                   | +1 to 4 predicate overrides (script, if icons)  |
-| `models/item/<design>_<state>.json`                             | new model file per icon (script, if icons)      |
-| `optifine/cit/special/<folder>/<design>[_state].properties`    | new .properties per CMD (script, if armor PNGs) |
-| `DesignRegistry.init()`                                         | +1 `register(...)` line (`/add-design`)         |
-| `tools/cmd_registry.json`                                       | reserve CMD block (script)                      |
-| `tools/applied/<name>.json`                                     | archived manifest (`/add-design`)               |
+| File                                                                       | Edit                                                |
+| -------------------------------------------------------------------------- | --------------------------------------------------- |
+| `assets/minecraft/font/images.json`                                        | +3*N font entries (script)                          |
+| `assets/minecraft/items/slime_ball.json`                                   | +1 to 4 `range_dispatch` entries (script, if icons) |
+| `assets/minecraft/models/item/<design>_<state>.json`                       | new model file per icon (script, if icons)          |
+| `assets/minecraft/equipment/<equippableKey>.json`                          | new equipment def (script, if `armor/clean.png`)    |
+| `assets/minecraft/textures/entity/equipment/humanoid_leggings/<eq>.png`    | new worn-armor texture (script, if `armor/clean.png`) |
+| `DesignRegistry.init()`                                                    | +1 `register(...)` line (`/add-design`)             |
+| `tools/cmd_registry.json`                                                  | reserve CMD block (script)                          |
+| `tools/applied/<name>.json`                                                | archived manifest with `equippableKey` (`/add-design`) |
 
 That's it. No edits to `Give.java`, `Changing.java`, `underwear.java`,
 `PantsCrafting.java`, `ScoreBoard.java`, `Plugin.java`, `plugin.yml`, or

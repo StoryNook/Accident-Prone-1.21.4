@@ -9,6 +9,7 @@ Detailed reference docs that don't need to live in `CLAUDE.md`. Open the relevan
 - [Toilet & Warning system](toilet-warnings.md) — intent-driven toilet relief eligibility (`canRelieveOnToilet`), probability-scaled warnings, session-only Plugin maps, `/pee`/`/poop` context branching, config keys, and the `relieveOnToilet` vs `handleAccident` distinction.
 - [Rash system](rash.md) — RP accumulation tiers (mess/wetness/underwear), threshold-driven health effects (none/poison/damage/health_reduction), slowness, persistence, and config keys.
 - [Design Registry](design-registry.md) — adding new visual design variants (e.g. Goodnite Pull-Up Stars). Auto-detect script + `/add-design` skill — drop PNGs in a folder, run two commands, done.
+- [Resource pack — 1.21.4 format](resource-pack-1-21-4.md) — technical reference for the post-migration pack layout: `range_dispatch` items, equipment definitions, and the nested-`select`-on-trim leather_leggings shape.
 - [Plugin dependencies](dependencies.md) — Maven dependencies, `plugin.yml` softdepends, and runtime detection logic (VentureChat / Citizens / PlaceholderAPI).
 
 ## Other docs in this repo
