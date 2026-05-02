@@ -52,10 +52,51 @@ code. These are exactly what Wave 1 needs to fix:
 
 These get fixed in Wave 1 / Task 7.
 
+## Custom Model Data Mapping (Wave 0 / Task 2) — 2026-05-01
+
+- `meta.setCustomModelData(int)` writes the integer value to the first
+  element of `custom_model_data.floats[]`: **YES**
+
+### Evidence
+
+The Spigot Javadocs for `ItemMeta.setCustomModelData(int)` (in 1.21.4 and
+forward) document the method as setting custom model data, with a note
+that integers passed via this legacy API are equivalent to a single float
+in the `CustomModelDataComponent.getFloats()` list (i.e., `floats[0]`).
+Confirmed via Spigot/Paper Javadoc lookup and SpigotMC forum threads.
+
+This means:
+
+- Calling `meta.setCustomModelData(626001)` in Java code on a 1.21.4 server
+- produces a `custom_model_data` data component on the wire with
+  `{floats: [626001.0], flags: [], strings: [], colors: []}`
+- which the resource pack's `items/<base>.json` `range_dispatch` reads via
+  `property: "minecraft:custom_model_data"` → its default index 0 picks
+  `floats[0]` → matches the threshold → selects the right model.
+
+The migration plan's pack-side discrimination (`range_dispatch` on
+`custom_model_data.floats[0]`) is correct without any Java code changes
+to the integer-CMD setting pattern.
+
+### Note on deprecation
+
+The `int`-form `setCustomModelData(int)` is **deprecated for removal** in
+Spigot 1.21.5+ in favor of `setCustomModelDataComponent(...)`. As of
+1.21.4 the method still works and writes to `floats[0]` as documented.
+Once the migration is on 1.21.4, a future maintenance task can move the
+plugin to the component-based API. That task is out of scope for the
+1.21.4 migration.
+
 ## Verdict
 
 **PASS — proceed with plan as written.**
 
-Migration plan §6.2 is accurate; the equippable component API is fully
-exposed on the public Spigot 1.21.4 Bukkit API (no Paper-only fallback
-needed); no plan adjustments required.
+Both Wave 0 hard gates verified:
+
+1. Spigot 1.21.4 exposes the equippable component API in the exact shape
+   the plan §6.2 example uses.
+2. `setCustomModelData(int)` writes to `custom_model_data.floats[0]`,
+   which is what the pack's `range_dispatch` reads.
+
+No plan adjustments required. Migration can proceed to Task 3 (git tag),
+then Wave 1 (pom.xml + Java 21 build switch).
