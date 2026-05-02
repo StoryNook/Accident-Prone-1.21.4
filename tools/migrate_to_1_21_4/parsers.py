@@ -40,3 +40,41 @@ def parse_leather_leggings_overrides(data: dict) -> Tuple[Dict[int, str], Dict[f
             trim = float(predicate["trim_type"])
             trims[trim] = entry["model"]
     return cmds, trims
+
+
+from dataclasses import dataclass
+
+
+@dataclass
+class CitEntry:
+    cmd: int
+    texture: str
+    match_items: str
+
+
+def parse_cit_properties(raw: str) -> CitEntry:
+    """Parse an OptiFine CIT properties file into a CitEntry.
+
+    Expects keys: matchItems, texture.leather_layer_2,
+    components.custom_model_data.
+
+    Raises ValueError if any required key is missing.
+    """
+    props: Dict[str, str] = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        props[key.strip()] = value.strip()
+
+    try:
+        cmd = int(props["components.custom_model_data"])
+        texture = props["texture.leather_layer_2"]
+        match_items = props["matchItems"]
+    except KeyError as e:
+        raise ValueError(f"CIT properties missing required key: {e}") from e
+
+    return CitEntry(cmd=cmd, texture=texture, match_items=match_items)

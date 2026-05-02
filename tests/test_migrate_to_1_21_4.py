@@ -32,3 +32,13 @@ def test_parse_leather_leggings_overrides_separates_cmds_and_trim():
         0.1: "minecraft:item/leather_leggings_quartz_trim",
         0.2: "minecraft:item/leather_leggings_iron_trim",
     }
+
+
+from tools.migrate_to_1_21_4.parsers import parse_cit_properties
+
+def test_parse_cit_properties_extracts_cmd_and_texture():
+    raw = (FIXTURES / "cit_undies.properties").read_text()
+    result = parse_cit_properties(raw)
+    assert result.cmd == 626002
+    assert result.texture == "underwear"
+    assert result.match_items == "leather_leggings"
