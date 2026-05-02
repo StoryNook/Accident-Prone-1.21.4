@@ -1,0 +1,272 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "scale": 1.0,
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/slime_ball"
+    },
+    "entries": [
+      {
+        "threshold": 625000.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/sound_enable"
+        }
+      },
+      {
+        "threshold": 625001.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/sound_disable"
+        }
+      },
+      {
+        "threshold": 625002.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/announce"
+        }
+      },
+      {
+        "threshold": 625003.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/announce_no"
+        }
+      },
+      {
+        "threshold": 625004.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/hear"
+        }
+      },
+      {
+        "threshold": 625005.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/hear_disable"
+        }
+      },
+      {
+        "threshold": 625006.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/caregiver"
+        }
+      },
+      {
+        "threshold": 626001.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_thick"
+        }
+      },
+      {
+        "threshold": 626002.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear"
+        }
+      },
+      {
+        "threshold": 626003.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626004.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_dirty"
+        }
+      },
+      {
+        "threshold": 626005.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_wet"
+        }
+      },
+      {
+        "threshold": 626008.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/tape"
+        }
+      },
+      {
+        "threshold": 626009.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper"
+        }
+      },
+      {
+        "threshold": 626010.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup_wet"
+        }
+      },
+      {
+        "threshold": 626011.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_thick_wet"
+        }
+      },
+      {
+        "threshold": 626019.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_wet"
+        }
+      },
+      {
+        "threshold": 626020.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_mess"
+        }
+      },
+      {
+        "threshold": 626021.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_wetmess"
+        }
+      },
+      {
+        "threshold": 626060.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/goodnite_stars_clean"
+        }
+      },
+      {
+        "threshold": 626061.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/goodnite_stars_wet"
+        }
+      },
+      {
+        "threshold": 626062.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/goodnite_stars_messy"
+        }
+      },
+      {
+        "threshold": 626063.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/goodnite_stars_messy"
+        }
+      },
+      {
+        "threshold": 627000.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_acacia"
+        }
+      },
+      {
+        "threshold": 627001.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_birch"
+        }
+      },
+      {
+        "threshold": 627002.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_dark_oak"
+        }
+      },
+      {
+        "threshold": 627003.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_jungle"
+        }
+      },
+      {
+        "threshold": 627004.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_mangrove"
+        }
+      },
+      {
+        "threshold": 627005.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_oak"
+        }
+      },
+      {
+        "threshold": 627006.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_spruce"
+        }
+      },
+      {
+        "threshold": 627007.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_warped"
+        }
+      },
+      {
+        "threshold": 627008.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_cherry"
+        }
+      },
+      {
+        "threshold": 627009.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/crib_quartz"
+        }
+      },
+      {
+        "threshold": 628000.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaperpail2"
+        }
+      },
+      {
+        "threshold": 629000.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/discord"
+        }
+      },
+      {
+        "threshold": 629001.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/patreon"
+        }
+      },
+      {
+        "threshold": 629002.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/subscribestar"
+        }
+      }
+    ]
+  }
+}

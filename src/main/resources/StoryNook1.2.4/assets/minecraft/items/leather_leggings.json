@@ -1,0 +1,278 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "scale": 1.0,
+    "fallback": {
+      "type": "minecraft:select",
+      "property": "minecraft:trim_material",
+      "cases": [
+        {
+          "when": "minecraft:quartz",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_quartz_trim"
+          }
+        },
+        {
+          "when": "minecraft:iron",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_iron_trim"
+          }
+        },
+        {
+          "when": "minecraft:netherite",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_netherite_trim"
+          }
+        },
+        {
+          "when": "minecraft:redstone",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_redstone_trim"
+          }
+        },
+        {
+          "when": "minecraft:copper",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_copper_trim"
+          }
+        },
+        {
+          "when": "minecraft:gold",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_gold_trim"
+          }
+        },
+        {
+          "when": "minecraft:emerald",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_emerald_trim"
+          }
+        },
+        {
+          "when": "minecraft:diamond",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_diamond_trim"
+          }
+        },
+        {
+          "when": "minecraft:lapis",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_lapis_trim"
+          }
+        },
+        {
+          "when": "minecraft:amethyst",
+          "model": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/leather_leggings_amethyst_trim"
+          }
+        }
+      ],
+      "fallback": {
+        "type": "minecraft:model",
+        "model": "minecraft:item/leather_leggings"
+      }
+    },
+    "entries": [
+      {
+        "threshold": 626001.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_thick"
+        }
+      },
+      {
+        "threshold": 626002.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear"
+        }
+      },
+      {
+        "threshold": 626003.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626009.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper"
+        }
+      },
+      {
+        "threshold": 626015.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pants"
+        }
+      },
+      {
+        "threshold": 626016.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pants_wet"
+        }
+      },
+      {
+        "threshold": 626017.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pants_mess"
+        }
+      },
+      {
+        "threshold": 626018.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pants_wetmess"
+        }
+      },
+      {
+        "threshold": 626019.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_wet"
+        }
+      },
+      {
+        "threshold": 626020.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_mess"
+        }
+      },
+      {
+        "threshold": 626021.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_wetmess"
+        }
+      },
+      {
+        "threshold": 626022.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper"
+        }
+      },
+      {
+        "threshold": 626023.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper"
+        }
+      },
+      {
+        "threshold": 626024.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper"
+        }
+      },
+      {
+        "threshold": 626025.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_thick"
+        }
+      },
+      {
+        "threshold": 626026.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_thick"
+        }
+      },
+      {
+        "threshold": 626027.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/diaper_thick"
+        }
+      },
+      {
+        "threshold": 626028.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626029.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626030.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626031.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_wet"
+        }
+      },
+      {
+        "threshold": 626032.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_mess"
+        }
+      },
+      {
+        "threshold": 626033.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/underwear_wetmess"
+        }
+      },
+      {
+        "threshold": 626060.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626061.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup_wet"
+        }
+      },
+      {
+        "threshold": 626062.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup"
+        }
+      },
+      {
+        "threshold": 626063.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pullup_wet"
+        }
+      }
+    ]
+  }
+}
