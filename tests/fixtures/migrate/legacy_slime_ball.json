@@ -1,0 +1,10 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {"layer0": "minecraft:item/slime_ball"},
+  "overrides": [
+    {"predicate": {"custom_model_data": 625000}, "model": "item/sound_enable"},
+    {"predicate": {"custom_model_data": 626001}, "model": "item/diaper_thick"},
+    {"predicate": {"custom_model_data": 626002}, "model": "item/underwear"},
+    {"predicate": {"custom_model_data": 627000}, "model": "item/crib_acacia"}
+  ]
+}

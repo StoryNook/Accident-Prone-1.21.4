@@ -1,0 +1,13 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:item/leather_leggings",
+    "layer1": "minecraft:item/leather_leggings_overlay"
+  },
+  "overrides": [
+    {"model": "minecraft:item/leather_leggings_quartz_trim", "predicate": {"trim_type": 0.1}},
+    {"model": "minecraft:item/leather_leggings_iron_trim", "predicate": {"trim_type": 0.2}},
+    {"predicate": {"custom_model_data": 626001}, "model": "minecraft:item/diaper_thick"},
+    {"predicate": {"custom_model_data": 626015}, "model": "minecraft:item/pants"}
+  ]
+}
