@@ -241,17 +241,17 @@ public class UpdateStats {
                     }
                 }
                 
-                player.removePotionEffect(PotionEffectType.SLOW);
+                player.removePotionEffect(PotionEffectType.SLOWNESS);
                 if (slownessLevel > 0) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 50, slownessLevel - 1), true);
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 50, slownessLevel - 1), true);
                 }
               }
               else if(stats.getDiaperFullness() > 0 && stats.getUnderwearType() < 1){
-                player.removePotionEffect(PotionEffectType.SLOW);
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 50, 1), true);
+                player.removePotionEffect(PotionEffectType.SLOWNESS);
+                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 50, 1), true);
               }
               else if (stats.getDiaperFullness() == 0) {
-                player.removePotionEffect(PotionEffectType.SLOW);
+                player.removePotionEffect(PotionEffectType.SLOWNESS);
               }
               {
                 Map<String, Object> gc = plugin.getGlobalConfig();
@@ -284,8 +284,8 @@ public class UpdateStats {
                     default:
                       break;
                   }
-                  if (rashSlowness && player.getPotionEffect(PotionEffectType.SLOW) == null) {
-                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 50, 0), true);
+                  if (rashSlowness && player.getPotionEffect(PotionEffectType.SLOWNESS) == null) {
+                    player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 50, 0), true);
                   }
                 } else {
                   player.removePotionEffect(PotionEffectType.POISON);
@@ -293,7 +293,7 @@ public class UpdateStats {
 
                 // health_reduction: reconcile max-health attribute modifier each tick
                 if ("health_reduction".equals(rashMode)) {
-                  org.bukkit.attribute.AttributeInstance attr = player.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH);
+                  org.bukkit.attribute.AttributeInstance attr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
                   if (attr != null) {
                     org.bukkit.attribute.AttributeModifier toRemove = null;
                     for (org.bukkit.attribute.AttributeModifier m : attr.getModifiers()) {
@@ -312,11 +312,11 @@ public class UpdateStats {
                 }
               }
               if (stats.getHydration() < 10) {
-                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_DIGGING, 50, 2), true);
+                player.addPotionEffect(new PotionEffect(PotionEffectType.MINING_FATIGUE, 50, 2), true);
                 Dehydrated.put(player.getUniqueId(), true);
               }
               else if (stats.getHydration() >= 10 && Dehydrated.getOrDefault(player.getUniqueId(), false)) {
-                player.removePotionEffect(PotionEffectType.SLOW_DIGGING);
+                player.removePotionEffect(PotionEffectType.MINING_FATIGUE);
                 Dehydrated.put(player.getUniqueId(), false);
               }
               int cycles = playerCyclesMap.getOrDefault(player.getUniqueId(), 0);

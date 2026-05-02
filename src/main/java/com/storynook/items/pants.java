@@ -35,7 +35,7 @@ public class pants {
         item.setItemMeta(meta);
         meta.setUnbreakable(true);
         AttributeModifier modifier = new AttributeModifier(UUID.randomUUID(), "generic.armor", 0, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.LEGS);
-        meta.addAttributeModifier(Attribute.GENERIC_ARMOR, modifier);
+        meta.addAttributeModifier(Attribute.ARMOR, modifier);
         item.setItemMeta(meta);
         cleanPants = item;
         

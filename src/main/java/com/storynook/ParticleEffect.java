@@ -77,7 +77,7 @@ public class ParticleEffect extends BukkitRunnable {
             double yOffset = Math.random() * heightSpeed;
     
             Location particleLocation = stinkLocation.clone().add(xOffset, yOffset, zOffset);
-            player.getWorld().spawnParticle(Particle.REDSTONE, particleLocation, 1, 0, 0, 0, dustOptions);
+            player.getWorld().spawnParticle(Particle.DUST, particleLocation, 1, 0, 0, 0, dustOptions);
         }
 
         // Changing particle type to POOF for a more cloud-like appearance

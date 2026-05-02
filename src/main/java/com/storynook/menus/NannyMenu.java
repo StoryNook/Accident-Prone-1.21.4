@@ -58,7 +58,7 @@ public class NannyMenu implements Listener {
     private static ItemStack glow(ItemStack item) {
         ItemMeta m = item.getItemMeta();
         if (m == null) return item;
-        m.addEnchant(Enchantment.DURABILITY, 1, true);
+        m.addEnchant(Enchantment.UNBREAKING, 1, true);
         m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         item.setItemMeta(m);
         return item;
