@@ -4,12 +4,16 @@ Auto-detect everything about a new design from a folder of stage PNGs and:
   1. Splice 3*N font entries into images.json (in-place, before the closing ]).
   2. If the folder has an `icons/` subfolder with clean.png (+ optional
      wet.png / messy.png / wetmessy.png), generate models/item/<design>_<state>.json
-     for each, and splice slime_ball.json predicate overrides for all 4 CMDs.
-  3. If optifine/cit/special/<same-folder-basename>/ exists with clean.png
-     (+ optional wet/messy/wetmessy.png), generate OptiFine .properties files
-     for the worn-armor textures (one per CMD, with the icon-style fallback
-     chain). Notes if layer_2_overlay.png is missing.
-  4. Write tools/pending_design.json so /add-design can finish the wiring.
+     for each, and append `range_dispatch` entries to
+     assets/minecraft/items/slime_ball.json for all 4 CMDs (sorted ascending).
+  3. If the folder has an `armor/clean.png` (+ optional wet/messy/wetmessy.png
+     for future per-state extension), write
+     assets/minecraft/equipment/<equippableKey>.json (humanoid_leggings layer)
+     and copy the source PNG to
+     assets/minecraft/textures/entity/equipment/humanoid_leggings/<equippableKey>.png.
+     Replaces the legacy OptiFine CIT properties pipeline (gone in 1.21.4).
+  4. Write tools/pending_design.json (now including `equippableKey`) so
+     /add-design can finish the wiring.
   5. Update tools/cmd_registry.json to reserve the CMD block.
 
 Usage (the "drop in and magic" path):
@@ -35,6 +39,7 @@ The script infers:
   - cleanCmd         <- next free 4-CMD block from tools/cmd_registry.json
                        (default base: 626060, step: 4)
   - displayName      <- title-cased design name; override with --display-name
+  - equippableKey    <- defaults to the design name (giveKey)
 
 Override any inferred value with --category / --design-id / --cmd / --name /
 --display-name. Use --dry-run to print the JSON block to stdout without
@@ -45,21 +50,26 @@ import argparse
 import json
 import os
 import re
+import shutil
 import sys
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 IMAGES_JSON_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/font/images.json"
-SLIME_BALL_JSON_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/models/item/slime_ball.json"
+# 1.21.4: range_dispatch entries live under assets/minecraft/items/slime_ball.json,
+# not under assets/minecraft/models/item/slime_ball.json (which is now a plain
+# fallback model file).
+SLIME_BALL_ITEMS_JSON_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/items/slime_ball.json"
 MODELS_ITEM_DIR_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/models/item"
 TEXTURES_ITEM_DIR_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/textures/item"
-OPTIFINE_CIT_SPECIAL_DIR_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/optifine/cit/special"
+EQUIPMENT_DIR_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/equipment"
+EQUIPMENT_TEXTURES_DIR_REL = "src/main/resources/StoryNook1.2.4/assets/minecraft/textures/entity/equipment/humanoid_leggings"
 DESIGN_REGISTRY_REL = "src/main/java/com/storynook/DesignRegistry.java"
 CMD_REGISTRY_REL = "tools/cmd_registry.json"
 APPLIED_DIR_REL = "tools/applied"
 PENDING_MANIFEST_REL = "tools/pending_design.json"
 
 # Icon states inside <design>/icons/. Order = fallback chain.
-# If a PNG is missing, the slime_ball predicate for that state points at the
+# If a PNG is missing, the slime_ball entry for that state points at the
 # previous existing model (e.g. wetmessy missing -> uses messy's model).
 ICON_STATES = ["clean", "wet", "messy", "wetmessy"]
 ICON_STATE_TO_CMD_KEY = {
@@ -351,7 +361,6 @@ def write_item_models(design_name, dir_path, namespace, found_icons):
     The user keeps source icons under <design-folder>/icons/ for discoverability;
     the script handles the copy + model generation transparently.
     """
-    import shutil
     icons_dir = os.path.join(dir_path, "icons")
     textures_item_dir = repo_path(TEXTURES_ITEM_DIR_REL)
     models_dir = repo_path(MODELS_ITEM_DIR_REL)
@@ -379,86 +388,44 @@ def write_item_models(design_name, dir_path, namespace, found_icons):
     return written_models
 
 
-def build_predicate_line(cmd, model_ref):
-    return ('    {"predicate": {"custom_model_data": %d},"model": "%s"},' %
-            (cmd, model_ref))
-
-
 # ---------------------------------------------------------------------------
-# OptiFine CIT plumbing -- worn-armor .properties per CMD
+# 1.21.4 items/slime_ball.json range_dispatch splicing
 # ---------------------------------------------------------------------------
 
-def discover_armor_textures(folder_basename):
-    """Look in optifine/cit/special/<folder_basename>/ for clean/wet/messy/wetmessy
-    PNGs. Returns {state: filename} dict, or None if the folder doesn't exist."""
-    armor_dir = os.path.join(repo_path(OPTIFINE_CIT_SPECIAL_DIR_REL), folder_basename)
-    if not os.path.isdir(armor_dir):
-        return None
-    found = {}
-    for state in ICON_STATES:
-        candidate = os.path.join(armor_dir, state + ".png")
-        if os.path.isfile(candidate):
-            found[state] = state + ".png"
-    return found
+def append_range_dispatch_entry(items_doc, cmd, model_path):
+    """Insert {threshold: cmd, model: ...} into the range_dispatch entries
+    list, maintaining ascending sort by threshold. Idempotent: if a matching
+    threshold already exists, the model is replaced (so re-runs always reflect
+    the latest icon state mappings)."""
+    entries = items_doc["model"]["entries"]
+    new_entry = {
+        "threshold": float(cmd),
+        "model": {"type": "minecraft:model", "model": "minecraft:%s" % model_path},
+    }
+    # If the threshold is already there, update in place.
+    for i, e in enumerate(entries):
+        if e.get("threshold") == new_entry["threshold"]:
+            entries[i] = new_entry
+            entries.sort(key=lambda e: e["threshold"])
+            return
+    entries.append(new_entry)
+    entries.sort(key=lambda e: e["threshold"])
 
 
-def armor_properties_filename(design_name, state):
-    """Per-state filename: <design>.properties for clean, <design>_<state>.properties otherwise."""
-    if state == "clean":
-        return "%s.properties" % design_name
-    return "%s_%s.properties" % (design_name, state)
+def splice_slime_ball_range_dispatch(design_name, found_icons, manifest):
+    """Insert (or update) range_dispatch entries in
+    assets/minecraft/items/slime_ball.json for the design's 4 CMDs.
 
-
-def write_armor_properties(folder_basename, design_name, found_textures, manifest):
-    """Generate one .properties file per state (using the fallback chain for
-    missing textures so every CMD has a rule). Returns list of file paths
-    that were written."""
-    armor_dir = os.path.join(repo_path(OPTIFINE_CIT_SPECIAL_DIR_REL), folder_basename)
-    written = []
-    last_existing = None
-    for state in ICON_STATES:
-        if state in found_textures:
-            last_existing = state
-        target_state = state if state in found_textures else last_existing
-        if target_state is None:
-            continue
-        cmd = manifest[ICON_STATE_TO_CMD_KEY[state]]
-        props_path = os.path.join(armor_dir, armor_properties_filename(design_name, state))
-        # Texture name is the filename without .png; OptiFine resolves it relative
-        # to the .properties file location.
-        tex_name = target_state  # "clean" / "wet" / "messy" / "wetmessy"
-        props = (
-            "type=armor\n"
-            "matchItems=leather_leggings\n"
-            "texture.leather_layer_2=%s\n"
-            "texture.leather_layer_2_overlay=layer_2_overlay\n"
-            "components.custom_model_data=%d\n"
-        ) % (tex_name, cmd)
-        with open(props_path, "w") as f:
-            f.write(props)
-        written.append(props_path)
-    return written
-
-
-def has_layer2_overlay(folder_basename):
-    overlay = os.path.join(repo_path(OPTIFINE_CIT_SPECIAL_DIR_REL),
-                           folder_basename, "layer_2_overlay.png")
-    return os.path.isfile(overlay)
-
-
-def splice_slime_ball_predicates(design_name, found_icons, manifest):
-    """Insert (or update) slime_ball.json overrides for the design's 4 CMDs.
-
-    Critical: Minecraft's `custom_model_data` predicate matching is "the LAST
-    override whose CMD predicate <= item's CMD wins." So all overrides MUST
-    be sorted ascending by CMD value, otherwise items with higher CMDs match
-    a lower predicate that happens to come later in file order.
-
-    This function parses the JSON, replaces/adds the new design's CMDs, sorts
-    the entire overrides list by CMD, and writes back. Idempotent."""
-    sb_path = repo_path(SLIME_BALL_JSON_REL)
+    The resolver matches by threshold; entries are kept sorted ascending so
+    that vanilla 1.21.4 lookup semantics work as expected. Returns
+    {cmd: model_path} for logging."""
+    sb_path = repo_path(SLIME_BALL_ITEMS_JSON_REL)
     with open(sb_path) as f:
-        data = json.load(f)
+        doc = json.load(f)
+
+    if "model" not in doc or doc["model"].get("type") != "minecraft:range_dispatch":
+        sys.exit("ERROR: %s does not have a top-level minecraft:range_dispatch model. "
+                 "1.21.4 pack format expected." % SLIME_BALL_ITEMS_JSON_REL)
 
     # Resolve each CMD to its model (with fallback chain).
     cmds_to_models = {}
@@ -472,49 +439,77 @@ def splice_slime_ball_predicates(design_name, found_icons, manifest):
         cmd = manifest[ICON_STATE_TO_CMD_KEY[state]]
         cmds_to_models[cmd] = "item/" + icon_model_name(design_name, target_state)
 
-    # Strip any stale overrides for these CMDs (idempotent re-runs).
-    overrides = data.get("overrides", [])
-    new_cmds = set(cmds_to_models.keys())
-    overrides = [o for o in overrides
-                 if not (isinstance(o.get("predicate"), dict)
-                         and o["predicate"].get("custom_model_data") in new_cmds)]
-
-    # Append the new ones, then sort the whole list by CMD ascending.
     for cmd, model_ref in cmds_to_models.items():
-        overrides.append({
-            "predicate": {"custom_model_data": cmd},
-            "model": model_ref,
-        })
-    overrides.sort(key=lambda o: o["predicate"]["custom_model_data"])
-    data["overrides"] = overrides
+        append_range_dispatch_entry(doc, cmd, model_ref)
 
-    # Re-render the JSON. Use the original compact one-line-per-override style
-    # to keep the file diff-friendly with the existing layout.
-    parent = data.get("parent")
-    textures = data.get("textures")
-    lines = ['{']
-    if parent is not None:
-        lines.append('  "parent": %s,' % json.dumps(parent))
-    if textures is not None:
-        lines.append('  "textures": %s,' % json.dumps(textures))
-    lines.append('  "overrides": [')
-    for i, o in enumerate(overrides):
-        comma = "," if i < len(overrides) - 1 else ""
-        lines.append('    {"predicate": {"custom_model_data": %d},"model": %s}%s' %
-                     (o["predicate"]["custom_model_data"], json.dumps(o["model"]), comma))
-    lines.append('  ]')
-    lines.append('}')
-    new_content = "\n".join(lines) + "\n"
+    new_content = json.dumps(doc, indent=2) + "\n"
 
     # Sanity check
     try:
         json.loads(new_content)
     except json.JSONDecodeError as e:
-        sys.exit("ERROR: slime_ball.json splice produced invalid JSON: %s" % e)
+        sys.exit("ERROR: items/slime_ball.json splice produced invalid JSON: %s" % e)
 
     with open(sb_path, "w") as f:
         f.write(new_content)
     return cmds_to_models
+
+
+# ---------------------------------------------------------------------------
+# 1.21.4 equipment definitions -- replaces the OptiFine CIT pipeline
+# ---------------------------------------------------------------------------
+
+def discover_armor_textures(dir_path):
+    """Look in <design-folder>/armor/ for clean/wet/messy/wetmessy PNGs.
+    Returns {state: filename} dict, or None if the folder doesn't exist.
+
+    Replaces the legacy optifine/cit/special/<folder>/clean.png convention
+    (OptiFine CIT was removed in 1.21.4)."""
+    armor_dir = os.path.join(dir_path, "armor")
+    if not os.path.isdir(armor_dir):
+        return None
+    found = {}
+    for state in ICON_STATES:
+        candidate = os.path.join(armor_dir, state + ".png")
+        if os.path.isfile(candidate):
+            found[state] = state + ".png"
+    return found
+
+
+def write_equipment_definition(equippable_key):
+    """Write assets/minecraft/equipment/<equippable_key>.json with a single
+    humanoid_leggings layer pointing at the same key as the texture path
+    (textures/entity/equipment/humanoid_leggings/<equippable_key>.png).
+
+    Returns the absolute path written."""
+    eq_dir = repo_path(EQUIPMENT_DIR_REL)
+    os.makedirs(eq_dir, exist_ok=True)
+    content = {
+        "layers": {
+            "humanoid_leggings": [{"texture": "minecraft:%s" % equippable_key}]
+        }
+    }
+    out_path = os.path.join(eq_dir, "%s.json" % equippable_key)
+    with open(out_path, "w") as f:
+        json.dump(content, f, indent=2)
+        f.write("\n")
+    return out_path
+
+
+def copy_equipment_texture(source_png, equippable_key):
+    """Copy source_png to
+    assets/minecraft/textures/entity/equipment/humanoid_leggings/<equippable_key>.png.
+
+    Returns the absolute path written."""
+    tex_dir = repo_path(EQUIPMENT_TEXTURES_DIR_REL)
+    os.makedirs(tex_dir, exist_ok=True)
+    out_path = os.path.join(tex_dir, "%s.png" % equippable_key)
+    shutil.copy2(source_png, out_path)
+    try:
+        os.chmod(out_path, 0o644)
+    except OSError:
+        pass
+    return out_path
 
 
 # ---------------------------------------------------------------------------
@@ -526,7 +521,6 @@ def sync_icons_from_applied():
     <design-folder>/icons/ to textures/item/<design>_<state>.png. Idempotent.
     Used by the Maven antrun task before re-zipping the resource pack so
     that hand-edits to the source icons always make it into the .zip."""
-    import shutil
     applied_dir = repo_path(APPLIED_DIR_REL)
     if not os.path.isdir(applied_dir):
         print("note: no tools/applied/ directory found; nothing to sync.", file=sys.stderr)
@@ -584,6 +578,8 @@ def main():
                    help="Override inferred snake_case design name (also the giveKey).")
     p.add_argument("--display-name", default=None,
                    help="Override inferred human-readable name.")
+    p.add_argument("--equippable-key", default=None,
+                   help="Override the equipment-definition id (default: design name / giveKey).")
     p.add_argument("--namespace", default="minecraft", help="Resource pack namespace.")
     p.add_argument("--dry-run", action="store_true",
                    help="Print JSON to stdout instead of editing images.json or any registries.")
@@ -641,6 +637,10 @@ def main():
     if design_id < 1:
         sys.exit("ERROR: design-id must be >= 1 (0 is reserved for legacy)")
 
+    # Equipment id defaults to the giveKey/design name. Override when a design
+    # wants to share a single equipment texture across multiple designs.
+    equippable_key = args.equippable_key or design_name
+
     # CMD reservation
     if args.dry_run:
         cmd_reg = load_cmd_registry()
@@ -661,12 +661,13 @@ def main():
     wetdirty_cmd = clean_cmd + 3
 
     print("Design summary", file=sys.stderr)
-    print("  name:        %s" % design_name, file=sys.stderr)
-    print("  display:     %s" % display_name, file=sys.stderr)
-    print("  category:    %d (%s)" % (category, CAT_NAMES[category]), file=sys.stderr)
-    print("  designId:    %d" % design_id, file=sys.stderr)
-    print("  CMDs:        %d / %d / %d / %d" % (clean_cmd, wet_cmd, dirty_cmd, wetdirty_cmd),
+    print("  name:           %s" % design_name, file=sys.stderr)
+    print("  display:        %s" % display_name, file=sys.stderr)
+    print("  category:       %d (%s)" % (category, CAT_NAMES[category]), file=sys.stderr)
+    print("  designId:       %d" % design_id, file=sys.stderr)
+    print("  CMDs:           %d / %d / %d / %d" % (clean_cmd, wet_cmd, dirty_cmd, wetdirty_cmd),
           file=sys.stderr)
+    print("  equippableKey:  %s" % equippable_key, file=sys.stderr)
 
     # Build font entries
     file_prefix = compute_file_prefix(dir_path, args.namespace)
@@ -694,11 +695,13 @@ def main():
         "wetDirtyCmd":    wetdirty_cmd,
         "methodName":     snake_to_pascal(design_name),
         "giveKey":        design_name,
+        "equippableKey":  equippable_key,
         "folderBasename": folder_basename,  # used by --sync-icons to find source PNGs
     }
 
     # Inventory icon plumbing -- only if <design>/icons/clean.png exists.
-    # Generates models/item/<design>_<state>.json and splices slime_ball.json.
+    # Generates models/item/<design>_<state>.json and splices range_dispatch
+    # entries into assets/minecraft/items/slime_ball.json.
     found_icons = discover_icons(dir_path)
     if found_icons is None:
         print("note: no icons/ subfolder found -- skipping inventory icon model generation. "
@@ -710,37 +713,41 @@ def main():
               "clean.png is required.", file=sys.stderr)
     else:
         models_written = write_item_models(design_name, dir_path, args.namespace, found_icons)
-        cmds_to_models = splice_slime_ball_predicates(design_name, found_icons, manifest)
+        cmds_to_models = splice_slime_ball_range_dispatch(design_name, found_icons, manifest)
         print("Wrote %d item model(s): %s" %
               (len(models_written), ", ".join(os.path.basename(p) for p in models_written)),
               file=sys.stderr)
-        print("slime_ball.json: %s" %
+        print("items/slime_ball.json: %s" %
               ", ".join("%d->%s" % (cmd, mref) for cmd, mref in sorted(cmds_to_models.items())),
               file=sys.stderr)
 
-    # OptiFine CIT plumbing -- worn-armor .properties per CMD.
-    # The CIT folder name mirrors the input folder basename so users can keep
-    # everything for one design discoverable by the same name.
-    armor_textures = discover_armor_textures(folder_basename)
+    # Equipment definition + worn-armor texture (replaces OptiFine CIT).
+    # Source convention: <design-folder>/armor/clean.png. Writes a single
+    # equipment definition + texture per design — per-state worn variants
+    # are out of scope for the auto-generator (the in-world leggings model
+    # is still controlled by leather_leggings.json's range_dispatch entries
+    # which /add-design wires up).
+    armor_textures = discover_armor_textures(dir_path)
     if armor_textures is None:
-        print("note: no optifine/cit/special/%s/ folder found -- skipping worn-armor "
-              ".properties generation. Drop clean.png (and optional wet/messy/wetmessy.png) "
-              "+ layer_2_overlay.png into that folder and re-run." %
-              folder_basename, file=sys.stderr)
+        print("note: no armor/ subfolder found -- skipping equipment definition. "
+              "Drop armor/clean.png into the design folder and re-run to wire up "
+              "the worn-leggings body texture.", file=sys.stderr)
     elif "clean" not in armor_textures:
-        print("note: optifine/cit/special/%s/ folder found but clean.png is missing "
-              "-- skipping. clean.png is required." % folder_basename, file=sys.stderr)
+        print("note: armor/ folder found but armor/clean.png is missing -- skipping. "
+              "clean.png is required.", file=sys.stderr)
     else:
-        props_written = write_armor_properties(folder_basename, design_name,
-                                               armor_textures, manifest)
-        print("Wrote %d OptiFine .properties file(s): %s" %
-              (len(props_written), ", ".join(os.path.basename(p) for p in props_written)),
-              file=sys.stderr)
-        if not has_layer2_overlay(folder_basename):
-            print("warning: optifine/cit/special/%s/layer_2_overlay.png is missing. "
-                  "Worn-armor texture will render without the overlay layer until you "
-                  "add it (copy from optifine/cit/pullups/layer_2_overlay.png as a "
-                  "starting point)." % folder_basename, file=sys.stderr)
+        eq_def_path = write_equipment_definition(equippable_key)
+        eq_tex_path = copy_equipment_texture(
+            os.path.join(dir_path, "armor", armor_textures["clean"]),
+            equippable_key,
+        )
+        print("Wrote equipment definition: %s" % os.path.basename(eq_def_path), file=sys.stderr)
+        print("Copied equipment texture:   %s" % os.path.basename(eq_tex_path), file=sys.stderr)
+        extra = [s for s in ICON_STATES if s != "clean" and s in armor_textures]
+        if extra:
+            print("note: armor/ contains %s.png — only clean.png is wired up by the "
+                  "generator. Per-state worn textures are not yet supported here." %
+                  ", ".join(extra), file=sys.stderr)
 
     manifest_path = repo_path(PENDING_MANIFEST_REL)
     os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
