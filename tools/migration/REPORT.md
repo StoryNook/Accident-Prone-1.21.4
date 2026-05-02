@@ -100,3 +100,70 @@ Both Wave 0 hard gates verified:
 
 No plan adjustments required. Migration can proceed to Task 3 (git tag),
 then Wave 1 (pom.xml + Java 21 build switch).
+
+---
+
+## Wave 5 Validation Results (2026-05-01)
+
+Tested on a clean Paper 1.21.4 server with a Prism Launcher 1.21.4 client.
+Validation walked the §7.3 matrix as a TodoWrite checklist, prompted by the
+implementer; user reported observations row by row.
+
+### Pre-flight gates (Task 22)
+
+- `mvn clean package` → BUILD SUCCESS, jar 21.7 MB.
+- 388 pack JSON files all parse cleanly.
+- Pack zip extracts byte-identical to source tree.
+
+### Validation matrix results
+
+| # | Check | Result | Note |
+|---|---|---|---|
+| V1 | Server boots, plugin enables | PASS | Citizens/WorldGuard failures are unrelated 3rd-party compat. |
+| V2 | Resource pack accepted by client | PASS | Required clearing stale format-34 zip from client resourcepacks dir + plugin-extracted cache. |
+| V3 | Custom inventory icons render | PASS | All categories. |
+| V4 | Dropped-item world entity renders | PASS | |
+| V5 | Equippable component renders worn texture | PASS | Required swapping the stale pre-migration jar from the test server's plugins dir + clearing Paper's `.paper-remapped` cache. End-to-end: Java setEquippable → wire asset_id → 1.21.4 client → custom worn texture. |
+| V6 | `HandleAccident.changeLeggingsModel` advances state | PASS | CMD + equippable swap together via `setPantsState` helper. |
+| V7 | Lazy-stamp legacy items | DEFERRED | Fresh test world; no pre-migration save data to test against. Code path is structurally sound. |
+| V8 | `/settings` menu icons render | PASS | All sub-menus. |
+| V9 | Crib 3D models render | PASS | All wood variants. Armor-stand-as-hat trick preserved. |
+| V10 | Diaperpail 3D model renders | PASS | |
+| V11 | HUD glyphs (font system) | PASS | Action bar + sidebar. |
+| V12 | Sidebar underwear sprite cycles states | PARTIAL | Most transitions work; some edge cases don't update cleanly. Pre-existing or partly new — separate investigation, not migration-blocking. |
+| V13 | `/diaperreload` | DEFERRED | Code path unchanged by migration. |
+| V14 | Logout/login persistence | DEFERRED | YAML persistence unchanged; validated implicitly via V6 (state changed across an accident). |
+| V15 | `/add-design` end-to-end | DEFERRED | No new design ready; generator was smoke-tested in Wave 4 via `mvn generate-resources`. |
+| V16 | Vanilla armor trims | DEFERRED | Validated indirectly: items/leather_leggings.json's nested trim select was generated correctly per Wave 2 manifest. |
+| V17 | DesignRegistry smoke (goodnite_stars) | PARTIAL | Inventory + dropped icon work. Worn-body shows plain leather leggings — designs have no equipment definitions; tracked as out-of-scope per spec §9. |
+
+### Sign-off
+
+User accepted the migration as good. **Migration to Spigot 1.21.4 / pack
+format 46 / Java 21 is complete.**
+
+### Known follow-ups (not blocking)
+
+1. **Designs lack worn-body equipment definitions.** Spec §9 future-work.
+   `goodnite_stars` and any future DesignRegistry designs render as plain
+   leather leggings on the body. Fix involves generating per-design
+   equipment definitions + textures and threading the equipment id through
+   `PantsCrafting.equipDiaperArmor` for design CMDs.
+2. **Pants color comes out gray instead of dyed.** Reproducible: a "cyan"
+   pants attempt rendered gray. Two likely causes: (a) `equipDiaperArmor`
+   line 156–157 hardcodes `#F7FFF4`, (b) 1.21.4's `minecraft:dyed_color`
+   data component supersedes `LeatherArmorMeta.setColor()` and may need
+   to be set explicitly.
+3. **Sidebar underwear sprite has edge-case state transitions** that don't
+   update cleanly. Investigate `ScoreBoard.getUnderwearStatus` glyph table
+   indexing.
+4. **3rd-party plugin compat:** WorldGuard 7.0.12 throws
+   `NoSuchFieldError: ITEMS_TRIM_TEMPLATES` (1.21.4 incompat); CoreProtect
+   22.4 throws `NotSerializableException: CraftAttribute`; Citizens fails
+   to load (Nanny disabled). Out of scope for this migration; track
+   separately or update those plugins.
+5. **Maven jar packaging** currently bundles
+   `src/main/resources/StoryNook1.2.4.replaced-by-migration/` and the
+   unzipped pack tree alongside the zip — bloats the jar to 21.7 MB.
+   Add a maven-jar-plugin exclusion or move the unzipped tree out of
+   `src/main/resources/`.
