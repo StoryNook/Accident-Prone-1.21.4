@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Spigot/Bukkit Minecraft plugin "Accident-Prone" (`com.storynook:Accident-Prone`), targeting **Spigot API 1.19** on **Java 8**. The plugin tracks per-player bladder/bowel/hydration stats, layered underwear/diapers, accidents, caregivers, and a custom HUD. Built with Maven; output goes to `target/Accident-Prone-<version>.jar`, intended to be dropped into a Spigot server's `plugins/` folder.
+Spigot/Bukkit Minecraft plugin "Accident-Prone" (`com.storynook:Accident-Prone`), targeting **Spigot API 1.21.4** on **Java 21**. The plugin tracks per-player bladder/bowel/hydration stats, layered underwear/diapers, accidents, caregivers, and a custom HUD. Built with Maven; output goes to `target/Accident-Prone-<version>.jar`, intended to be dropped into a Paper/Spigot 1.21.4 server's `plugins/` folder. Pre-1.21.4 client and server support is explicitly dropped.
 
 ## Wiki
 
@@ -15,6 +15,7 @@ Subsystem-level reference docs live in [`docs/wiki/`](docs/wiki/README.md). Open
 - [Toilet & Warning system](docs/wiki/toilet-warnings.md) — intent-driven toilet relief eligibility, probability-scaled warnings, session-only Plugin maps, `/pee`/`/poop` context branching.
 - [Rash system](docs/wiki/rash.md) — RP accumulation, threshold effects, config modes, persistence.
 - [Design Registry](docs/wiki/design-registry.md) — adding visual design variants per category (e.g. Goodnite Stars). One `register(...)` line per design; auto-detect script + `/add-design` skill handle the rest.
+- [Resource pack 1.21.4 layout](docs/wiki/resource-pack-1-21-4.md) — pack format 46, `assets/minecraft/items/<base>.json` `range_dispatch` on `custom_model_data.floats[0]`, equipment definitions for worn armor (replaces OptiFine CIT), nested trim_material `select` for vanilla armor trims.
 - [Plugin dependencies](docs/wiki/dependencies.md) — Maven + softdepends + runtime detection.
 
 Design specs live in `docs/superpowers/specs/`. Admin guides live in `docs/security/` and `docs/membership-setup.md`.
@@ -28,7 +29,7 @@ mvn -Dtest=PluginTest#shouldAnswerWithTrue test   # run a single test
 mvn clean package    # clean rebuild
 ```
 
-The current test suite (`src/test/java/com/storynook/PluginTest.java`) is a placeholder (`assertTrue(true)`); there is no real test coverage. Manual testing is done by copying the built jar into a live Spigot 1.19 server and using the in-game commands declared in `plugin.yml`.
+The current Java test suite (`src/test/java/com/storynook/PluginTest.java`) is a placeholder (`assertTrue(true)`); there is no real Java-side test coverage. The migration tooling at `tools/migrate_to_1_21_4/` has its own pytest suite at `tests/test_migrate_to_1_21_4.py` (run with `python3 -m pytest tests/`). Manual end-to-end testing is done by copying the built jar into a live Paper/Spigot 1.21.4 server and using the in-game commands declared in `plugin.yml`.
 
 There is no linter/formatter configured.
 
@@ -99,10 +100,11 @@ Adding a sprite means adding a glyph to the resource-pack font JSON **and** refe
 
 The plugin is **unusable without its companion resource pack**, which it bundles and merges as `StoryNook1.2.4.zip` (also kept unpacked under `src/main/resources/StoryNook1.2.4/`). The pack supplies:
 
-1. **Item textures** keyed by the `CustomModelData` numbers in the `626xxx` / `628xxx` / `629xxx` ranges listed in *Custom items & recipes*. Without the pack, custom items render as their base vanilla material.
-2. **Bitmap font** that turns the `\uE0xx`–`\uE1xx` ranges into HUD/sidebar glyphs (hydration, bladder, bowels, underwear sprite stages — see the tables in `ScoreBoard.getUnderwearStatus`) and the `\uF8xx` range into invisible / negative-width spacing characters used to position those glyphs.
+1. **Item textures** keyed by the `CustomModelData` numbers in the `626xxx` / `628xxx` / `629xxx` ranges listed in *Custom items & recipes*. Without the pack, custom items render as their base vanilla material. Item-model resolution uses the **1.21.4 `assets/minecraft/items/<base>.json` system** with `range_dispatch` on `custom_model_data.floats[0]` (the legacy integer CMD is auto-mapped to `floats[0]` by the client). The pack ships `items/slime_ball.json` (37 entries) and `items/leather_leggings.json` (27 CMD entries + a nested `select` on `minecraft:trim_material` reproducing all 10 vanilla armor trims). The legacy `models/item/<base>.json` `overrides[]` system is gone.
+2. **Worn-armor textures** for leather_leggings-based wearables, served via the **vanilla `equippable` data component** pointing at `assets/minecraft/equipment/<id>.json` definitions (with textures under `assets/minecraft/textures/entity/equipment/humanoid_leggings/<id>.png`). 20 equipment IDs ship out of the box (one per pre-migration OptiFine CIT properties file). DesignRegistry-driven designs (e.g. `goodnite_stars`) currently have inventory icons but no equipment definitions — designs render as plain dyed leather leggings on the body until per-design equipment defs are added. **OptiFine CIT is no longer used**; the entire `optifine/` tree was removed in the 1.21.4 migration.
+3. **Bitmap font** that turns the `\uE0xx`–`\uE1xx` ranges into HUD/sidebar glyphs (hydration, bladder, bowels, underwear sprite stages — see the tables in `ScoreBoard.getUnderwearStatus`) and the `\uF8xx` range into invisible / negative-width spacing characters used to position those glyphs.
 
-Because the pack lives alongside this repo as a bundled zip, **any new codepoint allocation in code must be mirrored in the pack** (and vice versa) or the player will see tofu/blank glyphs.
+Because the pack lives alongside this repo as a bundled zip, **any new codepoint allocation in code must be mirrored in the pack** (and vice versa) or the player will see tofu/blank glyphs. Same rule applies to new CMDs — they must appear as a `range_dispatch` entry in the appropriate `items/<base>.json`, or the item renders as the base vanilla material.
 
 ## Bug-prone areas
 
@@ -118,7 +120,7 @@ Because the pack lives alongside this repo as a bundled zip, **any new codepoint
 ## Project goals (north star — not yet built)
 
 1. **Open-source friendly**, public contributions. Implies: format/lint, no inscrutable single-letter classes, consistent naming, tests so contributors can refactor without fear.
-2. **Real tests + CI** (replace the placeholder `PluginTest`). MockBukkit (`com.github.seeseemelk:MockBukkit-v1.19`) runs headless without a real server. High-value targets first:
+2. **Real tests + CI** (replace the placeholder `PluginTest`). MockBukkit (whichever version tracks 1.21.4) runs headless without a real server. The Python migration tooling already has a pytest suite at `tests/test_migrate_to_1_21_4.py`; mirror that pattern for Java. High-value targets first:
    - `HandleAccident.handleAccident` arithmetic per `underwearType` × `layers`.
    - `LoadStats` / `SavePlayerStats` / `CreateDefaultStats` round-trip.
    - `ScoreBoard.getUnderwearStatus` stage-index math.
@@ -168,8 +170,8 @@ The Credits page is rendered after all YAML sections and lives in `TutorialBook.
 
 For new visual variants of an existing absorbency category (e.g. a new pull-up that looks different but behaves identically), do **not** add a new factory method, recipe, give-case, equip-line, or sprite array. The system is fully data-driven through `DesignRegistry`. The full procedure is in [`docs/wiki/design-registry.md`](docs/wiki/design-registry.md); the short version:
 
-1. Drop stage PNGs in `src/main/resources/StoryNook1.2.4/assets/minecraft/textures/custom/special/<prefix>-<name>/`. **Prefix the folder with the category** so detection is unambiguous: `undies-` / `underwear-` (4 stages), `pullup-` (8), `diaper-` (15), `thick-` / `thick_diaper-` (25). PNG suffix convention: `*_clean.png`, `*_wet1.png`, `*_wet1mess1.png`, … Optionally add an `icons/` subfolder with `clean.png` (required if subfolder present) and optional `wet.png` / `messy.png` / `wetmessy.png` for the inventory item textures. Optionally place worn-armor textures + `layer_2_overlay.png` in `optifine/cit/special/<same-folder-basename>/` using the same `clean.png` / `wet.png` / `messy.png` / `wetmessy.png` filenames; the script will generate the matching OptiFine `.properties` files automatically.
-2. Run `python3 tools/generate_design_json.py <that-folder>`. The script reads the category from the prefix (PNG count just validates), strips the prefix to form the giveKey, picks the next free designId + CMD block, splices font entries into `images.json`, generates `models/item/<design>_<state>.json` + splices `slime_ball.json` predicates if `icons/clean.png` exists, generates OptiFine CIT `.properties` files if the cit folder + `clean.png` exist, and writes `tools/pending_design.json`. Folders without a prefix fall back to PNG count and emit a "rename me" hint; ambiguous cases error. Each missing optional folder produces a `note:` describing exactly what to add.
+1. Drop stage PNGs in `src/main/resources/StoryNook1.2.4/assets/minecraft/textures/custom/special/<prefix>-<name>/`. **Prefix the folder with the category** so detection is unambiguous: `undies-` / `underwear-` (4 stages), `pullup-` (8), `diaper-` (15), `thick-` / `thick_diaper-` (25). PNG suffix convention: `*_clean.png`, `*_wet1.png`, `*_wet1mess1.png`, … Optionally add an `icons/` subfolder with `clean.png` (required if subfolder present) and optional `wet.png` / `messy.png` / `wetmessy.png` for the inventory item textures. To give the design a distinct **worn-armor body texture** (instead of falling back to plain dyed leggings), place `clean.png` (and optional `wet.png` / `messy.png` / `wetmessy.png`) in an `armor/` subfolder of the design folder; the generator will write the matching `assets/minecraft/equipment/<design>.json` definitions and copy textures into `assets/minecraft/textures/entity/equipment/humanoid_leggings/`.
+2. Run `python3 tools/generate_design_json.py <that-folder>`. The script reads the category from the prefix (PNG count just validates), strips the prefix to form the giveKey, picks the next free designId + CMD block, splices font entries into `images.json`, generates `models/item/<design>_<state>.json` + appends a `range_dispatch` entry to `assets/minecraft/items/slime_ball.json` if `icons/clean.png` exists, generates `assets/minecraft/equipment/<design>.json` definitions + copies textures to `assets/minecraft/textures/entity/equipment/humanoid_leggings/<design>.png` if the `armor/` folder + `clean.png` exist, and writes `tools/pending_design.json` (carrying an `equippableKey` for `/add-design`'s `register(...)` call). Folders without a prefix fall back to PNG count and emit a "rename me" hint; ambiguous cases error. Each missing optional folder produces a `note:` describing exactly what to add.
 3. Run `/add-design` in Claude Code. It appends one `register(...)` line to `DesignRegistry.init()`, runs `mvn package`, and archives the manifest.
 
 When the user says something like "I added new designs to the resource pack, add them" in a fresh context, follow this same flow: scan `textures/custom/special/` for folders not yet in `tools/applied/*.json`, run the script per new folder, then `/add-design` per manifest. Stop and ask the user only if a folder lacks a prefix AND has an ambiguous PNG count.
@@ -195,5 +197,6 @@ Many features depend on other features being on. The current code expresses this
 - **Package name typo**: `com.storynook.AccidentsANDWanrings` (sic — "Wanrings", not "Warnings"). The directory and package name are spelled this way; preserve it unless you are doing a deliberate rename across all imports.
 - **Config-key typos**: `HyponosisWords.yml` (resource filename) and `Secret_Menu.Hyponsis` (key in the shipped `config.yml`) both mis-spell "Hypnosis". The Java code reads `Secret_Menu.Hypnosis` (correctly spelled) — meaning the shipped key is currently inert. Don't silently rewrite either side without checking the other.
 - The resource folder `src/main/java/com/storynook/JSON Files/` (with a space) holds non-Java assets (`font.json`); keep non-source assets out of `src/main/java` ideally, but be aware existing code/build config may assume current layout.
-- Java 8 source/target — avoid Java 9+ language features (`var`, records, switch expressions, etc.).
+- Java 21 source/target — newer language features (`var`, records, switch expressions, pattern matching, sealed classes, text blocks) are now available. Existing code is not churned to use them; introduce them only where they improve clarity in new code.
 - Spigot API and VentureChat are `provided` scope — never bundle them into the jar.
+- Resource pack uses pack format 46 (1.21.4) with `supported_formats: [46, 99]` for forward-compat. Pre-1.21.4 client and server support is explicitly dropped — see `docs/wiki/resource-pack-1-21-4.md`.
