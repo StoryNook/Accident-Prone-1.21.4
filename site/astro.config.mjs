@@ -32,13 +32,9 @@ export default defineConfig({
       components: {
         SiteTitle: "./src/components/SiteTitle.astro",
       },
-      social: [
-        {
-          icon: "github",
-          label: "GitHub",
-          href: "https://github.com/StoryNook/Accident-Prone-1.21.4",
-        },
-      ],
+      social: {
+        github: "https://github.com/StoryNook/Accident-Prone-1.21.4",
+      },
       sidebar: [
         { label: "Overview", link: "/" },
         {
