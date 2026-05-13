@@ -17,6 +17,7 @@ Subsystem-level reference docs live in [`docs/wiki/`](docs/wiki/README.md). Open
 - [Design Registry](docs/wiki/design-registry.md) — adding visual design variants per category (e.g. Goodnite Stars). One `register(...)` line per design; auto-detect script + `/add-design` skill handle the rest.
 - [Resource pack 1.21.4 layout](docs/wiki/resource-pack-1-21-4.md) — pack format 46, `assets/minecraft/items/<base>.json` `range_dispatch` on `custom_model_data.floats[0]`, equipment definitions for worn armor (replaces OptiFine CIT), nested trim_material `select` for vanilla armor trims.
 - [Plugin dependencies](docs/wiki/dependencies.md) — Maven + softdepends + runtime detection.
+- [Integrations](docs/wiki/integrations.md) — Jobs Reborn / AdvancedJobs / BeautyQuests bridge; event-bus action catalog (`AccidentProneActionEvent` + 14 action IDs).
 
 Design specs live in `docs/superpowers/specs/`. Admin guides live in `docs/security/` and `docs/membership-setup.md`.
 
@@ -163,8 +164,28 @@ Whenever you add a new admin-configurable flag, follow these four steps in order
    - Add the section's id to the `order:` list at the appropriate point in the player-interaction flow (intro → core mechanics → optional features → hidden features → credits).
    - Write the `body:` prose explaining how a player will actually encounter the feature.
    - The merge logic in `Plugin.mergeConfigFiles` is non-destructive: existing servers keep their admin edits, and your new section is added on the next start. This only works if you actually add the section here.
+5. **Decide if this feature deserves an integration action.** If the new flag gates a new player action (changing, crafting, drinking, accident, etc.), it should probably fire an `AccidentProneActionEvent` — see "Adding an integration action" below. Make the call explicitly; default to yes. If no, note the reason in the commit.
 
 The Credits page is rendered after all YAML sections and lives in `TutorialBook.buildCreditsBody()` — update it there when adding contributors, not in `welcomebook.yml`.
+
+## Adding an integration action
+
+> **Project rule:** every new player-visible gameplay event is an opportunity for a Jobs payout or a BeautyQuests stage. Whenever you add a new feature (a new gameplay event, a new way to interact with an item, a new toggle that triggers behavior), **explicitly decide** whether it should fire an `AccidentProneActionEvent`. Default answer is "yes" for anything that has a clear success-state moment. If you decide "no" — write the reason in the PR/commit so future maintainers know it was considered. The only place this lookup happens is `IntegrationsBus.TABLE`; if your action isn't there, no Jobs or BeautyQuests integration is possible without code changes.
+
+When you add a new gameplay event that should be visible to integrations (Jobs / BeautyQuests / future hooks), follow these six steps:
+
+1. **Add a constant** to `com.storynook.Integrations.events.ActionId` (e.g. `public static final String NEW_THING = "accidentprone:new_thing";`) and append it to `ActionId.ALL`.
+2. **Fire the event** from the listener / command / handler at the point the action successfully completes:
+   ```java
+   plugin.getIntegrationsBus().fire(worker, ActionId.NEW_THING, target, ctx);
+   ```
+   `ctx` is a `Map<String,Object>` carrying pre-state values for the bus's state predicate (e.g. wetness/fullness/bladder/bowels/hydration).
+3. **Add a descriptor** in `IntegrationsBus.TABLE` static block: feature-flag key (one of `Caregivers`, `Diapers`, `Accidents`, etc.), caregiver-relationship requirement, state predicate, cooldown key, scope (`worker`, `pair`, `pair_slot`, `worker_stat`).
+4. **Add a config row** in `src/main/resources/integrations.yml` under both `Jobs.Action_Map` (default Jobs action name) and `BeautyQuests.Quest_Trigger_Map` (empty string).
+5. **Add a row** to the action catalog table in `docs/wiki/integrations.md`.
+6. **Tests:** `JobsActionMapTest` and `BeautyQuestsTriggerMapTest` automatically check the YAML coverage. Add a state-predicate / cooldown test in `IntegrationsBusTest` if the action has non-trivial gating.
+
+If the action introduces a new feature flag, also follow "Adding a config setting" for that flag.
 
 ## Adding a design variant
 
@@ -190,6 +211,7 @@ Many features depend on other features being on. The current code expresses this
 - Cursed binding diapers require `Secret_Menu.Binding_Diapers` on; the recipe should not register at all when off.
 - Membership-gated AI tier requires `Settings_Menu.Membership` on AND `Nanny.Membership.enabled` on AND at least one sub-provider (`Permission`/`Patreon`/`Subscribestar`) enabled. Otherwise `AlwaysLockedProvider` is used and AI never fires.
 - Per-player settings should **grey out / be hidden** when the underlying global setting is off, not silently no-op. The current symptom — a per-player toggle that visibly does nothing — is a frequent confusion source.
+- `Integrations.enabled` (master switch in `integrations.yml`) is required on top of every per-action feature flag — `accidentprone:change` requires both `Integrations.enabled` AND `Settings_Menu.Caregivers`, etc. Per-action gating is centralised in `IntegrationsBus.TABLE`.
 
 ## Conventions to be aware of
 

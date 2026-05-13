@@ -55,7 +55,19 @@ Toilet_False_Alarm: §7You sit down... but you didn't actually have to go that b
 Laxative:
 - §4It seems like your tummy is upset, was it something you ate?
 Rash:
+- §cA rash is forming.
+Rash_Damage:
 - §cYou are taking damage from a rash.
+- §cThe rash bites at your skin painfully.
+Rash_Poison:
+- §2A rash is making you feel sickly.
+- §2Your rash leaves you queasy and weak.
+Rash_Health_Reduction:
+- §4Your rash is wearing you down — you feel frail.
+- §4The persistent rash saps your vitality.
+Rash_None:
+- §6An uncomfortable rash is forming.
+- §6Your skin feels raw and irritated.
 Rash_Clear:
 - §aYour rash seems to be clearing up.
 Hypno_Wetting:

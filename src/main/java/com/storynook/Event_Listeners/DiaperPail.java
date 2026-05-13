@@ -37,6 +37,12 @@ import com.storynook.items.CustomItemCoolDown;
 public class DiaperPail implements Listener {
     public static Map<UUID, Inventory> pailInventories = new HashMap<>();
     private static Map<UUID, UUID> AccessedInventory = new HashMap<>();
+    // Snapshot of pail contents at open-time, keyed by player UUID. Used to count
+    // dirty items added during the session for the integrations bus.
+    private static Map<UUID, Integer> usedCountAtOpen = new HashMap<>();
+    private final com.storynook.Plugin plugin;
+    public DiaperPail() { this.plugin = null; }
+    public DiaperPail(com.storynook.Plugin plugin) { this.plugin = plugin; }
 
     //Opening of the Diaper Pail, creates inventory file on open if it doesn't exist yet
     @EventHandler
@@ -76,6 +82,12 @@ public class DiaperPail implements Listener {
                                     pailInventories.put(pailId, inventory);
                                 }
                             }
+                            // Snapshot used-item count at open for the integrations bus.
+                            int usedAtOpen = 0;
+                            for (ItemStack itm : inventory.getContents()) {
+                                if (itm != null && CustomItemCheck.isUsed(itm)) usedAtOpen++;
+                            }
+                            usedCountAtOpen.put(event.getPlayer().getUniqueId(), usedAtOpen);
                             event.getPlayer().openInventory(inventory);
                             AccessedInventory.put(event.getPlayer().getUniqueId(), pailId);
                             break;
@@ -233,6 +245,35 @@ public class DiaperPail implements Listener {
 
             UUID playerUuid = event.getPlayer().getUniqueId();
             UUID pailId = AccessedInventory.get(playerUuid);
+
+            // Count used items currently in the pail and compare to the open-time
+            // snapshot -- difference is "dirty items the player just deposited".
+            // Fire pail_fill once PER deposited item so quest counters tick naturally
+            // and AdvancedJobs jobs accumulate progress per disposal.
+            int usedNow = 0;
+            int firstDirtyCmd = 0;
+            for (ItemStack itm : inventory.getContents()) {
+                if (itm != null && CustomItemCheck.isUsed(itm)) {
+                    usedNow++;
+                    if (firstDirtyCmd == 0 && itm.hasItemMeta() && itm.getItemMeta().hasCustomModelData()) {
+                        firstDirtyCmd = itm.getItemMeta().getCustomModelData();
+                    }
+                }
+            }
+            int openSnapshot = usedCountAtOpen.getOrDefault(playerUuid, 0);
+            int deposited = Math.max(0, usedNow - openSnapshot);
+            usedCountAtOpen.remove(playerUuid);
+            if (deposited > 0 && plugin != null && plugin.getIntegrationsBus() != null
+                    && event.getPlayer() instanceof Player) {
+                Player closer = (Player) event.getPlayer();
+                java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+                ctx.put("dirtyConsumed", true);
+                ctx.put("cmd", firstDirtyCmd);
+                ctx.put("count", deposited);  // hooks multiply payout/progress by count
+                plugin.getIntegrationsBus().fire(closer,
+                        com.storynook.Integrations.events.ActionId.PAIL_FILL,
+                        null, ctx);
+            }
 
             if (isValid){
                 for (int i = 0; i < inventory.getSize(); i++) {

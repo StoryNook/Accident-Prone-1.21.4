@@ -211,25 +211,33 @@ public class NannyManager implements Listener {
 
             // Step 2: Spawn if the player is owner or ward and Nanny is not dormant
             if ((isOwner || isWard) && !data.isDormant()) {
-                spawnNanny(data, player.getLocation());
+                spawnNanny(data, resolveSpawnLocation(data, player));
+
+                UUID joinNannyUUID = data.getNannyUUID();
+                NannyEntity nannyEntity = activeNannies.get(joinNannyUUID);
+
+                // Re-engage follow if the Nanny was set to follow her owner.
+                // Spawn alone doesn't set a Citizens entity-follow target, so without
+                // this she'd just stand next to wherever she spawned.
+                if (data.isFollowMode() && isOwner && nannyEntity != null && nannyEntity.isSpawned()) {
+                    NannyNavigator nav = navigators.get(joinNannyUUID);
+                    if (nav != null) nav.setFollowTarget(player);
+                }
 
                 // Phase 3: seek the joining player if they are far from the Nanny
-                if (data.isSeekEnabled()) {
-                    UUID joinNannyUUID = data.getNannyUUID();
-                    NannyEntity nannyEntity = activeNannies.get(joinNannyUUID);
-                    if (nannyEntity != null && nannyEntity.isSpawned()) {
-                        Location nannyLoc = nannyEntity.getLocation();
-                        if (nannyLoc != null) {
-                            boolean differentWorld = !nannyLoc.getWorld().equals(player.getWorld());
-                            double distSq = differentWorld ? Double.MAX_VALUE
-                                    : nannyLoc.distanceSquared(player.getLocation());
-                            if (distSq > 100.0) {
-                                if (differentWorld) {
-                                    nannyEntity.teleportTo(player.getLocation());
-                                }
-                                NannyNavigator nav = navigators.get(joinNannyUUID);
-                                if (nav != null) nav.seekTo(player);
+                if (data.isSeekEnabled() && !data.isFollowMode()
+                        && nannyEntity != null && nannyEntity.isSpawned()) {
+                    Location nannyLoc = nannyEntity.getLocation();
+                    if (nannyLoc != null) {
+                        boolean differentWorld = !nannyLoc.getWorld().equals(player.getWorld());
+                        double distSq = differentWorld ? Double.MAX_VALUE
+                                : nannyLoc.distanceSquared(player.getLocation());
+                        if (distSq > 100.0) {
+                            if (differentWorld) {
+                                nannyEntity.teleportTo(player.getLocation());
                             }
+                            NannyNavigator nav = navigators.get(joinNannyUUID);
+                            if (nav != null) nav.seekTo(player);
                         }
                     }
                 }
@@ -440,6 +448,28 @@ public class NannyManager implements Listener {
     // -------------------------------------------------------------------------
 
     /**
+     * Picks the spawn location for a Nanny on player join.
+     * Prefers last-known position, then home, then the joining player's location.
+     */
+    private Location resolveSpawnLocation(NannyData data, Player player) {
+        String lastWorldName = data.getLastWorld();
+        if (lastWorldName != null && !lastWorldName.isEmpty()) {
+            org.bukkit.World w = Bukkit.getWorld(lastWorldName);
+            if (w != null) {
+                return new Location(w, data.getLastX(), data.getLastY(), data.getLastZ());
+            }
+        }
+        String homeWorldName = data.getHomeWorld();
+        if (homeWorldName != null && !homeWorldName.isEmpty()) {
+            org.bukkit.World w = Bukkit.getWorld(homeWorldName);
+            if (w != null) {
+                return new Location(w, data.getHomeX(), data.getHomeY(), data.getHomeZ());
+            }
+        }
+        return player.getLocation();
+    }
+
+    /**
      * Spawns a Citizens2 NPC for the given Nanny at the specified location.
      * No-ops if the Nanny is already active or if Citizens2 is unavailable.
      */
@@ -485,6 +515,18 @@ public class NannyManager implements Listener {
         if (entity == null) {
             return;
         }
+        // Snapshot last location before despawn so the next spawn can restore it
+        NannyData data = allNannies.get(nannyUUID);
+        if (data != null) {
+            Location here = entity.getLocation();
+            if (here != null && here.getWorld() != null) {
+                data.setLastWorld(here.getWorld().getName());
+                data.setLastX(here.getX());
+                data.setLastY(here.getY());
+                data.setLastZ(here.getZ());
+                data.save(plugin.getDataFolder());
+            }
+        }
         entity.despawn();
 
         // Stop the care engine when no Nannies are left active
@@ -492,7 +534,6 @@ public class NannyManager implements Listener {
             careEngine.stop();
         }
 
-        NannyData data = allNannies.get(nannyUUID);
         String name = (data != null) ? data.getName() : nannyUUID.toString();
         plugin.getLogger().info("[NannyManager] Despawned Nanny: " + name);
     }
@@ -767,5 +808,10 @@ public class NannyManager implements Listener {
 
     public void setMembershipProvider(com.storynook.nanny.MembershipProvider mp) {
         this.membershipProvider = mp;
+    }
+
+    /** Returns the owning plugin instance (used by NannyCareEngine for registry access). */
+    public Plugin getPlugin() {
+        return plugin;
     }
 }

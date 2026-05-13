@@ -72,6 +72,7 @@ public class CreateDefaultStats {
         stats.setOptin(false);
         stats.setAllCaregiver(false);
         stats.setspecialCG(false);
+        stats.setContainedInCribId(null);
         stats.setLaxEffectDuration(0);
         stats.setLaxEffectDelay(0);
         stats.setLaxEffectIntensity(0);

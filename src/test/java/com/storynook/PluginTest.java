@@ -1,20 +1,31 @@
 package com.storynook;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-/**
- * Unit test for simple Plugin.
- */
-public class PluginTest 
-{
-    /**
-     * Rigorous Test :-)
-     */
+import org.mockbukkit.mockbukkit.MockBukkit;
+import org.mockbukkit.mockbukkit.ServerMock;
+
+public class PluginTest {
+
+    private ServerMock server;
+
+    @BeforeEach
+    public void setUp() {
+        server = MockBukkit.mock();
+    }
+
+    @AfterEach
+    public void tearDown() {
+        MockBukkit.unmock();
+    }
+
     @Test
-    public void shouldAnswerWithTrue()
-    {
-        assertTrue( true );
+    public void mockBukkitBootsCleanly() {
+        assertNotNull(server);
+        assertNotNull(server.getPluginManager());
     }
 }

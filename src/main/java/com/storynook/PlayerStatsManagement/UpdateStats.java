@@ -264,9 +264,20 @@ public class UpdateStats {
                 boolean isAbove = newRP >= rashThreshold;
 
                 if (!wasAbove && isAbove) {
-                  player.sendMessage(plugin.getRandomMessage("Rash"));
+                  String rashKey;
+                  switch (rashMode) {
+                    case "damage":           rashKey = "Rash_Damage"; break;
+                    case "poison":           rashKey = "Rash_Poison"; break;
+                    case "health_reduction": rashKey = "Rash_Health_Reduction"; break;
+                    case "none":             rashKey = "Rash_None"; break;
+                    default:                 rashKey = "Rash"; break;
+                  }
+                  String rashMsg = plugin.getRandomMessage(rashKey);
+                  if (rashMsg == null) rashMsg = plugin.getRandomMessage("Rash");
+                  if (rashMsg != null) player.sendMessage(rashMsg);
                 } else if (wasAbove && !isAbove) {
-                  player.sendMessage(plugin.getRandomMessage("Rash_Clear"));
+                  String clearMsg = plugin.getRandomMessage("Rash_Clear");
+                  if (clearMsg != null) player.sendMessage(clearMsg);
                 }
 
                 if (isAbove) {
@@ -295,14 +306,15 @@ public class UpdateStats {
                 if ("health_reduction".equals(rashMode)) {
                   org.bukkit.attribute.AttributeInstance attr = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
                   if (attr != null) {
+                    java.util.UUID rashModifierId = java.util.UUID.fromString("b3c4d5e6-f7a8-9b0c-1d2e-3f4a5b6c7d8e");
                     org.bukkit.attribute.AttributeModifier toRemove = null;
                     for (org.bukkit.attribute.AttributeModifier m : attr.getModifiers()) {
-                      if ("rash_max_health".equals(m.getName())) { toRemove = m; break; }
+                      if (rashModifierId.equals(m.getUniqueId())) { toRemove = m; break; }
                     }
                     if (toRemove != null) attr.removeModifier(toRemove);
                     if (isAbove) {
                       attr.addModifier(new org.bukkit.attribute.AttributeModifier(
-                        java.util.UUID.fromString("b3c4d5e6-f7a8-9b0c-1d2e-3f4a5b6c7d8e"),
+                        rashModifierId,
                         "rash_max_health", -(rashAmount * 2.0),
                         org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER));
                       double newMax = attr.getValue();

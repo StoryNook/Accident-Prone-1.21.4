@@ -284,10 +284,9 @@ public class NannyCareEngine {
     }
 
     /**
-     * Phase 5a: places a tired ward inside the nearest crib armor stand.
-     * Triggered when the ward's food level is ≤ 6 (sleep proxy) and a
-     * "Crib"-named ArmorStand exists within homeRadius. Player is seated
-     * via {@code addPassenger}.
+     * Phase 5a / Crib Redesign Task 23: places a tired ward in the nearest crib.
+     * Branches on new-system cribs (via CribRegistry) vs. legacy "Crib"-named
+     * ArmorStands. Kill-switch {@code Crib_New_System=false} forces legacy-only path.
      */
     private void doPlaceInCrib(NannyEntity entity, NannyData data, Player ward) {
         if (!NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) return;
@@ -296,6 +295,69 @@ public class NannyCareEngine {
         Location wardLoc = ward.getLocation();
         if (wardLoc == null || wardLoc.getWorld() == null) return;
 
+        com.storynook.furniture.CribRegistry registry = manager.getPlugin().getCribRegistry();
+        if (registry == null) {
+            // Registry not yet wired (Plugin.onEnable hasn't run Task 26 yet — defensive).
+            // Fall back to legacy scan.
+            legacyCribFallback(data, ward, wardLoc);
+            return;
+        }
+        Object killSwitch = manager.getPlugin().getGlobalConfig().get("Crib_New_System");
+        boolean newSystemEnabled = !(killSwitch instanceof Boolean) || ((Boolean) killSwitch);
+
+        com.storynook.furniture.CribLookupResult lookup =
+            newSystemEnabled
+                ? registry.findNearestCrib(wardLoc, data.getHomeRadius())
+                : findLegacyCribOnly(wardLoc, data.getHomeRadius());
+
+        if (lookup instanceof com.storynook.furniture.CribLookupResult.NewCribResult newRes) {
+            com.storynook.furniture.Crib crib = newRes.crib();
+            if (!crib.hasBed()) return;
+            Location target = crib.bedHeadLocation();
+            if (target == null) return;
+            ward.teleport(target);
+            registry.containWard(ward.getUniqueId(), crib.id());
+            com.storynook.PlayerStatsManagement.PlayerStats wardStats =
+                    manager.getPlugin().getPlayerStats(ward.getUniqueId());
+            if (wardStats != null) wardStats.setContainedInCribId(crib.id());
+
+            NannyEventLog log = manager.getEventLog(data.getNannyUUID());
+            if (log != null) {
+                log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(), "crib_placement_new");
+            }
+            speakPostAction(ward, "tucked_in");
+            return;
+        }
+
+        if (lookup instanceof com.storynook.furniture.CribLookupResult.LegacyCribResult legacyRes) {
+            org.bukkit.entity.ArmorStand armor = legacyRes.armorStand();
+            ward.teleport(armor.getLocation().add(0, 0.5, 0));
+            armor.addPassenger(ward);
+            NannyEventLog log = manager.getEventLog(data.getNannyUUID());
+            if (log != null) {
+                log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(), "crib_placement_legacy");
+            }
+            speakPostAction(ward, "tucked_in");
+            return;
+        }
+        // None — no crib found
+    }
+
+    private com.storynook.furniture.CribLookupResult findLegacyCribOnly(Location origin, double radius) {
+        org.bukkit.entity.ArmorStand best = null;
+        double bestDistSq = radius * radius;
+        for (org.bukkit.entity.Entity e : origin.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
+            if (!(e instanceof org.bukkit.entity.ArmorStand as)) continue;
+            if (as.getCustomName() == null || !"Crib".equals(as.getCustomName())) continue;
+            double d2 = as.getLocation().distanceSquared(origin);
+            if (d2 < bestDistSq) { bestDistSq = d2; best = as; }
+        }
+        return best == null
+            ? com.storynook.furniture.CribLookupResult.None.INSTANCE
+            : new com.storynook.furniture.CribLookupResult.LegacyCribResult(best);
+    }
+
+    private void legacyCribFallback(NannyData data, Player ward, Location wardLoc) {
         org.bukkit.entity.ArmorStand nearest = null;
         double bestDistSq = Double.MAX_VALUE;
         double r = data.getHomeRadius();
@@ -307,14 +369,11 @@ public class NannyCareEngine {
             if (d < bestDistSq) { bestDistSq = d; nearest = as; }
         }
         if (nearest == null) return;
-
         ward.teleport(nearest.getLocation().add(0, 0.5, 0));
         nearest.addPassenger(ward);
-
         NannyEventLog log = manager.getEventLog(data.getNannyUUID());
         if (log != null) {
-            log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(),
-                    "crib_placement");
+            log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(), "crib_placement");
         }
         speakPostAction(ward, "tucked_in");
     }

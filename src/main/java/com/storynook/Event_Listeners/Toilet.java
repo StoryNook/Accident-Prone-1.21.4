@@ -10,12 +10,14 @@ import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -31,18 +33,16 @@ public class Toilet implements Listener{
     public Toilet(Plugin plugin) {
         this.plugin = plugin;
     }
-    //Places custom item toilet
-    @EventHandler
+    //Places custom item toilet. MONITOR + ignoreCancelled so we never plant the
+    //trapdoor when another plugin (e.g. WorldGuard) rolled back the cauldron.
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlaceToilet(BlockPlaceEvent event) {
         ItemStack item = event.getItemInHand();
         if (item.hasItemMeta() && item.getItemMeta().hasCustomModelData() && item.getItemMeta().getCustomModelData() == 626006) {
 
-            // Get the block where the player is trying to place the toilet
+            // Get the block where the player placed the toilet (already a cauldron — the item itself is one)
             Block block = event.getBlockPlaced();
             Location loc = block.getLocation();
-
-            // Set the cauldron at the block location
-            block.setType(Material.CAULDRON);
 
             // Place a trapdoor on top
             Block trapdoorBlock = loc.clone().add(0, 1, 0).getBlock();
@@ -78,6 +78,9 @@ public class Toilet implements Listener{
     //Toilet interaction
     @EventHandler
     public void onToiletInteract(PlayerInteractEvent event) {
+        // PlayerInteractEvent fires for main hand and off-hand both. Without
+        // this filter, our trapdoor toggle would flip twice and net to nothing.
+        if (event.getHand() != EquipmentSlot.HAND) return;
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Block block = event.getClickedBlock();
             if (block != null) {
@@ -87,7 +90,12 @@ public class Toilet implements Listener{
                 } else if (block.getType() == Material.IRON_TRAPDOOR) {
                     Block belowBlock = block.getLocation().subtract(0, 1, 0).getBlock();
                     if (belowBlock.getType() == Material.CAULDRON) {
-                        // toggleTrapdoor(block);
+                        // Only toggle when the player's hand is empty — matches the
+                        // sit rule and prevents accidental flips while building.
+                        if (event.getPlayer().getInventory().getItemInMainHand().getType() == Material.AIR) {
+                            event.setCancelled(true);
+                            toggleTrapdoor(block);
+                        }
                     }
                 }
             }
@@ -97,16 +105,22 @@ public class Toilet implements Listener{
     private void processCauldronInteraction(Block cauldronBlock, Player player) {
         Block trapdoorBlock = cauldronBlock.getLocation().add(0, 1, 0).getBlock();
         if (trapdoorBlock.getType() == Material.IRON_TRAPDOOR) {
+            // Lid closed = no seat. Silent — matches the leggings-blocks-sit behavior.
+            TrapDoor trapdoor = (TrapDoor) trapdoorBlock.getBlockData();
+            if (!trapdoor.isOpen()) {
+                return;
+            }
             // Existing code to make the player interact with the cauldron toilet
             interactWithCauldron(player, cauldronBlock, trapdoorBlock);
         }
     }
 
-    // private void toggleTrapdoor(Block trapdoorBlock) {
-    //     TrapDoor trapdoor = (TrapDoor) trapdoorBlock.getBlockData();
-    //     trapdoor.setOpen(!trapdoor.isOpen());
-    //     trapdoorBlock.setBlockData(trapdoor);
-    // }
+    // State lives on the block; no persistence needed.
+    private void toggleTrapdoor(Block trapdoorBlock) {
+        TrapDoor trapdoor = (TrapDoor) trapdoorBlock.getBlockData();
+        trapdoor.setOpen(!trapdoor.isOpen());
+        trapdoorBlock.setBlockData(trapdoor);
+    }
 
     //Using Toilet Action
     private void interactWithCauldron(Player player, Block cauldronBlock, Block trapdoorBlock) {
@@ -145,15 +159,33 @@ public class Toilet implements Listener{
         boolean falseAlarm = false;
 
         if (stats.getBladder() > 10) {
+            int preBladder = (int) stats.getBladder();
             if (canRelieveOnToilet(player, stats, true)) {
                 relieveOnToilet(stats, true);
+                if (plugin.getIntegrationsBus() != null) {
+                    java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+                    ctx.put("bladder", preBladder);
+                    ctx.put("bowels", (int) stats.getBowels());
+                    ctx.put("stat", "bladder");
+                    plugin.getIntegrationsBus().fire(player,
+                            com.storynook.Integrations.events.ActionId.TOILET_RELIEF, null, ctx);
+                }
             } else {
                 falseAlarm = true;
             }
         }
         if (stats.getMessing() && stats.getBowels() > 10) {
+            int preBowels = (int) stats.getBowels();
             if (canRelieveOnToilet(player, stats, false)) {
                 relieveOnToilet(stats, false);
+                if (plugin.getIntegrationsBus() != null) {
+                    java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+                    ctx.put("bladder", (int) stats.getBladder());
+                    ctx.put("bowels", preBowels);
+                    ctx.put("stat", "bowels");
+                    plugin.getIntegrationsBus().fire(player,
+                            com.storynook.Integrations.events.ActionId.TOILET_RELIEF, null, ctx);
+                }
             } else {
                 falseAlarm = true;
             }

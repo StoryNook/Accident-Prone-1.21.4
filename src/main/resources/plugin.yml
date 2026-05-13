@@ -5,7 +5,7 @@ api-version: 1.19
 author: ["StoryNook"]
 description: "Bladder, bowels, diapers and more tracking, and usage"
 # softdepend: [Vault]
-softdepend: [PlaceholderAPI, VentureChat, Citizens]
+softdepend: [PlaceholderAPI, VentureChat, Citizens, Jobs, AdvancedJobs, BeautyQuests]
 commands:
   settings:
     description: "Open player settings for SNDP"

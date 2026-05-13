@@ -46,6 +46,10 @@ public class NannyData {
     private double homeY;
     private double homeZ;
     private int homeRadius;
+    private String lastWorld;
+    private double lastX;
+    private double lastY;
+    private double lastZ;
     private LocalDateTime lastOwnerSeen;
     private boolean dormant;
     private MoodTier moodTier;
@@ -84,6 +88,10 @@ public class NannyData {
         this.homeX = 0;
         this.homeY = 0;
         this.homeZ = 0;
+        this.lastWorld = "";
+        this.lastX = 0;
+        this.lastY = 0;
+        this.lastZ = 0;
 
         Object radiusObj = globalConfig.getOrDefault("Nanny_Default_Home_Radius", 50);
         this.homeRadius = (radiusObj instanceof Number) ? ((Number) radiusObj).intValue() : 50;
@@ -172,6 +180,10 @@ public class NannyData {
         config.set("homeY", homeY);
         config.set("homeZ", homeZ);
         config.set("homeRadius", homeRadius);
+        config.set("lastWorld", lastWorld);
+        config.set("lastX", lastX);
+        config.set("lastY", lastY);
+        config.set("lastZ", lastZ);
         config.set("lastOwnerSeen", lastOwnerSeen != null ? lastOwnerSeen.format(DATE_FMT) : "");
         config.set("dormant", dormant);
         config.set("moodTier", moodTier != null ? moodTier.name() : MoodTier.CARING.name());
@@ -255,6 +267,10 @@ public class NannyData {
         data.homeY = config.getDouble("homeY", 0);
         data.homeZ = config.getDouble("homeZ", 0);
         data.homeRadius = config.getInt("homeRadius", 50);
+        data.lastWorld = config.getString("lastWorld", "");
+        data.lastX = config.getDouble("lastX", 0);
+        data.lastY = config.getDouble("lastY", 0);
+        data.lastZ = config.getDouble("lastZ", 0);
 
         String lastSeenStr = config.getString("lastOwnerSeen", "");
         if (lastSeenStr != null && !lastSeenStr.isEmpty()) {
@@ -402,6 +418,18 @@ public class NannyData {
 
     public int getHomeRadius() { return homeRadius; }
     public void setHomeRadius(int homeRadius) { this.homeRadius = homeRadius; }
+
+    public String getLastWorld() { return lastWorld; }
+    public void setLastWorld(String lastWorld) { this.lastWorld = lastWorld; }
+
+    public double getLastX() { return lastX; }
+    public void setLastX(double lastX) { this.lastX = lastX; }
+
+    public double getLastY() { return lastY; }
+    public void setLastY(double lastY) { this.lastY = lastY; }
+
+    public double getLastZ() { return lastZ; }
+    public void setLastZ(double lastZ) { this.lastZ = lastZ; }
 
     public LocalDateTime getLastOwnerSeen() { return lastOwnerSeen; }
     public void setLastOwnerSeen(LocalDateTime lastOwnerSeen) { this.lastOwnerSeen = lastOwnerSeen; }

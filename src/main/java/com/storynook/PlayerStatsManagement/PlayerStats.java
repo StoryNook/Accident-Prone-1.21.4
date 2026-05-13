@@ -40,8 +40,17 @@ public class PlayerStats {
     private String nannyMembershipTier = "";
     private String nannyMembershipStatus = "UNLINKED";
     private String nannyMembershipLastCheck = "";
+    private UUID containedInCribId = null;
 
     private static final int MAX_VALUE = 100;
+
+    /**
+     * Test-only no-arg constructor. Leaves {@code plugin} null. Methods
+     * that depend on the plugin reference (notably {@link #isCaregiver})
+     * are guarded against this; do not call other plugin-dependent methods
+     * on a no-arg-constructed instance.
+     */
+    public PlayerStats() {}
 
     public PlayerStats(UUID playerUUID, Plugin plugin) {
         this.playerUUID = playerUUID;
@@ -94,6 +103,11 @@ public class PlayerStats {
     public void addCaregiver(UUID caregiverUUID) { if(!caregivers.contains(caregiverUUID)){caregivers.add(caregiverUUID);}}
     public void removeCaregiver(UUID caregiverUUID) { caregivers.remove(caregiverUUID);}
     public boolean isCaregiver(UUID uuid, Boolean Specified) {
+        if (plugin == null) {
+            // No-arg constructor was used (test-only path); fall back to
+            // explicit-list-only check, no wildcard resolution.
+            return caregivers != null && caregivers.contains(uuid);
+        }
         PlayerStats triggerStats = plugin.getPlayerStats(uuid);
         if (caregivers != null && caregivers.contains(uuid)) {
             return true;
@@ -119,6 +133,9 @@ public class PlayerStats {
 
     public UUID getDiaperBondedTo() {return DiaperBondedTo;}
     public void setDiaperBondedTo(UUID BindTo) {DiaperBondedTo = BindTo;}
+
+    public UUID getContainedInCribId() { return containedInCribId; }
+    public void setContainedInCribId(UUID id) { this.containedInCribId = id; }
 
     //Quick Boolean Settings
     public int getlethear() {return lethear;}

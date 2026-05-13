@@ -46,7 +46,7 @@ import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 
-public class Plugin extends JavaPlugin
+public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIntegrationsBusHost
 {
   public HashMap<UUID, PlayerStats> playerStatsMap = new HashMap<>();
   private final Map<UUID, ArmorStand> armorStandTracker = new HashMap<>();
@@ -57,6 +57,14 @@ public class Plugin extends JavaPlugin
   private Map<UUID, BukkitTask> ParticleEffects = new HashMap<>();
   public static Map<String, Map<String, Boolean>> soundConfig = new HashMap<>();
   private Map<String, Object> globalConfig;
+  private Map<String, Object> integrationsConfig;
+  private Map<String, String> jobsActionMap = new HashMap<>();
+  private Map<String, String> beautyQuestsTriggerMap = new HashMap<>();
+  public Map<String, Object> getIntegrationsConfig() { return integrationsConfig; }
+  public Map<String, String> getJobsActionMap() { return jobsActionMap; }
+  public Map<String, String> getBeautyQuestsTriggerMap() { return beautyQuestsTriggerMap; }
+  private com.storynook.Integrations.IntegrationsBus integrationsBus;
+  public com.storynook.Integrations.IntegrationsBus getIntegrationsBus() { return integrationsBus; }
   private List<String> hypnoWords;
   private FileConfiguration messagesConfig;
   public boolean VentureChat;
@@ -64,6 +72,13 @@ public class Plugin extends JavaPlugin
   public boolean citizensEnabled;
   private NannyManager nannyManager;
   private NannyCommand nannyCommand;
+  private com.storynook.furniture.CribRegistry cribRegistry;
+  public com.storynook.furniture.CribRegistry getCribRegistry() { return cribRegistry; }
+  private com.storynook.furniture.CribPdcKeys cribPdcKeys;
+  private com.storynook.furniture.KnockbackTracker knockbackTracker;
+  private com.storynook.furniture.carry.CarryManager carryManager;
+  public com.storynook.furniture.carry.CarryManager getCarryManager() { return carryManager; }
+  public com.storynook.furniture.CribPdcKeys getCribPdcKeysForDebug() { return cribPdcKeys; }
   private com.storynook.nanny.crypto.CryptoService cryptoService;
   private com.storynook.nanny.membership.OAuthHelper oauthHelper;
 
@@ -174,6 +189,7 @@ public class Plugin extends JavaPlugin
     mergeConfigFiles("HyponosisWords.yml");
     mergeConfigFiles("welcomebook.yml");
     mergeConfigFiles("nanny_messages.yml");
+    mergeConfigFiles("integrations.yml");
     mergeConfigFiles("StoryNook1.2.4.zip");
     try {
         String configured = getConfig().getString("Crypto.Key_Path", "");
@@ -193,7 +209,25 @@ public class Plugin extends JavaPlugin
         return;
     }
     loadGlobalConfig();
-    
+    loadIntegrationsConfig();
+    integrationsBus = new com.storynook.Integrations.IntegrationsBus(this);
+
+    if (getServer().getPluginManager().getPlugin("Jobs") != null) {
+        getLogger().info("Jobs Reborn detected; registering JobsRebornHook.");
+        getServer().getPluginManager().registerEvents(
+                new com.storynook.Integrations.jobs.JobsRebornHook(this), this);
+    }
+    if (getServer().getPluginManager().getPlugin("AdvancedJobs") != null) {
+        getLogger().info("AdvancedJobs detected; registering AdvancedJobsHook.");
+        getServer().getPluginManager().registerEvents(
+                new com.storynook.Integrations.jobs.AdvancedJobsHook(this), this);
+    }
+    if (getServer().getPluginManager().getPlugin("BeautyQuests") != null) {
+        getLogger().info("BeautyQuests detected; registering BeautyQuestsHook.");
+        getServer().getPluginManager().registerEvents(
+                new com.storynook.Integrations.beautyquests.BeautyQuestsHook(this), this);
+    }
+
     LoadStats.setPlugin(this);
     LoadSelectedSounds.setPlugin(this);
     SavePlayerStats.setPlugin(this);
@@ -244,7 +278,7 @@ public class Plugin extends JavaPlugin
     // LeashControl leashControl = new LeashControl(this);
     ArmorStandProtection armorprotect = new ArmorStandProtection(this);
     FeedingAction feed = new FeedingAction(this);
-    DiaperPail pail = new DiaperPail();
+    DiaperPail pail = new DiaperPail(this);
     TickleAccidents tickle = new TickleAccidents(this);
     CustomFurnitureRemoval customFurnitureRemoval = new CustomFurnitureRemoval();
     cribs crib = new cribs(this);
@@ -300,6 +334,40 @@ public class Plugin extends JavaPlugin
             getServer().getPluginManager().registerEvents((Listener) listener, this);
         }
     }
+
+    // --- Furniture / crib redesign ---
+    this.cribPdcKeys = new com.storynook.furniture.CribPdcKeys(this);
+    this.cribRegistry = new com.storynook.furniture.CribRegistry();
+    this.knockbackTracker = new com.storynook.furniture.KnockbackTracker();
+    this.carryManager = new com.storynook.furniture.carry.CarryManager(this);
+
+    org.bukkit.event.Listener[] furnitureListeners = new org.bukkit.event.Listener[] {
+        new com.storynook.furniture.CribListener(this, cribRegistry, cribPdcKeys),
+        new com.storynook.furniture.ContainmentEventListener(this, cribRegistry, knockbackTracker),
+        carryManager,
+        new com.storynook.furniture.carry.CarryPickupListener(this, carryManager),
+        new com.storynook.furniture.carry.CarryDropListener(this, carryManager, cribRegistry, cribPdcKeys),
+    };
+    for (org.bukkit.event.Listener l : furnitureListeners) {
+        getServer().getPluginManager().registerEvents(l, this);
+    }
+
+    // Start the soft-containment task (every 2 ticks)
+    new com.storynook.furniture.CribContainmentTask(this, cribRegistry, knockbackTracker)
+        .runTaskTimer(this, 2L, 2L);
+
+    // Walk already-loaded chunks so cribs in spawn chunks are registered immediately
+    for (org.bukkit.World w : org.bukkit.Bukkit.getWorlds()) {
+        for (org.bukkit.Chunk ch : w.getLoadedChunks()) {
+            for (org.bukkit.entity.Entity e : ch.getEntities()) {
+                if (!(e instanceof org.bukkit.entity.Interaction inter)) continue;
+                if (!inter.getScoreboardTags().contains(com.storynook.furniture.CribPdcKeys.SCOREBOARD_TAG)) continue;
+                com.storynook.furniture.Crib c = com.storynook.furniture.Crib.fromPdc(inter, cribPdcKeys);
+                if (c != null) cribRegistry.register(c);
+            }
+        }
+    }
+
     loadSounds();
     loadMessages();
     loadHypnoWordsConfig();
@@ -623,6 +691,10 @@ public class Plugin extends JavaPlugin
         boolean CaregiverEnabled = config.getBoolean("Settings_Menu.Caregivers", false);
         globalConfig.put("Caregivers", CaregiverEnabled);
 
+        // Load the Crib New System kill-switch (default true = new system enabled)
+        boolean cribNewSystemEnabled = config.getBoolean("Settings_Menu.Crib_New_System", true);
+        globalConfig.put("Crib_New_System", cribNewSystemEnabled);
+
         // Load the ShowUndies boolean
         boolean showUndiesEnabled = config.getBoolean("Settings_Menu.Show_Undies", false);
         globalConfig.put("Show_Undies", showUndiesEnabled);
@@ -722,6 +794,57 @@ public class Plugin extends JavaPlugin
 
     } catch (Exception e) {
         getLogger().severe("Error loading config.yml: " + e.getMessage());
+        e.printStackTrace();
+    }
+  }
+  public void loadIntegrationsConfig() {
+    try {
+        File configFile = new File(getDataFolder(), "integrations.yml");
+        if (!configFile.exists()) {
+            saveResource("integrations.yml", false);
+        }
+        YamlConfiguration cfg = YamlConfiguration.loadConfiguration(configFile);
+
+        if (integrationsConfig == null) integrationsConfig = new HashMap<>();
+        integrationsConfig.put("Integrations_enabled", cfg.getBoolean("enabled", false));
+
+        integrationsConfig.put("Caregiver_Min_Wetness", cfg.getInt("Events.Caregiver.Min_Wetness", 30));
+        integrationsConfig.put("Caregiver_Min_Fullness", cfg.getInt("Events.Caregiver.Min_Fullness", 30));
+        integrationsConfig.put("Caregiver_Feed_Below", cfg.getInt("Events.Caregiver.Feed_Below", 70));
+        integrationsConfig.put("Cooldown_Change_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Change_Seconds", 60));
+        integrationsConfig.put("Cooldown_Feed_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Feed_Seconds", 120));
+        integrationsConfig.put("Cooldown_Equip_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Equip_Seconds", 300));
+
+        integrationsConfig.put("Cooldown_Pail_Fill_Seconds", cfg.getInt("Events.Crafter.Cooldown_Pail_Fill_Seconds", 30));
+        integrationsConfig.put("Cooldown_Wash_Pants_Seconds", cfg.getInt("Events.Crafter.Cooldown_Wash_Pants_Seconds", 15));
+
+        integrationsConfig.put("Cooldown_Toilet_Relief_Seconds", cfg.getInt("Events.Little.Cooldown_Toilet_Relief_Seconds", 90));
+        integrationsConfig.put("Cooldown_Accident_Handled_Seconds", cfg.getInt("Events.Little.Cooldown_Accident_Handled_Seconds", 180));
+        integrationsConfig.put("Cooldown_Hydrate_Threshold_Seconds", cfg.getInt("Events.Little.Cooldown_Hydrate_Threshold_Seconds", 600));
+        integrationsConfig.put("Hydrate_Threshold", cfg.getInt("Events.Little.Hydrate_Threshold", 80));
+
+        integrationsConfig.put("Jobs_enabled", cfg.getBoolean("Jobs.enabled", false));
+        integrationsConfig.put("BeautyQuests_enabled", cfg.getBoolean("BeautyQuests.enabled", false));
+
+        jobsActionMap.clear();
+        org.bukkit.configuration.ConfigurationSection ja = cfg.getConfigurationSection("Jobs.Action_Map");
+        if (ja != null) {
+            for (String key : ja.getKeys(false)) {
+                jobsActionMap.put(key, ja.getString(key, ""));
+            }
+        }
+
+        beautyQuestsTriggerMap.clear();
+        org.bukkit.configuration.ConfigurationSection bq = cfg.getConfigurationSection("BeautyQuests.Quest_Trigger_Map");
+        if (bq != null) {
+            for (String key : bq.getKeys(false)) {
+                beautyQuestsTriggerMap.put(key, bq.getString(key, ""));
+            }
+        }
+
+        getLogger().info("Successfully loaded integrations config.");
+    } catch (Exception e) {
+        getLogger().severe("Error loading integrations.yml: " + e.getMessage());
         e.printStackTrace();
     }
   }

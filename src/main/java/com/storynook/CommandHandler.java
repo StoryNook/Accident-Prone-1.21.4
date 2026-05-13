@@ -68,6 +68,12 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
 
                     plugin.loadGlobalConfig();
 
+                    plugin.mergeConfigFiles("integrations.yml");
+                    plugin.loadIntegrationsConfig();
+                    if (plugin.getIntegrationsBus() != null) {
+                        plugin.getIntegrationsBus().clearAllCooldowns();
+                    }
+
                     // Reset the once-per-session balance-display warning so admins
                     // get a fresh log line on misconfiguration after reloading.
                     com.storynook.ScoreBoard.balanceLineWarned = false;
@@ -107,9 +113,18 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
             PlayerStats stats = plugin.getPlayerStats(player.getUniqueId());
             if (stats.getBladder() > 10) {
                 if (plugin.isOnToilet(player.getUniqueId())) {
+                    int preBladder = (int) stats.getBladder();
                     Toilet.relieveOnToilet(stats, true);
+                    if (plugin.getIntegrationsBus() != null) {
+                        java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+                        ctx.put("bladder", preBladder);
+                        ctx.put("bowels", (int) stats.getBowels());
+                        ctx.put("stat", "bladder");
+                        plugin.getIntegrationsBus().fire(player,
+                                com.storynook.Integrations.events.ActionId.TOILET_RELIEF, null, ctx);
+                    }
                 } else {
-                    HandleAccident.handleAccident(true, player, true, "Peeing_Self");
+                    HandleAccident.handleAccident(true, player, true, "Peeing_Self", true);
                 }
             }
 
@@ -120,9 +135,18 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
             PlayerStats stats = plugin.getPlayerStats(player.getUniqueId());
             if (stats.getBowels() > 10) {
                 if (plugin.isOnToilet(player.getUniqueId())) {
+                    int preBowels = (int) stats.getBowels();
                     Toilet.relieveOnToilet(stats, false);
+                    if (plugin.getIntegrationsBus() != null) {
+                        java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+                        ctx.put("bladder", (int) stats.getBladder());
+                        ctx.put("bowels", preBowels);
+                        ctx.put("stat", "bowels");
+                        plugin.getIntegrationsBus().fire(player,
+                                com.storynook.Integrations.events.ActionId.TOILET_RELIEF, null, ctx);
+                    }
                 } else {
-                    HandleAccident.handleAccident(false, player, true, "Pooping_Self");
+                    HandleAccident.handleAccident(false, player, true, "Pooping_Self", true);
                 }
             }
 
@@ -570,6 +594,34 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                 return true;
             }
 
+            if (args.length >= 1 && args[0].equalsIgnoreCase("nuke_new_cribs")) {
+                if (!sender.isOp()) {
+                    sender.sendMessage("§cOp-only.");
+                    return true;
+                }
+                int removed = 0;
+                com.storynook.furniture.CribRegistry registry = plugin.getCribRegistry();
+                com.storynook.furniture.CribPdcKeys keys = plugin.getCribPdcKeysForDebug();
+                for (org.bukkit.World w : Bukkit.getWorlds()) {
+                    for (org.bukkit.Chunk ch : w.getLoadedChunks()) {
+                        for (org.bukkit.entity.Entity e : ch.getEntities()) {
+                            if (!(e instanceof org.bukkit.entity.Interaction inter)) continue;
+                            if (!inter.getScoreboardTags().contains(com.storynook.furniture.CribPdcKeys.SCOREBOARD_TAG)) continue;
+                            com.storynook.furniture.Crib c = com.storynook.furniture.Crib.fromPdc(inter, keys);
+                            if (c != null) {
+                                org.bukkit.entity.Entity disp = Bukkit.getEntity(c.displayUuid());
+                                if (disp != null) disp.remove();
+                                if (registry != null) registry.unregister(c.id());
+                            }
+                            inter.remove();
+                            removed++;
+                        }
+                    }
+                }
+                sender.sendMessage("§eNuked " + removed + " new-system crib entities.");
+                return true;
+            }
+
             String type = args[0].toLowerCase();
 
             if (args.length < 2) {
@@ -705,6 +757,7 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                 completions.add("Laxeffectduration");
                 completions.add("rash");
                 completions.add("give");
+                completions.add("nuke_new_cribs");
                 // completions.add("showfill");
             } 
             else if (args.length == 3) {

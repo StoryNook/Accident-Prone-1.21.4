@@ -2,7 +2,8 @@
   "layers": {
     "humanoid_leggings": [
       {
-        "texture": "minecraft:pants_mess"
+        "texture": "minecraft:pants_mess",
+        "dyeable": {}
       }
     ]
   }

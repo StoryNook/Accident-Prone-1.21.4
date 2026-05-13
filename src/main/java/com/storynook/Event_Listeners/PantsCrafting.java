@@ -270,6 +270,22 @@ public class PantsCrafting implements Listener{
     }
                 
     @EventHandler
+    public void onCraftProtectionItem(org.bukkit.event.inventory.CraftItemEvent event) {
+        if (plugin.getIntegrationsBus() == null) return;
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        org.bukkit.inventory.ItemStack result = event.getRecipe() != null
+                ? event.getRecipe().getResult()
+                : event.getInventory().getResult();
+        if (result == null || !result.hasItemMeta() || !result.getItemMeta().hasCustomModelData()) return;
+        int cmd = result.getItemMeta().getCustomModelData();
+        String actionId = com.storynook.Integrations.events.ActionId.mapCmdToCraftAction(cmd);
+        if (actionId == null) return;
+        java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+        ctx.put("cmd", cmd);
+        plugin.getIntegrationsBus().fire((Player) event.getWhoClicked(), actionId, null, ctx);
+    }
+
+    @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player)) return;
         Player player = (Player) event.getPlayer();

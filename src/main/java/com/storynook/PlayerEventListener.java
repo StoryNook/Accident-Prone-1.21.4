@@ -105,8 +105,11 @@ public class PlayerEventListener implements Listener {
             armorStand.remove();
         }
         SavePlayerStats.savePlayerStats(event.getPlayer()); // Uses the plugin instance to save player stats
+        if (plugin.getIntegrationsBus() != null) {
+            plugin.getIntegrationsBus().clearCooldownsForPlayer(event.getPlayer().getUniqueId());
+        }
     }
-        
+
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
         Player player = event.getPlayer();
@@ -144,6 +147,15 @@ public class PlayerEventListener implements Listener {
                 // Increase hydration when the player drinks
                 UpdateStats.HydrationSpike.put(event.getPlayer().getUniqueId(), 10);
                 stats.increaseHydration(30);
+
+                com.storynook.Integrations.IntegrationsBus bus = plugin.getIntegrationsBus();
+                if (bus != null) {
+                    java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+                    ctx.put("hydration", (int) stats.getHydration());
+                    bus.fire(event.getPlayer(),
+                            com.storynook.Integrations.events.ActionId.HYDRATE_THRESHOLD,
+                            null, ctx);
+                }
             }
         }
     }

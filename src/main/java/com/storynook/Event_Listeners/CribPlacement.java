@@ -40,6 +40,13 @@ public class CribPlacement implements Listener{
     @SuppressWarnings("deprecation")
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
+        // New display-entity crib system handles placement; skip the legacy
+        // armor-stand path when Crib_New_System is enabled. The new system
+        // fires at the same priority and cancels the event, but cancellation
+        // alone doesn't stop us because we don't ignoreCancelled.
+        Object killSwitch = ((Plugin) plugin).getGlobalConfig().get("Crib_New_System");
+        if (killSwitch instanceof Boolean && ((Boolean) killSwitch)) return;
+
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Block clickedBlock = event.getClickedBlock();
             ItemStack itemInHand = event.getItem();

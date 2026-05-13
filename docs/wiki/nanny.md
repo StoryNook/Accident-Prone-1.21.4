@@ -81,6 +81,15 @@ The largest feature in the plugin. Citizens2-backed NPC caregiver that watches o
 - `NannyChatEngine.startReminderTask` — 1200-tick (60s) `BukkitTask` started from `NannyManager.init`, stopped via `shutdown()`. For each active Nanny with `POTTY_REMINDERS` permission and `chatEnabled`: scans wards within `Nanny_Chat_Local_Radius`, picks the first whose `bladder >= 70` OR `bowels >= 70`, broadcasts a `care_reminder.<TIER>` line via `broadcast()`. Reuses the per-Nanny `lastResponse` throttle map (default 30s). Also ties into the existing `shutdown()` so graceful disable cancels the task.
 - `NannyCareEngine.doChange` now unlocks-around-change: if `ARMOR_LOCK` is permitted AND the ward is currently locked, the lock is temporarily cleared before `Changing.applyChange` and re-set after `DiaperPail.deposit`. State-restore + save happen only when the lock was actually flipped, so nothing changes for non-locked wards.
 - `NannyCareEngine.doPlaceInCrib` — new action. Triggered from the no-care branch of `evaluateAndAct` when ward food level ≤ 6 (sleep proxy) AND `CRIB_PLACEMENT` is permitted AND ward is not already a vehicle passenger. Scans within `data.getHomeRadius()` for an `ArmorStand` whose custom name equals literal `"Crib"` (matches the name set by `CribPlacement.java`), teleports the ward, calls `addPassenger`. Logs `PLACED_IN_CRIB`. Navigator handoff: when out of range, the engine instead navigates the Nanny toward the ward and acts on the next cycle.
+
+  **Dual crib-system lookup (added 2026-05-03):** `doPlaceInCrib` now uses
+  `CribRegistry.findNearestCrib(location, radius)` which searches new
+  display-entity cribs first and falls back to legacy invisible-armor-stand
+  cribs. New cribs require a vanilla bed in the cavity (`crib.hasBed()`);
+  bedless cribs are skipped. New cribs use soft containment (the
+  `CribContainmentTask`) instead of `addPassenger`. Legacy cribs continue
+  to use `addPassenger` exactly as before. See
+  `docs/superpowers/specs/2026-05-03-crib-redesign-design.md`.
 - `NannyMenu` Behavior tab: three new items (slots 27/29/31): **IRON_BARS "Armor Lock"** (toggles lock on every current ward + the owner; capability-gated; sends red message if mood tier is too low), **OAK_FENCE "Crib Placement"** (informational — placement runs automatically when permitted), **BARRIER "Block Other Caregivers"** (toggles `data.blockOtherCaregivers`; lore explains tier requirement when not yet effective). Each item's lore reflects current state and shows mood-tier requirement when not currently allowed.
 
 ---

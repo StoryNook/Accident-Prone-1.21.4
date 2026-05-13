@@ -48,6 +48,11 @@ Settings_Menu:
   Hardcore: true
 #Allow them to pick their own minfill levels
   MinFilltoggle: true
+  # Master kill-switch for the new display-entity crib system.
+  # Set to false to disable the new system entirely (new cribs use the
+  # legacy armor-stand path, soft containment is skipped, carry mechanic
+  # is disabled). Existing new-system cribs become inert visuals.
+  Crib_New_System: true
   # Master toggle for the Nanny membership system. When false,
   # AI tier remains locked (AlwaysLockedProvider) and /nanny link is hidden.
   Membership: false

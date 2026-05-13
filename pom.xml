@@ -32,6 +32,10 @@
 			<id>placeholderapi-repo</id>
 			<url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
 		</repository>
+		<repository>
+			<id>papermc-repo</id>
+			<url>https://repo.papermc.io/repository/maven-public/</url>
+		</repository>
 	</repositories>
 
 	<dependencies>
@@ -53,10 +57,25 @@
 			<version>2.0.33-SNAPSHOT</version>
 			<scope>provided</scope>
 		</dependency>
+		<!-- JUnit 5 (Jupiter) — required by MockBukkit v4+ -->
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.11</version>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>5.11.4</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.github.MockBukkit</groupId>
+			<artifactId>MockBukkit</artifactId>
+			<version>v4.109.0</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Paper API needed at test runtime for MockBukkit v4+ (provides Folia scheduler interfaces).
+		     Must match the Paper version MockBukkit was built against (1.21.11 for v4.109.0). -->
+		<dependency>
+			<groupId>io.papermc.paper</groupId>
+			<artifactId>paper-api</artifactId>
+			<version>1.21.11-R0.1-SNAPSHOT</version>
 			<scope>test</scope>
 		</dependency>
 		<!--This adds the Spigot API artifact to the build -->
@@ -91,7 +110,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>2.22.1</version>
+					<version>3.5.2</version>
 				</plugin>
 				<plugin>
 					<artifactId>maven-jar-plugin</artifactId>

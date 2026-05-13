@@ -1,0 +1,63 @@
+# integrations.yml -- config for any feature that requires another plugin.
+# If you do not run any of the integrations below, you can ignore this file.
+
+enabled: false                  # master switch; nothing fires when off
+
+Events:
+  Caregiver:
+    Min_Wetness: 30
+    Min_Fullness: 30
+    Feed_Below: 70
+    Cooldown_Change_Seconds: 60
+    Cooldown_Feed_Seconds: 120
+    Cooldown_Equip_Seconds: 300
+    Cooldown_Carry_Pickup_Seconds: 10
+    Cooldown_Carry_Drop_Seconds: 10
+  Crafter:
+    Cooldown_Pail_Fill_Seconds: 30
+    Cooldown_Wash_Pants_Seconds: 15
+  Little:
+    Cooldown_Toilet_Relief_Seconds: 90
+    Cooldown_Accident_Handled_Seconds: 180
+    Cooldown_Hydrate_Threshold_Seconds: 600
+    Hydrate_Threshold: 80
+
+Jobs:
+  enabled: false
+  Action_Map:
+    "accidentprone:change": "AccidentProne-Change"
+    "accidentprone:feed": "AccidentProne-Feed"
+    "accidentprone:pail_fill": "AccidentProne-PailFill"
+    "accidentprone:wash_pants": "AccidentProne-WashPants"
+    "accidentprone:equip_armor_on_little": "AccidentProne-EquipArmor"
+    "accidentprone:craft_underwear": "AccidentProne-CraftUnderwear"
+    "accidentprone:craft_pullup": "AccidentProne-CraftPullup"
+    "accidentprone:craft_diaper": "AccidentProne-CraftDiaper"
+    "accidentprone:craft_thick_diaper": "AccidentProne-CraftThickDiaper"
+    "accidentprone:craft_crib": "AccidentProne-CraftCrib"
+    "accidentprone:craft_washer": "AccidentProne-CraftWasher"
+    "accidentprone:toilet_relief": "AccidentProne-ToiletRelief"
+    "accidentprone:accident_handled": "AccidentProne-AccidentHandled"
+    "accidentprone:hydrate_threshold": "AccidentProne-Hydrate"
+    "accidentprone:carry_pickup": "AccidentProne-CarryPickup"
+    "accidentprone:carry_drop": "AccidentProne-CarryDrop"
+
+BeautyQuests:
+  enabled: false
+  Quest_Trigger_Map:
+    "accidentprone:change": ""
+    "accidentprone:feed": ""
+    "accidentprone:pail_fill": ""
+    "accidentprone:wash_pants": ""
+    "accidentprone:equip_armor_on_little": ""
+    "accidentprone:craft_underwear": ""
+    "accidentprone:craft_pullup": ""
+    "accidentprone:craft_diaper": ""
+    "accidentprone:craft_thick_diaper": ""
+    "accidentprone:craft_crib": ""
+    "accidentprone:craft_washer": ""
+    "accidentprone:toilet_relief": ""
+    "accidentprone:accident_handled": ""
+    "accidentprone:hydrate_threshold": ""
+    "accidentprone:carry_pickup": ""
+    "accidentprone:carry_drop": ""

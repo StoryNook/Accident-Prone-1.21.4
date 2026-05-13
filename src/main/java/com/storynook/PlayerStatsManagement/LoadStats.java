@@ -175,10 +175,21 @@ public class LoadStats {
             }
             stats.setspecialCG(config.getBoolean("specialCG", false));
             stats.setAllCaregiver(config.getBoolean("AllCaregiver", false));
+            if (config.contains("containedInCribId")) {
+                String s = config.getString("containedInCribId");
+                if (s != null && !s.isEmpty()) {
+                    try {
+                        stats.setContainedInCribId(UUID.fromString(s));
+                    } catch (IllegalArgumentException ex) {
+                        // corrupted UUID — leave null
+                    }
+                }
+            }
         }
         else{
             stats.setspecialCG(false);
             stats.setAllCaregiver(false);
+            stats.setContainedInCribId(null);
         }
 
         // Load StoredSounds

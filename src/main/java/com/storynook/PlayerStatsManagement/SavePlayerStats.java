@@ -123,11 +123,13 @@ public class SavePlayerStats {
         }
 
         if (Globalconfig.get("Caregivers") != null && (Boolean) Globalconfig.get("Caregivers")) {
-            List<String> uuidCaregiver = (stats.getCaregivers() != null) ? 
+            List<String> uuidCaregiver = (stats.getCaregivers() != null) ?
                 stats.getCaregivers().stream()
                 .map(UUID::toString) // Convert UUID to string
                 .collect(Collectors.toList()) : new ArrayList<>();
             config.set("Caregivers", uuidCaregiver);
+            UUID cribId = stats.getContainedInCribId();
+            config.set("containedInCribId", cribId == null ? null : cribId.toString());
         }
 
         ConfigurationSection storedSoundsConfig = config.createSection("StoredSounds");

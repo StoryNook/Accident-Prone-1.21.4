@@ -28,7 +28,10 @@ public class HandleAccident {
             this.plugin = plugin;
         }
         public static void handleAccident(boolean isBladder, Player player, Boolean PlaySound, String MessageType) {
-            
+            handleAccident(isBladder, player, PlaySound, MessageType, false);
+        }
+        public static void handleAccident(boolean isBladder, Player player, Boolean PlaySound, String MessageType, boolean isVoluntary) {
+
         PlayerStats triggerStats = plugin.getPlayerStats(player.getUniqueId());
         triggerStats.setUrgeToGo(0);
         PlayerStats stats = null;
@@ -215,6 +218,17 @@ public class HandleAccident {
             }
         } catch (Throwable t) {
             // never let event logging break the accident pipeline
+        }
+        // Integrations bus -- accident_handled. ctx.isVoluntary gates voluntary /pee /poop out.
+        com.storynook.Integrations.IntegrationsBus bus = plugin.getIntegrationsBus();
+        if (bus != null) {
+            java.util.Map<String,Object> ctx = new java.util.HashMap<>();
+            ctx.put("isVoluntary", isVoluntary);
+            ctx.put("underwearType", (int) stats.getUnderwearType());
+            ctx.put("isBladder", isBladder);
+            bus.fire(targetPlayer,
+                    com.storynook.Integrations.events.ActionId.ACCIDENT_HANDLED,
+                    null, ctx);
         }
     }
 

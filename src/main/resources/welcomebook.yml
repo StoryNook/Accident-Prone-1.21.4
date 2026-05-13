@@ -27,6 +27,7 @@ order:
   - diaper_pail
   - laxatives
   - caregivers
+  - caregiver_carry
   - minfill_toggle
   - hardcore
   - nanny
@@ -35,6 +36,7 @@ order:
   - cursed_diapers
   - hypnosis
   - membership
+  - integrations
   - tips
   - links
 
@@ -205,6 +207,35 @@ sections:
 
       A caregiver can change you, lock or unlock your incontinence, and (in Hardcore mode) is one of the only ways to get changed at all.
 
+  caregiver_carry:
+    heading: "Carrying & Cribs"
+    requires: Caregivers
+    body: |
+      A caregiver can carry their assigned ward like a baby.
+
+      To pick up: hold a saddle in your main hand, then right-click your
+      assigned ward and hold for 3 seconds. They'll climb onto your
+      shoulders and the saddle is consumed.
+
+      To put down: empty hand, right-click any block (3 seconds). To put
+      them in a crib, right-click the crib (3 seconds) — they'll be
+      tucked into bed and can't walk out.
+
+      Place a vanilla bed inside your crib for it to be usable. Without
+      a bed, the crib is just a frame.
+
+      A ward in a crib is held in by a soft enclosure: walking, sneaking,
+      and jumping out are all blocked. Knockback (mob hit, TNT) frees
+      them, as does an ender pearl out, switching to creative, or a
+      teleport.
+
+      The ward can struggle (sneak-spam or jump-spam) which slows the
+      caregiver, makes the ward hungry, and tends to make accidents
+      happen sooner. If the caregiver is on a horse, both get bucked off.
+
+      The saddle is always returned when the carry ends — drop, dismount,
+      death, logout, or any other cause.
+
   minfill_toggle:
     heading: "Custom Warning Levels"
     requires: MinFilltoggle
@@ -270,6 +301,14 @@ sections:
       If your server has membership enabled, you can unlock an AI-powered chat tier for your Nanny by linking your Patreon or Subscribestar account.
 
       Run /nanny link patreon or /nanny link subscribestar to start, or ask an admin if your server uses a different unlock method.
+
+  integrations:
+    heading: "Server Integrations"
+    requires: Integrations_enabled
+    body: |
+      If your server admin has enabled integrations, your caregiving and crafting actions may earn payouts on Jobs plugins (AdvancedJobs / Jobs Reborn) or advance objectives in BeautyQuests.
+
+      Try /jobs to see if any Accident-Prone-tied jobs are available, and /quests to see if any matching quests are running. Specifics are up to your admin.
 
   tips:
     heading: "Tips & Tricks"
