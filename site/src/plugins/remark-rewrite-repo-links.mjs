@@ -14,6 +14,7 @@ import { visit } from "unist-util-visit";
  *   - absolute URLs (http://, https://, mailto:, etc.)
  *   - fragment-only links (#foo)
  *   - protocol-relative (//host/path)
+ *   - site-absolute paths (/foo — already final in-site URLs)
  *   - links whose path resolves to an entry in collectionPaths
  *   - in-collection sibling links (relative paths with no leading directory)
  */
@@ -31,6 +32,7 @@ export function rewriteRepoLinks(options = {}) {
       if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return;
       if (url.startsWith("#")) return;
       if (url.startsWith("//")) return;
+      if (url.startsWith("/")) return;
 
       const path = url.replace(/^\.\//, "");
 

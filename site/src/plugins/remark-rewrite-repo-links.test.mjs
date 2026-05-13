@@ -53,3 +53,9 @@ test("does NOT rewrite a fragment-only link", async () => {
   const out = await transform("see [section](#somewhere)");
   assert.match(out, /\(#somewhere\)/);
 });
+
+test("does NOT rewrite a site-absolute path", async () => {
+  const out = await transform("see [getting started](/Accident-Prone-1.21.4/getting-started/)");
+  assert.match(out, /\(\/Accident-Prone-1\.21\.4\/getting-started\/\)/);
+  assert.doesNotMatch(out, /github\.com/);
+});
