@@ -9,7 +9,7 @@ target/
 __pycache__/
 *.pyc
 docs/superpowers/
-src/main/resources/StoryNook1.2.4.replaced-by-migration/
+CLAUDE.md
 site/node_modules/
 site/dist/
 site/.astro/
