@@ -1,3 +1,8 @@
+---
+title: Resource pack — 1.21.4 format
+description: Pack format 46, range_dispatch items, equipment definitions, leather_leggings trim model.
+---
+
 # Resource pack — 1.21.4 format reference
 
 Technical reference for the post-migration resource pack layout. The

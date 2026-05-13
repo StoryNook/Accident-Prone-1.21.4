@@ -1,3 +1,8 @@
+---
+title: Security hardening
+description: Admin hardening guide for at-rest encryption.
+---
+
 # Hardening Guide — Accident-Prone Encryption at Rest
 
 ## What's encrypted

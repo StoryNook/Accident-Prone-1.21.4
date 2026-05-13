@@ -1,0 +1,26 @@
+{
+  "name": "accident-prone-docs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "node --test src/plugins/*.test.mjs"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.30.0",
+    "@fontsource/jetbrains-mono": "^5.1.0",
+    "@fontsource/quicksand": "^5.1.0",
+    "astro": "^5.0.0",
+    "sharp": "^0.33.0",
+    "unist-util-visit": "^5.1.0"
+  },
+  "devDependencies": {
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "unified": "^11.0.5"
+  }
+}

@@ -1,3 +1,8 @@
+---
+title: Nanny NPC system
+description: Phases 1–6 component reference for the Nanny NPC subsystem.
+---
+
 # Nanny NPC system
 
 The largest feature in the plugin. Citizens2-backed NPC caregiver that watches over wards: changes their diapers, feeds them, navigates to find them, chats, applies discipline, and (optionally) gates an AI chat tier behind Patreon/Subscribestar membership. Feature-complete through Phase 6.

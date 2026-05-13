@@ -1,3 +1,8 @@
+---
+title: Design Registry
+description: Adding new visual design variants — auto-detect script + /add-design skill.
+---
+
 # Design Registry — design variants for underwear, pull-ups, and diapers
 
 Adds named visual variants per absorbency category (e.g. "Girls Goodnite

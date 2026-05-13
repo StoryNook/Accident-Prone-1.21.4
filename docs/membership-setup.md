@@ -1,3 +1,8 @@
+---
+title: Membership setup
+description: Admin guide for Patreon, Subscribestar, and Permission membership paths.
+---
+
 # Membership Setup
 
 The Nanny AI chat tier can be unlocked via three independent paths. Enable one or more.

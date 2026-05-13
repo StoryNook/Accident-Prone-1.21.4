@@ -1,3 +1,8 @@
+---
+title: Rash system
+description: RP accumulation tiers, threshold-driven effects, persistence, and config keys.
+---
+
 # Rash system
 
 Tracks skin irritation caused by wearing a wet or soiled diaper over time. Rash points (RP) accumulate while the diaper is in a bad state and decay while it is clean and dry. When RP crosses a configurable threshold the server-chosen health effect fires. Getting changed resets RP to 0.

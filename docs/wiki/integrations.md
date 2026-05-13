@@ -1,3 +1,8 @@
+---
+title: Integrations
+description: Jobs Reborn / AdvancedJobs / BeautyQuests bridge and the 14-action event catalog.
+---
+
 # Integrations — Jobs / Quests bridge
 
 Single canonical reference for every integration that bridges Accident-Prone gameplay events to a third-party plugin (Jobs Reborn, AdvancedJobs, BeautyQuests, future hooks).

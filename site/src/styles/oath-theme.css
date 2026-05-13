@@ -1,0 +1,133 @@
+/* Story Nook (Oath) tokens mapped onto Starlight's CSS variables.
+   Source: Story-Nook/app/globals.css. */
+
+@import "@fontsource/quicksand/400.css";
+@import "@fontsource/quicksand/500.css";
+@import "@fontsource/quicksand/600.css";
+@import "@fontsource/quicksand/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+:root {
+  /* Oath pastels & ink */
+  --oath-pink: #f8c8dc;
+  --oath-blue: #cdebff;
+  --oath-lavender: #e6d9ff;
+  --oath-yellow: #fff6cc;
+  --oath-ink-on-accent: #2a1d36;
+
+  /* Light surfaces & ink */
+  --oath-bg: #fbf7f4;
+  --oath-bg-soft: #ffffff;
+  --oath-card: #ffffff;
+  --oath-card-border: rgba(74, 51, 86, 0.08);
+  --oath-ink: #3b2a47;
+  --oath-ink-soft: #6b5a78;
+  --oath-ink-muted: #9a8da8;
+  --oath-code-bg: #fff7fa;
+  --oath-accent: #b97fa8;
+  --oath-decoration-opacity: 0.55;
+
+  /* Fonts */
+  --sl-font: "Quicksand", ui-rounded, system-ui, sans-serif;
+  --sl-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root[data-theme="dark"] {
+  --oath-bg: #181423;
+  --oath-bg-soft: #221c30;
+  --oath-card: #221c30;
+  --oath-card-border: rgba(255, 255, 255, 0.06);
+  --oath-ink: #f2eaf5;
+  --oath-ink-soft: #c9bcd6;
+  --oath-ink-muted: #897c99;
+  --oath-code-bg: #2a2138;
+  --oath-accent: #e0b8d4;
+  --oath-decoration-opacity: 0.22;
+}
+
+/* Map Oath tokens onto Starlight's vars. Starlight uses :root for light and
+   [data-theme=dark] for dark, same as Story Nook. */
+:root,
+:root[data-theme="light"] {
+  --sl-color-bg: var(--oath-bg);
+  --sl-color-bg-nav: var(--oath-bg-soft);
+  --sl-color-bg-sidebar: var(--oath-bg-soft);
+  --sl-color-bg-inline-code: var(--oath-code-bg);
+  --sl-color-text: var(--oath-ink);
+  --sl-color-text-accent: var(--oath-accent);
+  --sl-color-accent: var(--oath-accent);
+  --sl-color-accent-high: var(--oath-ink);
+  --sl-color-accent-low: var(--oath-lavender);
+  --sl-color-gray-1: var(--oath-ink);
+  --sl-color-gray-2: var(--oath-ink-soft);
+  --sl-color-gray-3: var(--oath-ink-muted);
+  --sl-color-gray-4: var(--oath-card-border);
+  --sl-color-gray-5: var(--oath-bg-soft);
+  --sl-color-gray-6: var(--oath-bg);
+  --sl-color-white: var(--oath-ink);
+  --sl-color-black: var(--oath-bg);
+}
+
+:root[data-theme="dark"] {
+  --sl-color-bg: var(--oath-bg);
+  --sl-color-bg-nav: var(--oath-bg-soft);
+  --sl-color-bg-sidebar: var(--oath-bg-soft);
+  --sl-color-bg-inline-code: var(--oath-code-bg);
+  --sl-color-text: var(--oath-ink);
+  --sl-color-text-accent: var(--oath-accent);
+  --sl-color-accent: var(--oath-accent);
+  --sl-color-accent-high: var(--oath-ink);
+  --sl-color-accent-low: rgba(230, 217, 255, 0.16);
+  --sl-color-gray-1: var(--oath-ink);
+  --sl-color-gray-2: var(--oath-ink-soft);
+  --sl-color-gray-3: var(--oath-ink-muted);
+  --sl-color-gray-4: var(--oath-card-border);
+  --sl-color-gray-5: var(--oath-bg-soft);
+  --sl-color-gray-6: var(--oath-bg);
+  --sl-color-white: var(--oath-ink);
+  --sl-color-black: var(--oath-bg);
+}
+
+/* Soft pastel corner blobs (lifted from Story Nook's body::before/::after). */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  filter: blur(60px);
+  opacity: var(--oath-decoration-opacity);
+  pointer-events: none;
+  border-radius: 50%;
+}
+body::before {
+  width: 380px;
+  height: 380px;
+  top: -120px;
+  left: -120px;
+  background: var(--oath-pink);
+}
+body::after {
+  width: 320px;
+  height: 320px;
+  bottom: -120px;
+  right: -120px;
+  background: var(--oath-blue);
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Pill-shape buttons and a slightly bolder weight to feel like Story Nook. */
+.sl-link-button {
+  border-radius: 100px;
+  font-weight: 600;
+}
+
+/* Focus ring uses the lavender outline + 2px offset rule from Story Nook. */
+:focus-visible {
+  outline: 3px solid var(--oath-lavender);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

@@ -1,3 +1,10 @@
+---
+title: Subsystems overview
+description: Index of subsystem reference pages.
+---
+
+> 📖 These pages are also published at **[storynook.github.io/Accident-Prone-1.21.4](https://storynook.github.io/Accident-Prone-1.21.4/)** — same content, with sidebar nav, search, and the Story Nook theme. The version you're reading now is the raw source.
+
 # Accident-Prone Wiki
 
 Detailed reference docs that don't need to live in `CLAUDE.md`. Open the relevant page when you're working on that subsystem.

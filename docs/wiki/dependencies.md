@@ -1,3 +1,8 @@
+---
+title: Plugin dependencies
+description: Maven dependencies, plugin.yml softdepends, and runtime detection.
+---
+
 # Plugin dependencies
 
 ## Maven (`pom.xml`)

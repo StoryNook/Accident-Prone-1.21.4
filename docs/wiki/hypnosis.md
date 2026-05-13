@@ -1,3 +1,8 @@
+---
+title: Hypnosis subsystem
+description: Trigger words, programming, persistence, and cursed items.
+---
+
 # Hypnosis subsystem
 
 Fully shipped. Trigger-word system that fires accidents on chat messages.

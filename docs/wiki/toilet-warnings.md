@@ -1,3 +1,8 @@
+---
+title: Toilet & warning system
+description: Intent-driven toilet relief, probability-scaled warnings, and the relieveOnToilet vs handleAccident split.
+---
+
 # Toilet & Warning System
 
 Reference for the intent-driven toilet relief system and the probability-scaled warning system. Both were introduced together because they are tightly coupled: the toilet checks whether a warning recently fired; the warning system decides whether to fire and stamps timestamps used by the toilet.
