@@ -76,6 +76,7 @@
   --sl-color-bg-inline-code: var(--oath-code-bg);
   --sl-color-text: var(--oath-ink);
   --sl-color-text-accent: var(--oath-accent);
+  --sl-color-text-invert: var(--oath-ink-on-accent);
   --sl-color-accent: var(--oath-accent);
   --sl-color-accent-high: var(--oath-ink);
   --sl-color-accent-low: rgba(230, 217, 255, 0.16);
