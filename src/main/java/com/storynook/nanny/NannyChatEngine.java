@@ -8,6 +8,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,11 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -111,6 +118,18 @@ public class NannyChatEngine implements Listener {
 
     /** nannyUUID → epoch millis when the next ambient line is allowed to fire. */
     private final Map<UUID, Long> nextAmbientFireAt = new HashMap<>();
+
+    /**
+     * Rolling AI chat history per (nanny, ward) pair. Each entry is a 2-tuple of
+     * {role, content} where role is "user" (ward turn) or "assistant" (nanny turn).
+     * Bounded to {@code Nanny_Chat_AI_Context_Chat_Count * 2} entries (one round
+     * trip = one user + one assistant turn).
+     *
+     * <p>In-memory only. Lost on restart by design — conversation context is
+     * ephemeral, and persisting would mean encrypting potentially sensitive
+     * roleplay across sessions.
+     */
+    private final Map<String, Deque<String[]>> aiHistory = new HashMap<>();
 
     private final Random random = new Random();
     private final ExecutorService aiExecutor = Executors.newSingleThreadExecutor();
@@ -264,13 +283,22 @@ public class NannyChatEngine implements Listener {
             String endpoint = configString("Nanny_Chat_AI_Endpoint", "");
             boolean unlocked = provider != null && provider.isUnlocked(data.getOwnerUUID());
             if (unlocked && endpoint != null && !endpoint.isEmpty()) {
-                requestAiResponse(endpoint, data, userMessage, aiText -> {
+                requestAiResponse(endpoint, data, speaker, userMessage, aiText -> {
+                    String resolved;
                     if (aiText != null && !aiText.isEmpty()) {
-                        broadcast(nanny, data, applyPlaceholders(aiText, speaker, data));
+                        resolved = applyPlaceholders(aiText, speaker, data);
                     } else {
                         String fallback = pickBasicLine(category, data);
-                        if (fallback != null) broadcast(nanny, data, applyPlaceholders(fallback, speaker, data));
+                        resolved = fallback == null ? null : applyPlaceholders(fallback, speaker, data);
                     }
+                    if (resolved == null) return;
+                    broadcast(nanny, data, resolved);
+                    // Record both sides of the turn for AI conversational continuity.
+                    // The user message is recorded as-sent; the assistant turn is
+                    // the actual broadcast text — that way the model sees what
+                    // the player saw, even if we fell back to BASIC mid-stream.
+                    recordAiTurn(data, speaker, "user", userMessage);
+                    recordAiTurn(data, speaker, "assistant", resolved);
                 });
                 return;
             }
@@ -409,13 +437,30 @@ public class NannyChatEngine implements Listener {
     }
 
     // -------------------------------------------------------------------
-    // AI HTTP call
+    // AI HTTP call — OpenAI chat-completions shape
+    //
+    // Compatible with: OpenAI, Ollama (/v1/chat/completions), LM Studio,
+    // OpenRouter, vLLM, any provider that speaks the OpenAI chat API.
+    //
+    // Request:
+    //   POST <endpoint>
+    //   Authorization: Bearer <key>          (when API_Key is set)
+    //   Content-Type: application/json
+    //   {"model": "...", "messages": [...], "temperature": 0.8, "max_tokens": 200}
+    //
+    // The "messages" array is system prompt + per-(nanny, ward) rolling
+    // history + current user turn. Response: choices[0].message.content.
     // -------------------------------------------------------------------
 
     private interface AiCallback { void onResult(String text); }
 
-    private void requestAiResponse(String endpoint, NannyData data, String userMessage,
-                                   AiCallback callback) {
+    private void requestAiResponse(String endpoint, NannyData data, Player ward,
+                                   String userMessage, AiCallback callback) {
+        final String model = configString("Nanny_Chat_AI_Model", "gpt-4o-mini");
+        final String apiKey = configString("Nanny_Chat_AI_API_Key", "");
+        final int historyTurns = configInt("Nanny_Chat_AI_Context_Chat_Count", 10);
+        final String body = buildOpenAiRequestBody(model, data, ward, userMessage, historyTurns);
+
         aiExecutor.submit(() -> {
             String result = null;
             HttpURLConnection conn = null;
@@ -424,31 +469,39 @@ public class NannyChatEngine implements Listener {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setConnectTimeout(5000);
-                conn.setReadTimeout(8000);
+                // LLMs are slower than typical HTTP — especially Ollama on
+                // modest hardware. 30s read timeout is a reasonable ceiling
+                // before we give up and fall back to BASIC.
+                conn.setReadTimeout(30_000);
                 conn.setDoOutput(true);
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-
-                String body = "{\"name\":\"" + jsonEscape(data.getName())
-                        + "\",\"mood\":\"" + (data.getMoodTier() != null
-                                ? data.getMoodTier().name() : "CARING")
-                        + "\",\"message\":\"" + jsonEscape(userMessage) + "\"}";
+                if (apiKey != null && !apiKey.isEmpty()) {
+                    conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+                }
 
                 try (OutputStream os = conn.getOutputStream()) {
                     os.write(body.getBytes(StandardCharsets.UTF_8));
                 }
 
                 int code = conn.getResponseCode();
+                InputStream is = (code >= 200 && code < 300)
+                        ? conn.getInputStream()
+                        : conn.getErrorStream();
+                String responseBody = readAll(is);
+
                 if (code >= 200 && code < 300) {
-                    StringBuilder sb = new StringBuilder();
-                    try (InputStream is = conn.getInputStream();
-                         InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
-                        char[] buf = new char[1024];
-                        int n;
-                        while ((n = reader.read(buf)) > 0) sb.append(buf, 0, n);
-                    }
-                    result = sb.toString().trim();
+                    result = extractAssistantContent(responseBody);
+                } else {
+                    plugin.getLogger().warning("[Nanny AI] HTTP " + code + " from "
+                            + endpoint + ": " + truncate(responseBody, 200));
                 }
             } catch (IOException e) {
+                plugin.getLogger().warning("[Nanny AI] " + e.getClass().getSimpleName()
+                        + ": " + e.getMessage());
+                result = null;
+            } catch (RuntimeException e) {
+                // JsonParseException + friends. Log and fall back.
+                plugin.getLogger().warning("[Nanny AI] parse failed: " + e.getMessage());
                 result = null;
             } finally {
                 if (conn != null) conn.disconnect();
@@ -458,10 +511,134 @@ public class NannyChatEngine implements Listener {
         });
     }
 
-    private String jsonEscape(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", " ").replace("\r", " ");
+    private String buildOpenAiRequestBody(String model, NannyData data, Player ward,
+                                          String userMessage, int historyTurns) {
+        JsonObject body = new JsonObject();
+        body.addProperty("model", model);
+        body.addProperty("temperature", 0.8);
+        body.addProperty("max_tokens", 200);
+
+        JsonArray messages = new JsonArray();
+        messages.add(makeMessage("system", buildSystemPrompt(data, ward)));
+
+        // Replay the rolling history for this (nanny, ward) pair. Capped to
+        // historyTurns rounds (== historyTurns * 2 entries) by recordAiTurn.
+        Deque<String[]> hist = aiHistory.get(historyKey(data, ward));
+        if (hist != null) {
+            for (String[] turn : hist) {
+                if (turn != null && turn.length == 2) {
+                    messages.add(makeMessage(turn[0], turn[1]));
+                }
+            }
+        }
+
+        messages.add(makeMessage("user", userMessage));
+        body.add("messages", messages);
+        return body.toString();
+    }
+
+    private JsonObject makeMessage(String role, String content) {
+        JsonObject m = new JsonObject();
+        m.addProperty("role", role);
+        m.addProperty("content", content == null ? "" : content);
+        return m;
+    }
+
+    /**
+     * Builds the system prompt sent as the first message of every AI request.
+     * Combines per-Nanny identity (name + mood) with current world context
+     * (biome, time-of-day, ward's wet/hungry state) so the model can stay in
+     * character and reference the situation. Truncated values keep the token
+     * cost predictable.
+     */
+    private String buildSystemPrompt(NannyData data, Player ward) {
+        StringBuilder sb = new StringBuilder();
+        String nannyName = data.getName() == null ? "Nanny" : data.getName();
+        String mood = data.getMoodTier() == null ? "CARING" : data.getMoodTier().name();
+        String wardName = (ward == null || ward.getDisplayName() == null) ? "the little one" : ward.getDisplayName();
+
+        sb.append("You are ").append(nannyName).append(", a caregiver NPC in a Minecraft roleplay server. ");
+        sb.append("Speak in character as a ").append(mood.toLowerCase()).append(" caretaker. ");
+        sb.append("Address the user as \"").append(wardName).append("\". ");
+        sb.append("Keep replies short — one or two sentences, no roleplay actions in asterisks, no emoji. ");
+        sb.append("Do not narrate or repeat back what the user said. Do not break character.");
+
+        if (ward != null) {
+            sb.append("\n\nCurrent context:");
+            // Time of day
+            if (ward.getWorld() != null) {
+                long t = ward.getWorld().getTime();
+                String tw = (t < 6000) ? "morning" : (t < 12000) ? "afternoon" : (t < 13000) ? "dusk" : "night";
+                sb.append(" Time: ").append(tw).append('.');
+                if (ward.getWorld().hasStorm()) sb.append(" Weather: raining.");
+            }
+            // Ward state — pulled from PlayerStats if available
+            com.storynook.PlayerStatsManagement.PlayerStats stats =
+                    plugin.getPlayerStats(ward.getUniqueId());
+            if (stats != null) {
+                if (stats.getDiaperWetness() > 50 || stats.getDiaperFullness() > 50) {
+                    sb.append(" The ward's diaper is soiled.");
+                }
+                if (ward.getFoodLevel() < 10) sb.append(" The ward is hungry.");
+                if (stats.getHydration() < 30) sb.append(" The ward is thirsty.");
+            }
+        }
+
+        // Optional admin override appended after the auto-generated context.
+        String override = configString("Nanny_Chat_AI_System_Prompt", "");
+        if (override != null && !override.isEmpty()) {
+            sb.append("\n\n").append(override);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Records one turn of an AI conversation. Bounded ring buffer per
+     * (nanny, ward) pair; oldest entries fall off when the cap is reached.
+     */
+    private void recordAiTurn(NannyData data, Player ward, String role, String content) {
+        if (data == null || ward == null || role == null || content == null) return;
+        String key = historyKey(data, ward);
+        Deque<String[]> hist = aiHistory.computeIfAbsent(key, k -> new ArrayDeque<>());
+        hist.addLast(new String[]{role, content});
+        int maxEntries = Math.max(1, configInt("Nanny_Chat_AI_Context_Chat_Count", 10)) * 2;
+        while (hist.size() > maxEntries) hist.removeFirst();
+    }
+
+    private String historyKey(NannyData data, Player ward) {
+        return data.getNannyUUID() + ":" + ward.getUniqueId();
+    }
+
+    /**
+     * Walks an OpenAI chat-completions response and extracts
+     * {@code choices[0].message.content}. Returns null on any structural
+     * mismatch — the caller falls back to BASIC.
+     */
+    private String extractAssistantContent(String responseBody) {
+        if (responseBody == null || responseBody.isEmpty()) return null;
+        JsonElement root = JsonParser.parseString(responseBody);
+        if (!root.isJsonObject()) return null;
+        JsonElement choices = root.getAsJsonObject().get("choices");
+        if (choices == null || !choices.isJsonArray() || choices.getAsJsonArray().isEmpty()) return null;
+        JsonElement first = choices.getAsJsonArray().get(0);
+        if (first == null || !first.isJsonObject()) return null;
+        JsonElement message = first.getAsJsonObject().get("message");
+        if (message == null || !message.isJsonObject()) return null;
+        JsonElement content = message.getAsJsonObject().get("content");
+        if (content == null || !content.isJsonPrimitive()) return null;
+        String text = content.getAsString();
+        return text == null ? null : text.trim();
+    }
+
+    private String readAll(InputStream is) throws IOException {
+        if (is == null) return "";
+        StringBuilder sb = new StringBuilder();
+        try (InputStreamReader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
+            char[] buf = new char[1024];
+            int n;
+            while ((n = reader.read(buf)) > 0) sb.append(buf, 0, n);
+        }
+        return sb.toString();
     }
 
     // -------------------------------------------------------------------

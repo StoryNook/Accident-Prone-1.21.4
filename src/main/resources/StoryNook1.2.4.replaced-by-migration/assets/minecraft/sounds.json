@@ -1,0 +1,134 @@
+{
+  "toilet": {
+
+    "sounds": [
+
+      "custom/toilet"]
+  },
+  "mess1": {
+
+    "sounds": [
+
+      "custom/mess1"]
+  },
+  "mess2": {
+
+    "sounds": [
+
+      "custom/mess2"]
+  },
+  "mess4": {
+
+    "sounds": [
+
+      "custom/mess4"]
+  },
+  "mess5": {
+
+    "sounds": [
+
+      "custom/mess5"]
+  },
+  "mess6": {
+
+    "sounds": [
+
+      "custom/mess6"]
+  },
+  "pee1": {
+
+    "sounds": [
+
+      "custom/pee1"]
+  },
+  "pee3": {
+
+    "sounds": [
+
+      "custom/pee3"]
+  },
+  "pee4": {
+
+    "sounds": [
+
+      "custom/pee4"]
+  },
+  "pee5": {
+
+    "sounds": [
+
+      "custom/pee5"]
+  },
+  "diaperchange": {
+
+    "sounds": [
+
+      "custom/diaperchange"]
+  },
+  "tummy2": {
+
+    "sounds": [
+
+      "custom/tummy2"]
+  },
+  "tummy3": {
+
+    "sounds": [
+
+      "custom/tummy3"]
+  },
+  "tummy4": {
+
+    "sounds": [
+
+      "custom/tummy4"]
+  },
+  "tummygroan7": {
+
+    "sounds": [
+
+      "custom/tummygroan7"]
+  },
+  "tummygroan9": {
+
+    "sounds": [
+
+      "custom/tummygroan9"]
+  },
+  "giggle1": {
+
+    "sounds": [
+
+      "custom/giggle1"]
+  },
+  "giggle2": {
+
+    "sounds": [
+
+      "custom/giggle2"]
+  },
+  "giggle3": {
+
+    "sounds": [
+
+      "custom/giggle3"]
+  },
+  "giggle4": {
+
+    "sounds": [
+
+      "custom/giggle4"]
+  },
+  "giggle5": {
+
+    "sounds": [
+
+      "custom/giggle5"]
+  },
+  "giggle6": {
+
+    "sounds": [
+
+      "custom/giggle6"]
+  }
+}

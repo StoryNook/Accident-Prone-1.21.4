@@ -32,6 +32,8 @@ order:
   - hardcore
   - nanny
   - cribs
+  - highchairs
+  - changing_tables
   - stuffies
   - cursed_diapers
   - hypnosis
@@ -266,6 +268,26 @@ sections:
       Cribs are placeable furniture. Right-click one to lie down. Resting in a crib helps you recover and is a comfortable spot to ride out the night.
 
       They pair nicely with stuffies and pacifiers.
+
+  highchairs:
+    heading: "Highchairs"
+    requires: Nursery_Items
+    body: |
+      Craft a highchair from 4 sticks, any wooden slab, and a coloured carpet (light blue or pink to start). Right-click on top of a block to place one. Right-click an empty highchair to sit in it; sneak to leave.
+
+      A caregiver carrying you can right-click a highchair to set you down — there's a 3-second timer, and you can't sneak out until they release you. If you log out or get teleported, you'll come back free.
+
+  changing_tables:
+    heading: "Changing Tables"
+    requires: Nursery_Items
+    body: |
+      Craft a changing table from 6 sticks, 2 wooden slabs, and any vanilla carpet. The table extends one block to your right when you place it.
+
+      Right-click the top with empty hands to lie down. Right-click the side to open storage — only clean diapers, pull-ups, and thick diapers fit inside. A caregiver carrying you can right-click the top to lay you down. Sneak to get up at any time.
+
+      Changes happen about a third faster while you're on the table. Right-click with a different carpet in hand to recolour it — the old carpet comes back to you.
+
+      Left-click a barrier surface to take the table apart.
 
   stuffies:
     heading: "Stuffies"

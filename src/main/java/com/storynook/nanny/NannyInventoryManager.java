@@ -95,8 +95,7 @@ public class NannyInventoryManager {
         ItemMeta meta = item.getItemMeta();
         if (!(meta instanceof org.bukkit.inventory.meta.PotionMeta)) return false;
         org.bukkit.inventory.meta.PotionMeta pm = (org.bukkit.inventory.meta.PotionMeta) meta;
-        return pm.getBasePotionData() != null
-                && pm.getBasePotionData().getType() == org.bukkit.potion.PotionType.WATER;
+        return pm.getBasePotionType() == org.bukkit.potion.PotionType.WATER;
     }
 
     /**

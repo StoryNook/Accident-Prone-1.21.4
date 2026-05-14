@@ -91,6 +91,14 @@ public class EquipArmor {
             }
         }
 
+        // If target is wearing a paci (HEAD), allow the swap path; the existing
+        // inventory-fit check below returns the worn paci to the caregiver.
+        // Reject any non-HEAD slot defensively.
+        if (currentArmor != null && CustomItemCheck.isPaci(currentArmor) && slot != EquipmentSlot.HEAD) {
+            sender.sendMessage("Target is wearing a paci which cannot be replaced with other armor.");
+            return;
+        }
+
         // Check if sender's inventory has space for the existing armor
         if (currentArmor != null && !CustomItemCheck.isDiaper(currentArmor)) {
             // Create a copy of the current armor to check if it can fit in sender's inventory

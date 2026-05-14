@@ -310,8 +310,17 @@ public class Changing implements Listener{
                 timeLeft = (int) Math.min(10, Math.max(5, stats.getDiaperFullness() * 0.1));
             }
 
+            // Speed boost: 33% faster when the ward is on a changing table.
+            UUID wardId = (isCaregiverInteraction && target != null)
+                ? target.getUniqueId() : actor.getUniqueId();
+            if (plugin.getChangingTableRegistry() != null
+                && plugin.getChangingTableRegistry().isWardOnTable(wardId)) {
+                timeLeft = (int) Math.max(1, Math.round(timeLeft * 0.667));
+            }
+
+            final int finalTimeLeft = timeLeft;
             BukkitRunnable task = new BukkitRunnable() {
-                private int ticksLeft = 20 * timeLeft; // Convert seconds to ticks
+                private int ticksLeft = 20 * finalTimeLeft; // Convert seconds to ticks
                 @Override
                 public void run() {
                     if (isCaregiverInteraction && target != null) {
@@ -338,7 +347,7 @@ public class Changing implements Listener{
                             this.cancel();
                         }
                         ticksLeft--;
-                        double progress = (double) ticksLeft / (20 * timeLeft);
+                        double progress = (double) ticksLeft / (20 * finalTimeLeft);
                         bossBar.setProgress(progress);
                     }
                 }
@@ -354,8 +363,14 @@ public class Changing implements Listener{
         PlayerStats stats = plugin.getPlayerStats(target.getUniqueId());
         timeLeft = stats.getDiaperFullness() > 50 ? 5 : 3;
 
+        if (plugin.getChangingTableRegistry() != null
+            && plugin.getChangingTableRegistry().isWardOnTable(target.getUniqueId())) {
+            timeLeft = (int) Math.max(1, Math.round(timeLeft * 0.667));
+        }
+
+        final int finalTimeLeft = timeLeft;
         BukkitRunnable task = new BukkitRunnable() {
-            private int ticksLeft = 20 * timeLeft; // Convert seconds to ticks
+            private int ticksLeft = 20 * finalTimeLeft; // Convert seconds to ticks
             @Override
             public void run() {
                 
@@ -402,6 +417,16 @@ public class Changing implements Listener{
         ItemStack item = actor.getInventory().getItemInMainHand();
 
         if (CustomItemCheck.VailidUnderwear(item)) {
+            // Capture pre-change stat values for the change_on_table ctx —
+            // applyChange() zeroes wetness/fullness, so reading them after the
+            // change would produce ctx{wetness:0, fullness:0} and the bus's
+            // state predicate (wet > 0 || full > 0) would always be false.
+            int preWetness  = (int) stats.getDiaperWetness();
+            int preFullness = (int) stats.getDiaperFullness();
+            int preBladder  = (int) stats.getBladder();
+            int preBowels   = (int) stats.getBowels();
+            int preHyd      = (int) stats.getHydration();
+
             // Remove or decrement the item the actor is holding
             decrementItem(actor, item);
             // Logic to provide items based on wetness and fullness
@@ -416,6 +441,19 @@ public class Changing implements Listener{
             else if(actor != target){
                 actor.sendMessage(ChatColor.GREEN + "You changed: " + target.getName());
                 target.sendMessage(ChatColor.GREEN + "You were changed by: " + actor.getName() + " Be sure to thank them!");
+            }
+
+            // Fire change_on_table integration if the ward is on a changing table.
+            if (plugin.getChangingTableRegistry() != null
+                    && plugin.getChangingTableRegistry().isWardOnTable(target.getUniqueId())) {
+                java.util.Map<String, Object> ctx = new java.util.HashMap<>();
+                ctx.put("wetness",   preWetness);
+                ctx.put("fullness",  preFullness);
+                ctx.put("bladder",   preBladder);
+                ctx.put("bowels",    preBowels);
+                ctx.put("hydration", preHyd);
+                plugin.getIntegrationsBus().fire(actor,
+                    com.storynook.Integrations.events.ActionId.CHANGE_ON_TABLE, target, ctx);
             }
         } else{
             if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasCustomModelData()) {

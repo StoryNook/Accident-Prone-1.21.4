@@ -380,7 +380,7 @@ public class NannyMenu implements Listener {
             return;
         }
 
-        // Mood tier display: 5 slots, current selection highlighted (visual only in Phase 1)
+        // Mood tier display: 5 slots, current selection highlighted
         NannyData.MoodTier current = data.getMoodTier();
         menu.setItem(10, moodItem(NannyData.MoodTier.SWEET,  Material.PINK_WOOL,    current));
         menu.setItem(11, moodItem(NannyData.MoodTier.CARING, Material.LIGHT_BLUE_WOOL, current));

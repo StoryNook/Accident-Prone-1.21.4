@@ -13,6 +13,9 @@ Events:
     Cooldown_Equip_Seconds: 300
     Cooldown_Carry_Pickup_Seconds: 10
     Cooldown_Carry_Drop_Seconds: 10
+    Cooldown_Highchair_Place_Seconds: 10
+    Cooldown_Change_On_Table_Seconds: 60
+    Cooldown_Stock_Changing_Table_Seconds: 1
   Crafter:
     Cooldown_Pail_Fill_Seconds: 30
     Cooldown_Wash_Pants_Seconds: 15
@@ -41,6 +44,9 @@ Jobs:
     "accidentprone:hydrate_threshold": "AccidentProne-Hydrate"
     "accidentprone:carry_pickup": "AccidentProne-CarryPickup"
     "accidentprone:carry_drop": "AccidentProne-CarryDrop"
+    "accidentprone:highchair_place": "AccidentProne-HighchairPlace"
+    "accidentprone:change_on_table": "AccidentProne-ChangeOnTable"
+    "accidentprone:stock_changing_table": "AccidentProne-StockTable"
 
 BeautyQuests:
   enabled: false
@@ -61,3 +67,6 @@ BeautyQuests:
     "accidentprone:hydrate_threshold": ""
     "accidentprone:carry_pickup": ""
     "accidentprone:carry_drop": ""
+    "accidentprone:highchair_place": ""
+    "accidentprone:change_on_table": ""
+    "accidentprone:stock_changing_table": ""

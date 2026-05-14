@@ -16,6 +16,10 @@ Accidents: true
 #Changing time, rashes, able to change or not, ect.
 Diapers: true
 
+# Master toggle for nursery furniture (highchairs and future sippy cups,
+# pacis, changing tables, etc.). Diaper pails are gated separately on Diapers.
+Nursery_Items: true
+
 # Rash system: tracks skin irritation from wearing wet/soiled diapers.
 # Rash points (RP) accumulate based on diaper state and decay when clean.
 # Health effects fire when RP crosses the threshold and stop when it drops back down.
@@ -117,7 +121,24 @@ Nanny:
       enabled: false
       Client_ID: ""
       Client_Secret: ""
+      # Tier names (case-sensitive) from your Patreon dashboard that unlock the
+      # AI tier. OR semantics — being on any listed tier unlocks. Empty list
+      # means any active patron unlocks (any tier matches).
+      # Example: Tier_Required: ["Diamond Tier", "Platinum Tier"]
       Tier_Required: []
+      # Your Patreon campaign's numeric ID. Restricts which membership counts:
+      # when set, only patronage of YOUR campaign unlocks AI. When blank,
+      # any active Patreon membership the player has (to any creator) counts —
+      # legacy behavior; do not ship public with this blank.
+      #
+      # How to find your Campaign_ID:
+      #   1. Make any authenticated Patreon API call as your creator account:
+      #      curl -H "Authorization: Bearer <your-creator-access-token>" \
+      #           https://www.patreon.com/api/oauth2/v2/campaigns
+      #      The `data[0].id` field in the JSON response is your Campaign_ID.
+      #   2. OR: have one of your patrons run `/nanny link patreon` and check
+      #      their saved data — the linked tier's source campaign id is logged
+      #      in the plugin's debug output during first link.
       Campaign_ID: ""
     Subscribestar:
       enabled: false
@@ -139,7 +160,17 @@ Nanny:
       Chat_Cooldown_Seconds: 30
       Context_Event_Count: 25
       Context_Chat_Count: 10
-      Endpoint: ""            # AI HTTP endpoint URL; empty disables AI tier entirely
+      # OpenAI chat-completions URL. Works with any OpenAI-compatible endpoint:
+      #   OpenAI:    https://api.openai.com/v1/chat/completions   (set API_Key)
+      #   Ollama:    http://localhost:11434/v1/chat/completions   (no API_Key needed)
+      #   LM Studio: http://localhost:1234/v1/chat/completions    (no API_Key needed)
+      # Empty disables the AI tier entirely.
+      Endpoint: ""
+      # Optional extra instructions appended to the auto-generated system prompt.
+      # The auto prompt already encodes the Nanny's name, mood, and current ward
+      # context (biome, time-of-day, wet/hungry/thirsty state). Use this for
+      # server-wide style notes ("no foul language", "lean wholesome", etc.).
+      System_Prompt: ""
 
 #Listed in the /settings menu so they can get in touch with your discord, or offer easy was for them to support you
 Links:

@@ -108,8 +108,7 @@ public class NannyCareEngine {
                 if (isWithinActionRange(entity, ward)) {
                     doPlaceInCrib(entity, data, ward);
                 } else {
-                    NannyNavigator navigator = manager.getNavigator(data.getNannyUUID());
-                    if (navigator != null) navigator.navigateTo(ward.getLocation());
+                    tryApproachWard(entity, data, ward);
                 }
             }
             tryDisciplineActions(entity, data, ward);
@@ -121,19 +120,7 @@ public class NannyCareEngine {
         }
 
         if (!isWithinActionRange(entity, ward)) {
-            // Skip cross-world navigation — Citizens can't pathfind across worlds and
-            // repeatedly teleporting causes a despawn/respawn flicker. The
-            // PlayerChangedWorldEvent handler in NannyManager brings the Nanny over
-            // once when the ward switches worlds.
-            Location here = entity.getLocation();
-            if (here != null && !here.getWorld().equals(ward.getWorld())) return;
-            NannyNavigator navigator = manager.getNavigator(data.getNannyUUID());
-            if (navigator == null) return;
-            // In follow mode, let Citizens' entity-follow walk the Nanny over instead
-            // of overriding it every 2s with a stale fixed-location target (which
-            // produces visible teleport jumps when Citizens gives up).
-            if (data.isFollowMode()) return;
-            navigator.navigateTo(ward.getLocation());
+            tryApproachWard(entity, data, ward);
             return;
         }
 
@@ -380,11 +367,13 @@ public class NannyCareEngine {
 
     private void doForceFeedLaxative(NannyEntity entity, NannyData data, Player ward) {
         if (!NannyPolicy.allows(data, Capability.FORCE_FEED_LAXATIVE)) return;
+        // Cascade: craft → ephemeral spawn. Punishment items are never warned
+        // about ("low on laxative" would tip the player off) and the spawned
+        // version never enters the Nanny's persistent inventory, so players
+        // can't loot it from her.
         ItemStack lax = inventoryManager.tryCraftLaxative(data);
-        if (lax == null) {
-            warnLowSupplies(data, ward, "laxative");
-            return;
-        }
+        if (lax == null) lax = spawnLaxative();
+        if (lax == null) return;
         speakDiscipline(ward, "force_fed_lax");
         FeedingAction.applyFeed(ward, lax);
         NannyEventLog log = manager.getEventLog(data.getNannyUUID());
@@ -399,14 +388,11 @@ public class NannyCareEngine {
             return; // already cursed
         }
 
+        // Cascade: inventory → craft → ephemeral spawn (never enters inventory).
         ItemStack diaper = inventoryManager.takeOne(data, NannyInventoryManager::isCleanDiaper);
-        if (diaper == null) {
-            diaper = inventoryManager.tryCraftDiaper(data);
-            if (diaper == null) {
-                warnLowSupplies(data, ward, "binding leggings");
-                return;
-            }
-        }
+        if (diaper == null) diaper = inventoryManager.tryCraftDiaper(data);
+        if (diaper == null) diaper = spawnDefaultDiaper();
+        if (diaper == null) return;
         // Force the curse onto the equipped item even if takeOne returned an uncursed one
         ItemMeta meta = diaper.getItemMeta();
         if (meta != null) {
@@ -436,6 +422,9 @@ public class NannyCareEngine {
 
     private void doHypnotize(NannyEntity entity, NannyData data, Player ward) {
         if (!NannyPolicy.allows(data, Capability.HYPNOSIS_USE)) return;
+        // Cascade: inventory → ephemeral spawn. The spawned clock is used
+        // in-process only and never added back to the Nanny's persistent
+        // inventory, so players can't pick it off her.
         ItemStack clock = inventoryManager.takeOne(data, item -> {
             if (item == null || item.getType() != org.bukkit.Material.CLOCK) return false;
             ItemMeta m = item.getItemMeta();
@@ -443,15 +432,68 @@ public class NannyCareEngine {
                     new org.bukkit.NamespacedKey(plugin, "hypnosis"),
                     org.bukkit.persistence.PersistentDataType.BYTE);
         });
+        boolean fromInventory = clock != null;
+        if (clock == null) clock = spawnHypnoClock();
         if (clock == null) return;
         speakDiscipline(ward, "hypnotized_ward");
         boolean fired = com.storynook.Event_Listeners.Hypno.applyHypnosis(ward, clock);
-        // Put the clock back regardless of success
-        inventoryManager.addToPersonalInventory(data, clock);
+        // Return the clock to inventory only if it came from there.
+        if (fromInventory) inventoryManager.addToPersonalInventory(data, clock);
         if (fired) {
             NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-            if (log != null) log.log(NannyEventLog.NannyEventType.HYPNOTIZED_WARD, ward.getUniqueId(), "clock");
+            if (log != null) log.log(NannyEventLog.NannyEventType.HYPNOTIZED_WARD, ward.getUniqueId(),
+                    fromInventory ? "clock" : "spawned");
         }
+    }
+
+    // ---------------------------------------------------------------
+    // Punishment-item spawn helpers
+    //
+    // The Nanny conjures these in-process when she can't pull or craft one.
+    // They MUST NOT enter NannyData.personalInventory — otherwise a player
+    // could open her supplies tab and walk away with a hypno clock, cursed
+    // diaper, or laxative. Build, use immediately, let GC collect.
+    // ---------------------------------------------------------------
+
+    private ItemStack spawnHypnoClock() {
+        ItemStack clock = new ItemStack(Material.CLOCK, 1);
+        ItemMeta meta = clock.getItemMeta();
+        if (meta == null) return null;
+        org.bukkit.persistence.PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(new org.bukkit.NamespacedKey(plugin, "hypnosis"),
+                org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+        String word = plugin.getRandomHypnoWord();
+        if (word == null || word.isEmpty()) word = "naptime";
+        pdc.set(new org.bukkit.NamespacedKey(plugin, "HypnoTriggerWord"),
+                org.bukkit.persistence.PersistentDataType.STRING, word);
+        pdc.set(new org.bukkit.NamespacedKey(plugin, "HypnoType"),
+                org.bukkit.persistence.PersistentDataType.STRING, "wetting");
+        clock.setItemMeta(meta);
+        return clock;
+    }
+
+    private ItemStack spawnDefaultDiaper() {
+        // CMD 626006 = baseline thick diaper. Cursed in doEquipBindingLeggings.
+        ItemStack diaper = new ItemStack(Material.LEATHER_LEGGINGS, 1);
+        ItemMeta meta = diaper.getItemMeta();
+        if (meta == null) return null;
+        meta.setCustomModelData(626006);
+        diaper.setItemMeta(meta);
+        return diaper;
+    }
+
+    private ItemStack spawnLaxative() {
+        // Matches ItemManager.Laxative — bread + laxative_effect PDC tag, which
+        // FeedingAction.applyFeed reads to trigger the bowel-spike effect.
+        ItemStack lax = new ItemStack(Material.BREAD, 1);
+        ItemMeta meta = lax.getItemMeta();
+        if (meta == null) return null;
+        meta.getPersistentDataContainer().set(
+                new org.bukkit.NamespacedKey(plugin, "laxative_effect"),
+                org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+        meta.setDisplayName(ChatColor.DARK_PURPLE + "Laxative");
+        lax.setItemMeta(meta);
+        return lax;
     }
 
     /**
@@ -708,18 +750,7 @@ public class NannyCareEngine {
         if (stats == null) return;
 
         if (!isWithinActionRange(entity, ward)) {
-            // Skip cross-world navigation — Citizens can't pathfind across worlds and
-            // repeatedly teleporting causes a despawn/respawn flicker. The
-            // PlayerChangedWorldEvent handler in NannyManager brings the Nanny over
-            // once when the ward switches worlds.
-            Location here = entity.getLocation();
-            if (here != null && !here.getWorld().equals(ward.getWorld())) return;
-            NannyNavigator navigator = manager.getNavigator(data.getNannyUUID());
-            if (navigator == null) return;
-            // In follow mode, let Citizens' entity-follow walk the Nanny over instead
-            // of overriding it every 2s with a stale fixed-location target.
-            if (data.isFollowMode()) return;
-            navigator.navigateTo(ward.getLocation());
+            tryApproachWard(entity, data, ward);
             return;
         }
 
@@ -799,7 +830,10 @@ public class NannyCareEngine {
         ItemStack waterBottle = new ItemStack(Material.POTION, 1);
         org.bukkit.inventory.meta.PotionMeta pm = (org.bukkit.inventory.meta.PotionMeta) waterBottle.getItemMeta();
         if (pm != null) {
-            pm.setBasePotionData(new org.bukkit.potion.PotionData(org.bukkit.potion.PotionType.WATER));
+            // 1.20.5+: PotionData is deprecated; setBasePotionType is the replacement.
+            // The old API silently failed to mark the base type on 1.21.4 — bottles
+            // came out as Mundane Potions and isWaterBottle missed them.
+            pm.setBasePotionType(org.bukkit.potion.PotionType.WATER);
             waterBottle.setItemMeta(pm);
         }
         inventoryManager.addToPersonalInventory(data, waterBottle);
@@ -877,6 +911,29 @@ public class NannyCareEngine {
         if (wasWet && wasMess) return 626017;
         if (wasMess) return 626016;
         return 626015;  // wet (or default fallback)
+    }
+
+    /**
+     * Ward-approach gate. When the Nanny needs to move toward a ward (for care,
+     * discipline, or crib placement), this is the single check site that
+     * decides if she's allowed to. Semantics:
+     *
+     * <ul>
+     *   <li>Cross-world: never approach. PlayerChangedWorldEvent brings her over.</li>
+     *   <li>{@code followMode == true}: Citizens entity-follow handles approach.
+     *       Don't issue a competing fixed-target nav.</li>
+     *   <li>{@code seekEnabled == true}: issue navigateTo to her current location.</li>
+     *   <li>both off: she stays put — ward must come within action range.</li>
+     * </ul>
+     */
+    private void tryApproachWard(NannyEntity entity, NannyData data, Player ward) {
+        Location here = entity.getLocation();
+        if (here != null && !here.getWorld().equals(ward.getWorld())) return;
+        NannyNavigator navigator = manager.getNavigator(data.getNannyUUID());
+        if (navigator == null) return;
+        if (data.isFollowMode()) return;
+        if (!data.isSeekEnabled()) return;
+        navigator.navigateTo(ward.getLocation());
     }
 
     /**

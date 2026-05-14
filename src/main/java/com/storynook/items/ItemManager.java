@@ -50,6 +50,37 @@ public class ItemManager {
         createlaxedItem();
         // if(isHypnoEnabled()){createHypnoRecipe();}
         createHypnoRecipe();
+        if (isCursedPaciEnabled()) {
+            createCursedPaciRecipe();
+        }
+    }
+
+    private boolean isCursedPaciEnabled() {
+        try {
+            com.storynook.Plugin storynookPlugin = (com.storynook.Plugin) plugin;
+            Object v = storynookPlugin.getGlobalConfig().get("Binding_Diapers");
+            return v instanceof Boolean && (Boolean) v;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public void createCursedPaciRecipe() {
+        // Sentinel result: a placeholder LEATHER_HELMET that the PaciBinding listener
+        // overwrites with the real cursed paci before the player ever receives it.
+        // The PDC marker `bound_paci` tells the listener "this recipe is mine."
+        ItemStack placeholder = new ItemStack(Material.LEATHER_HELMET, 1);
+        ItemMeta meta = placeholder.getItemMeta();
+        meta.getPersistentDataContainer().set(
+            new NamespacedKey(plugin, "bound_paci"),
+            PersistentDataType.BYTE, (byte) 1);
+        placeholder.setItemMeta(meta);
+
+        ShapelessRecipe recipe = new ShapelessRecipe(
+            new NamespacedKey(plugin, "CursedPaci"), placeholder);
+        recipe.addIngredient(Material.LEATHER_HELMET);
+        recipe.addIngredient(Material.ENCHANTED_BOOK);
+        Bukkit.addRecipe(recipe);
     }
 
     public static ItemStack Washer(){

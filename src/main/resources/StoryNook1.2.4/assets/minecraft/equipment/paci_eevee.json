@@ -1,0 +1,8 @@
+{
+  "layers": {
+    "humanoid": [
+      { "texture": "minecraft:eevee_paci_layer_1" },
+      { "texture": "minecraft:eevee_paci_layer_2" }
+    ]
+  }
+}

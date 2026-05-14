@@ -81,7 +81,13 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                     if (plugin.getNannyManager() != null) {
                         plugin.getNannyManager().setMembershipProvider(plugin.buildMembershipProvider());
                     }
-                    
+
+                    // Flush the changing-table inventory cache so the next open
+                    // re-reads fresh YAML state.
+                    if (plugin.getChangingTableInventoryManager() != null) {
+                        plugin.getChangingTableInventoryManager().clearCache();
+                    }
+
                     // Reload player data
                     for (Player player : Bukkit.getOnlinePlayers()) {
                         plugin.loadPlayerStats(player);
@@ -594,6 +600,35 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                 return true;
             }
 
+            if (args.length >= 1 && args[0].equalsIgnoreCase("release_highchair")) {
+                if (!sender.isOp()) {
+                    sender.sendMessage("§cOp-only.");
+                    return true;
+                }
+                if (args.length < 2) {
+                    sender.sendMessage("Usage: /debug release_highchair <player>");
+                    return true;
+                }
+                Player target = plugin.getServer().getPlayer(args[1]);
+                if (target == null) {
+                    sender.sendMessage("Player not found.");
+                    return true;
+                }
+                com.storynook.furniture.highchair.HighchairListener hl = plugin.getHighchairListener();
+                com.storynook.furniture.highchair.HighchairRegistry hr = plugin.getHighchairRegistry();
+                if (hl == null || hr == null) {
+                    sender.sendMessage("Highchair system not initialised.");
+                    return true;
+                }
+                if (hr.highchairIdForWard(target.getUniqueId()) == null) {
+                    sender.sendMessage("Player isn't in a highchair.");
+                    return true;
+                }
+                hl.releaseWard(target.getUniqueId());
+                sender.sendMessage("Released " + target.getName() + " from highchair.");
+                return true;
+            }
+
             if (args.length >= 1 && args[0].equalsIgnoreCase("nuke_new_cribs")) {
                 if (!sender.isOp()) {
                     sender.sendMessage("§cOp-only.");
@@ -711,7 +746,10 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                                 || item.equalsIgnoreCase("underwear")
                                 || item.equalsIgnoreCase("pullup")
                                 || item.equalsIgnoreCase("diaper")
-                                || item.equalsIgnoreCase("thick_diaper");
+                                || item.equalsIgnoreCase("thick_diaper")
+                                || item.equalsIgnoreCase("paci")
+                                || item.equalsIgnoreCase("highchair")
+                                || item.equalsIgnoreCase("changing_table");
                         if (takesVariation && args.length >= 5) {
                             variation = args[4];
                         }
@@ -758,8 +796,24 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                 completions.add("rash");
                 completions.add("give");
                 completions.add("nuke_new_cribs");
+                completions.add("release_highchair");
                 // completions.add("showfill");
-            } 
+            }
+            else if (args.length == 2) {
+                if (args[0].equalsIgnoreCase("release_highchair")) {
+                    com.storynook.furniture.highchair.HighchairRegistry hr = plugin.getHighchairRegistry();
+                    java.util.List<String> contained = new java.util.ArrayList<>();
+                    if (hr != null) {
+                        for (java.util.UUID u : hr.containedWards()) {
+                            org.bukkit.entity.Player p = plugin.getServer().getPlayer(u);
+                            if (p != null) contained.add(p.getName());
+                        }
+                    }
+                    String prefix = args[1].toLowerCase();
+                    contained.removeIf(n -> !n.toLowerCase().startsWith(prefix));
+                    return contained;
+                }
+            }
             else if (args.length == 3) {
                 if (args[0].equalsIgnoreCase("give")) {
                     // Add online player names to completions
@@ -780,7 +834,10 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                     completions.add("Toilet");
                     completions.add("Crib");
                     completions.add("Pants");
+                    completions.add("Paci");
                     completions.add("Nanny");
+                    completions.add("Highchair");
+                    completions.add("Changing_Table");
                 }
             }
             else if (args.length == 5) {
@@ -838,7 +895,20 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                     completions.add("Wither_Skeleton");
                     completions.add("Witch");
                     completions.add("Villager");
-                } 
+                }
+                else if (previousArg.equalsIgnoreCase("Paci")){
+                    for (com.storynook.PaciRegistry.PaciDef def : com.storynook.PaciRegistry.getAll()) {
+                        completions.add(def.giveKey);
+                    }
+                }
+                else if (previousArg.equalsIgnoreCase("Highchair")) {
+                    completions.add("light_blue");
+                    completions.add("pink");
+                }
+                else if (previousArg.equalsIgnoreCase("Changing_Table")) {
+                    completions.addAll(
+                        com.storynook.furniture.changingtable.ChangingTableRegistry.colorKeys());
+                }
             }
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("type")) {

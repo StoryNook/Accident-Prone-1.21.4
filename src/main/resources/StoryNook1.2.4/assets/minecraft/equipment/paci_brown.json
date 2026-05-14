@@ -1,0 +1,8 @@
+{
+  "layers": {
+    "humanoid": [
+      { "texture": "minecraft:brown_paci_layer_1" },
+      { "texture": "minecraft:brown_paci_layer_2" }
+    ]
+  }
+}

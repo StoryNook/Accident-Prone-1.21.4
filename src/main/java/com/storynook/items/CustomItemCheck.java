@@ -73,6 +73,20 @@ public class CustomItemCheck {
         return DesignRegistry.isAnyDesignCmd(modelData);
     }
 
+    public static boolean isPaci(ItemStack item) {
+        if (item == null || item.getType() != Material.LEATHER_HELMET) {
+            return false;
+        }
+        if (!item.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        if (!meta.hasCustomModelData()) {
+            return false;
+        }
+        return com.storynook.PaciRegistry.isPaciCmd(meta.getCustomModelData());
+    }
+
     //Used for Cleaning Pants
     public static boolean isValidSmeltingItem(ItemStack item) {
         if (item == null || !item.hasItemMeta()) {

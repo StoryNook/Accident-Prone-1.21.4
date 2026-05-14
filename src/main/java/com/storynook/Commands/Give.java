@@ -4,6 +4,8 @@ import com.storynook.items.Nanny;
 import com.storynook.items.ItemManager;
 import com.storynook.items.cribs;
 import com.storynook.items.pants;
+import com.storynook.furniture.highchair.HighchairItem;
+import com.storynook.furniture.highchair.HighchairRegistry;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -69,6 +71,48 @@ public class Give {
 
                 for (int i = 0; i < quantity; i++) {
                     itemsToAdd.add(Nanny.createNannyEgg(variation));
+                }
+                break;
+            case "paci":
+                com.storynook.PaciRegistry.PaciDef paciDef =
+                        com.storynook.PaciRegistry.findByGiveKey(variation);
+                if (paciDef == null) {
+                    player.sendMessage("Unknown paci design: " + variation);
+                    return;
+                }
+                for (int i = 0; i < quantity; i++) {
+                    itemsToAdd.add(com.storynook.PaciRegistry.createItem(paciDef));
+                }
+                break;
+            case "highchair":
+                int colorIndex = HighchairRegistry.colorIndex(variation == null ? "" : variation.toLowerCase());
+                if (colorIndex < 0) {
+                    player.sendMessage("Unknown highchair colour: " + variation);
+                    return;
+                }
+                ItemStack highchairStack = HighchairItem.make(colorIndex);
+                if (highchairStack == null) {
+                    player.sendMessage("Highchair item could not be built.");
+                    return;
+                }
+                for (int i = 0; i < quantity; i++) {
+                    itemsToAdd.add(highchairStack);
+                }
+                break;
+            case "changing_table":
+                int ctColorIndex = com.storynook.furniture.changingtable.ChangingTableRegistry
+                        .colorIndex(variation == null ? "" : variation.toLowerCase());
+                if (ctColorIndex < 0) {
+                    player.sendMessage("Unknown changing table colour: " + variation);
+                    return;
+                }
+                ItemStack ctStack = com.storynook.furniture.changingtable.ChangingTableItem.make(ctColorIndex);
+                if (ctStack == null) {
+                    player.sendMessage("Changing table item could not be built.");
+                    return;
+                }
+                for (int i = 0; i < quantity; i++) {
+                    itemsToAdd.add(ctStack);
                 }
                 break;
             default:

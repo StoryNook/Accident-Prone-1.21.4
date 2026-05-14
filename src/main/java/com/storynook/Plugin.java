@@ -74,6 +74,27 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
   private NannyCommand nannyCommand;
   private com.storynook.furniture.CribRegistry cribRegistry;
   public com.storynook.furniture.CribRegistry getCribRegistry() { return cribRegistry; }
+
+  private com.storynook.furniture.highchair.HighchairRegistry highchairRegistry;
+  public com.storynook.furniture.highchair.HighchairRegistry getHighchairRegistry() { return highchairRegistry; }
+
+  private com.storynook.furniture.highchair.HighchairListener highchairListener;
+  public com.storynook.furniture.highchair.HighchairListener getHighchairListener() { return highchairListener; }
+
+  private com.storynook.furniture.changingtable.ChangingTableRegistry changingTableRegistry;
+  public com.storynook.furniture.changingtable.ChangingTableRegistry getChangingTableRegistry() { return changingTableRegistry; }
+
+  private com.storynook.furniture.changingtable.ChangingTableListener changingTableListener;
+  public com.storynook.furniture.changingtable.ChangingTableListener getChangingTableListener() { return changingTableListener; }
+
+  private com.storynook.furniture.changingtable.ChangingTablePdcKeys changingTablePdcKeys;
+  public com.storynook.furniture.changingtable.ChangingTablePdcKeys getChangingTablePdcKeys() { return changingTablePdcKeys; }
+
+  private com.storynook.furniture.changingtable.ChangingTableInventoryManager changingTableInventoryManager;
+  public com.storynook.furniture.changingtable.ChangingTableInventoryManager getChangingTableInventoryManager() {
+      return changingTableInventoryManager;
+  }
+
   private com.storynook.furniture.CribPdcKeys cribPdcKeys;
   private com.storynook.furniture.KnockbackTracker knockbackTracker;
   private com.storynook.furniture.carry.CarryManager carryManager;
@@ -130,6 +151,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
   {
     getLogger().info("Plugin started, onEnable");
     DesignRegistry.init();
+    PaciRegistry.init();
     if (getServer().getPluginManager().getPlugin("VentureChat") != null) {
         getLogger().info("VentureChat found; enabling VC integration.");
         getServer().getPluginManager().registerEvents(new VentureChatHook(this), this);
@@ -284,6 +306,8 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
     cribs crib = new cribs(this);
     Laxative lax = new Laxative(this);
     BindingDiaper binding = new BindingDiaper(this);
+    com.storynook.Event_Listeners.PaciBinding paciBinding =
+        new com.storynook.Event_Listeners.PaciBinding(this);
     Hypno hypno = new Hypno(this);
     PlayerInteract playerInteract = new PlayerInteract(this);
     PlayerInteractWithEntity playerInteractWithEntity = new PlayerInteractWithEntity(this);
@@ -323,6 +347,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
       customFurnitureRemoval, 
       tickle, 
       binding,
+      paciBinding,
       hypno,
       playerInteract,
       playerInteractWithEntity
@@ -355,6 +380,66 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
     // Start the soft-containment task (every 2 ticks)
     new com.storynook.furniture.CribContainmentTask(this, cribRegistry, knockbackTracker)
         .runTaskTimer(this, 2L, 2L);
+
+    // --- Highchair subsystem ---
+    com.storynook.furniture.highchair.HighchairRegistry.init();
+    this.highchairRegistry = new com.storynook.furniture.highchair.HighchairRegistry();
+    com.storynook.furniture.highchair.HighchairPdcKeys highchairKeys =
+        new com.storynook.furniture.highchair.HighchairPdcKeys(this);
+    this.highchairListener = new com.storynook.furniture.highchair.HighchairListener(this, highchairRegistry, highchairKeys);
+    com.storynook.furniture.highchair.HighchairCraftingListener highchairCrafting =
+        new com.storynook.furniture.highchair.HighchairCraftingListener(this);
+    getServer().getPluginManager().registerEvents(highchairListener, this);
+    getServer().getPluginManager().registerEvents(highchairCrafting, this);
+    if (Boolean.TRUE.equals(globalConfig.get("Nursery_Items"))) {
+        highchairCrafting.register();
+    }
+
+    // Re-register any already-loaded highchair Interactions in spawn chunks.
+    for (org.bukkit.World w : org.bukkit.Bukkit.getWorlds()) {
+        for (org.bukkit.Chunk ch : w.getLoadedChunks()) {
+            for (org.bukkit.entity.Entity e : ch.getEntities()) {
+                if (!(e instanceof org.bukkit.entity.Interaction inter)) continue;
+                if (!inter.getScoreboardTags().contains(
+                        com.storynook.furniture.highchair.HighchairPdcKeys.SCOREBOARD_TAG)) continue;
+                com.storynook.furniture.highchair.Highchair h =
+                    com.storynook.furniture.highchair.Highchair.fromPdc(inter, highchairKeys);
+                if (h != null) highchairRegistry.register(h);
+            }
+        }
+    }
+
+    // --- Changing table subsystem ---
+    com.storynook.furniture.changingtable.ChangingTableRegistry.init();
+    this.changingTableRegistry = new com.storynook.furniture.changingtable.ChangingTableRegistry();
+    this.changingTablePdcKeys = new com.storynook.furniture.changingtable.ChangingTablePdcKeys(this);
+    this.changingTableListener = new com.storynook.furniture.changingtable.ChangingTableListener(
+        this, this.changingTableRegistry, this.changingTablePdcKeys);
+    com.storynook.furniture.changingtable.ChangingTableCraftingListener changingTableCrafting =
+        new com.storynook.furniture.changingtable.ChangingTableCraftingListener(this);
+    getServer().getPluginManager().registerEvents(this.changingTableListener, this);
+    this.changingTableListener.startViewerTask(this);
+    getServer().getPluginManager().registerEvents(changingTableCrafting, this);
+    this.changingTableInventoryManager =
+        new com.storynook.furniture.changingtable.ChangingTableInventoryManager(this);
+    getServer().getPluginManager().registerEvents(this.changingTableInventoryManager, this);
+    if (Boolean.TRUE.equals(globalConfig.get("Nursery_Items"))) {
+        com.storynook.furniture.changingtable.ChangingTableRecipes.register(this);
+    }
+
+    // Re-register any already-loaded changing-table Interactions in spawn chunks.
+    for (org.bukkit.World w : org.bukkit.Bukkit.getWorlds()) {
+        for (org.bukkit.Chunk ch : w.getLoadedChunks()) {
+            for (org.bukkit.entity.Entity e : ch.getEntities()) {
+                if (!(e instanceof org.bukkit.entity.Interaction inter)) continue;
+                if (!inter.getScoreboardTags().contains(
+                        com.storynook.furniture.changingtable.ChangingTablePdcKeys.SCOREBOARD_TAG)) continue;
+                com.storynook.furniture.changingtable.ChangingTable t =
+                    com.storynook.furniture.changingtable.ChangingTable.fromPdc(inter, this.changingTablePdcKeys);
+                if (t != null) this.changingTableRegistry.register(t);
+            }
+        }
+    }
 
     // Walk already-loaded chunks so cribs in spawn chunks are registered immediately
     for (org.bukkit.World w : org.bukkit.Bukkit.getWorlds()) {
@@ -454,8 +539,9 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
           String cid = getConfig().getString("Nanny.Membership.Patreon.Client_ID", "");
           String csec = readEncryptedConfigString("Nanny.Membership.Patreon.Client_Secret");
           java.util.List<String> tiers = getConfig().getStringList("Nanny.Membership.Patreon.Tier_Required");
+          String campaignId = getConfig().getString("Nanny.Membership.Patreon.Campaign_ID", "");
           composite.add(new com.storynook.nanny.membership.PatreonMembershipProvider(
-                  this, oauthHelper, cid, csec, redirectUri, tiers));
+                  this, oauthHelper, cid, csec, redirectUri, tiers, campaignId));
       }
       if (getConfig().getBoolean("Nanny.Membership.Subscribestar.enabled", false)) {
           String cid = getConfig().getString("Nanny.Membership.Subscribestar.Client_ID", "");
@@ -560,6 +646,10 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         if (task != null) {
             task.cancel();
         }
+    }
+    if (this.changingTableListener != null) {
+        this.changingTableListener.stopViewerTask();
+        this.changingTableListener.releaseAllOnDisable();
     }
     saveAllPlayerStats();
   }
@@ -683,6 +773,9 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         boolean diapersEnabled = config.getBoolean("Diapers", false);
         globalConfig.put("Diapers", diapersEnabled);
 
+        boolean nurseryItemsEnabled = config.getBoolean("Nursery_Items", true);
+        globalConfig.put("Nursery_Items", nurseryItemsEnabled);
+
         // Load the Messing boolean
         boolean messingEnabled = config.getBoolean("Settings_Menu.Messing", false);
         globalConfig.put("Messing", messingEnabled);
@@ -789,6 +882,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         globalConfig.put("Nanny_Chat_Min_Words", config.getInt("Nanny.Chat.Min_Words", 3));
         globalConfig.put("Nanny_Chat_Ambient_Chance", config.getInt("Nanny.Chat.Ambient_Chance", 1));
         globalConfig.put("Nanny_Chat_AI_Endpoint", config.getString("Nanny.Chat.AI.Endpoint", ""));
+        globalConfig.put("Nanny_Chat_AI_System_Prompt", config.getString("Nanny.Chat.AI.System_Prompt", ""));
 
         getLogger().info("Successfully loaded global config.");
 
@@ -814,6 +908,11 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         integrationsConfig.put("Cooldown_Change_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Change_Seconds", 60));
         integrationsConfig.put("Cooldown_Feed_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Feed_Seconds", 120));
         integrationsConfig.put("Cooldown_Equip_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Equip_Seconds", 300));
+        integrationsConfig.put("Cooldown_Carry_Pickup_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Carry_Pickup_Seconds", 10));
+        integrationsConfig.put("Cooldown_Carry_Drop_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Carry_Drop_Seconds", 10));
+        integrationsConfig.put("Cooldown_Highchair_Place_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Highchair_Place_Seconds", 10));
+        integrationsConfig.put("Cooldown_Change_On_Table_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Change_On_Table_Seconds", 60));
+        integrationsConfig.put("Cooldown_Stock_Changing_Table_Seconds", cfg.getInt("Events.Caregiver.Cooldown_Stock_Changing_Table_Seconds", 1));
 
         integrationsConfig.put("Cooldown_Pail_Fill_Seconds", cfg.getInt("Events.Crafter.Cooldown_Pail_Fill_Seconds", 30));
         integrationsConfig.put("Cooldown_Wash_Pants_Seconds", cfg.getInt("Events.Crafter.Cooldown_Wash_Pants_Seconds", 15));

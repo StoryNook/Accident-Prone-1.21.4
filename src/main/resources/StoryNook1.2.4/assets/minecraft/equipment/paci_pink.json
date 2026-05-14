@@ -1,0 +1,8 @@
+{
+  "layers": {
+    "humanoid": [
+      { "texture": "minecraft:pink_paci_layer_1" },
+      { "texture": "minecraft:pink_paci_layer_2" }
+    ]
+  }
+}

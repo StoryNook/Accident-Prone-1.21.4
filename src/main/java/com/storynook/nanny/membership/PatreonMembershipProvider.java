@@ -1,5 +1,9 @@
 package com.storynook.nanny.membership;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.storynook.Plugin;
 import com.storynook.PlayerStatsManagement.PlayerStats;
 import com.storynook.PlayerStatsManagement.SavePlayerStats;
@@ -42,16 +46,24 @@ public class PatreonMembershipProvider implements MembershipProvider {
     private final String clientSecret;
     private final String redirectUri;
     private final List<String> requiredTiers;
+    /**
+     * When non-empty, only memberships whose campaign id matches this value
+     * count toward unlocking. When empty, the provider falls back to legacy
+     * behavior (any active patronage of any creator counts) — so existing
+     * hosts who haven't set Campaign_ID see no behavior change on upgrade.
+     */
+    private final String campaignId;
 
     public PatreonMembershipProvider(Plugin plugin, OAuthHelper http,
                                      String clientId, String clientSecret, String redirectUri,
-                                     List<String> requiredTiers) {
+                                     List<String> requiredTiers, String campaignId) {
         this.plugin = plugin;
         this.http = http;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.redirectUri = redirectUri;
         this.requiredTiers = requiredTiers == null ? Collections.<String>emptyList() : requiredTiers;
+        this.campaignId = campaignId == null ? "" : campaignId.trim();
     }
 
     public String buildAuthorizeUrl(UUID playerUUID) {
@@ -137,22 +149,116 @@ public class PatreonMembershipProvider implements MembershipProvider {
         }
     }
 
+    /**
+     * Walks the Patreon identity response and resolves the player's patron
+     * status + tier on the host's campaign. When {@link #campaignId} is set
+     * the search is restricted to memberships of that campaign — patronage
+     * of unrelated creators is ignored. When it's empty the first active
+     * membership wins (legacy behavior).
+     *
+     * <p>Response shape (abridged):
+     * <pre>
+     * {
+     *   "data": {"type":"user","id":"...","relationships":{"memberships":{"data":[{"id":"M1","type":"member"}]}}},
+     *   "included": [
+     *     {"id":"M1","type":"member",
+     *      "attributes":{"patron_status":"active_patron"},
+     *      "relationships":{
+     *        "campaign":{"data":{"id":"<campaign-id>","type":"campaign"}},
+     *        "currently_entitled_tiers":{"data":[{"id":"T1","type":"tier"}]}
+     *      }},
+     *     {"id":"T1","type":"tier","attributes":{"title":"Gold Tier"}}
+     *   ]
+     * }
+     * </pre>
+     */
     private TierStatus queryTier(String accessToken) throws IOException {
         String resp = http.getWithBearer(IDENTITY_URL, accessToken);
-        boolean activePatron = resp.contains("\"patron_status\":\"active_patron\"");
-        // Naive: pull the first "title" we find in the included tiers section.
-        String tierTitle = "";
-        int tIdx = resp.indexOf("\"type\":\"tier\"");
-        if (tIdx >= 0) {
-            String slice = resp.substring(tIdx);
-            String t = http.extractJsonString(slice, "title");
-            if (t != null) tierTitle = t;
-        }
         TierStatus ts = new TierStatus();
-        ts.tier = tierTitle;
-        ts.unlocked = activePatron && tierAllowed(tierTitle);
-        ts.status = activePatron ? "ACTIVE" : "LAPSED";
+        try {
+            JsonElement root = JsonParser.parseString(resp);
+            if (!root.isJsonObject()) return ts;
+            JsonElement includedEl = root.getAsJsonObject().get("included");
+            if (includedEl == null || !includedEl.isJsonArray()) return ts;
+            JsonArray included = includedEl.getAsJsonArray();
+
+            // Pass 1: build tier-id → title map from the `included` array.
+            Map<String, String> tierTitles = new HashMap<>();
+            for (JsonElement el : included) {
+                if (!el.isJsonObject()) continue;
+                JsonObject obj = el.getAsJsonObject();
+                if (!"tier".equals(stringField(obj, "type"))) continue;
+                String id = stringField(obj, "id");
+                if (id == null) continue;
+                JsonElement attrs = obj.get("attributes");
+                if (attrs == null || !attrs.isJsonObject()) continue;
+                String title = stringField(attrs.getAsJsonObject(), "title");
+                if (title != null && !title.isEmpty()) tierTitles.put(id, title);
+            }
+
+            // Pass 2: walk member objects, filter by configured Campaign_ID
+            // when set, take the first match.
+            for (JsonElement el : included) {
+                if (!el.isJsonObject()) continue;
+                JsonObject obj = el.getAsJsonObject();
+                if (!"member".equals(stringField(obj, "type"))) continue;
+
+                if (!campaignId.isEmpty()) {
+                    String mc = nestedId(obj, "relationships", "campaign", "data");
+                    if (mc == null || !campaignId.equals(mc)) continue;
+                }
+
+                JsonElement attrs = obj.get("attributes");
+                boolean active = attrs != null && attrs.isJsonObject()
+                        && "active_patron".equals(stringField(attrs.getAsJsonObject(), "patron_status"));
+
+                // Find the first entitled tier whose title we recognize.
+                String tierTitle = "";
+                JsonArray tierData = nestedArray(obj, "relationships", "currently_entitled_tiers", "data");
+                if (tierData != null) {
+                    for (JsonElement tEl : tierData) {
+                        if (!tEl.isJsonObject()) continue;
+                        String tId = stringField(tEl.getAsJsonObject(), "id");
+                        if (tId == null) continue;
+                        String title = tierTitles.get(tId);
+                        if (title != null && !title.isEmpty()) { tierTitle = title; break; }
+                    }
+                }
+
+                ts.tier = tierTitle;
+                ts.status = active ? "ACTIVE" : "LAPSED";
+                ts.unlocked = active && tierAllowed(tierTitle);
+                return ts;
+            }
+        } catch (RuntimeException e) {
+            plugin.getLogger().warning("[Patreon] queryTier parse failed: " + e.getMessage());
+        }
         return ts;
+    }
+
+    private static String stringField(JsonObject obj, String key) {
+        if (obj == null) return null;
+        JsonElement el = obj.get(key);
+        return (el != null && el.isJsonPrimitive()) ? el.getAsString() : null;
+    }
+
+    private static String nestedId(JsonObject obj, String... path) {
+        JsonElement cur = obj;
+        for (String key : path) {
+            if (cur == null || !cur.isJsonObject()) return null;
+            cur = cur.getAsJsonObject().get(key);
+        }
+        if (cur == null || !cur.isJsonObject()) return null;
+        return stringField(cur.getAsJsonObject(), "id");
+    }
+
+    private static JsonArray nestedArray(JsonObject obj, String... path) {
+        JsonElement cur = obj;
+        for (String key : path) {
+            if (cur == null || !cur.isJsonObject()) return null;
+            cur = cur.getAsJsonObject().get(key);
+        }
+        return (cur != null && cur.isJsonArray()) ? cur.getAsJsonArray() : null;
     }
 
     private boolean tierAllowed(String tierTitle) {

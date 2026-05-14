@@ -117,6 +117,11 @@ public class NannyNavigator {
      * Enters entity-follow mode (NPC walks beside the player continuously).
      * Does not set {@code currentTarget} — there is no fixed destination.
      * Falls back to teleport when Citizens2 is absent.
+     *
+     * <p>A {@code distanceMargin} of 2.5 keeps her ~2-3 blocks back from the
+     * ward instead of standing on top of them. Still within the 3-block action
+     * range used by {@link NannyCareEngine#isWithinActionRange} so care actions
+     * still trigger.
      */
     public void setFollowTarget(Player ward) {
         if (ward == null) return;
@@ -131,7 +136,8 @@ public class NannyNavigator {
         npc.getNavigator().getLocalParameters()
             .range(128)
             .speedModifier(1.0f)
-            .stationaryTicks(600);
+            .stationaryTicks(600)
+            .distanceMargin(2.5);
         npc.getNavigator().setTarget(ward, false);
     }
 

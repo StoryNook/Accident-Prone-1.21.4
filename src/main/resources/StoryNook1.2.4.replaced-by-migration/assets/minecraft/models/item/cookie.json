@@ -1,0 +1,30 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "item/cookie"
+    },
+	
+	"overrides": [
+		{"predicate": {"custom_model_data":630000}, "model": "item/blue_hard_candy"},
+		{"predicate": {"custom_model_data":630001}, "model": "item/blue_lollipop"},
+		{"predicate": {"custom_model_data":630002}, "model": "item/candy_corn"},
+		{"predicate": {"custom_model_data":630003}, "model": "item/chocolate_bar"},
+		{"predicate": {"custom_model_data":630004}, "model": "item/green_hard_candy"},
+		{"predicate": {"custom_model_data":630005}, "model": "item/green_lollipop"},
+		{"predicate": {"custom_model_data":630006}, "model": "item/halloween_oreo"},
+		{"predicate": {"custom_model_data":630007}, "model": "item/jelly_beans"},
+		{"predicate": {"custom_model_data":630008}, "model": "item/orange_hard_candy"},
+		{"predicate": {"custom_model_data":630009}, "model": "item/orange_lollipop"},
+		{"predicate": {"custom_model_data":630010}, "model": "item/oreo"},
+		{"predicate": {"custom_model_data":630011}, "model": "item/pink_lollipop"},
+		{"predicate": {"custom_model_data":630012}, "model": "item/pumpkin_reeses"},
+		{"predicate": {"custom_model_data":630013}, "model": "item/purple_hard_candy"},
+		{"predicate": {"custom_model_data":630014}, "model": "item/purple_lollipop"},
+		{"predicate": {"custom_model_data":630015}, "model": "item/red_hard_candy"},
+		{"predicate": {"custom_model_data":630016}, "model": "item/reeses_cup"},
+		{"predicate": {"custom_model_data":630017}, "model": "item/skittles"},
+		{"predicate": {"custom_model_data":630018}, "model": "item/twizzlers"},
+		{"predicate": {"custom_model_data":630019}, "model": "item/yellow_hard_candy"},
+		{"predicate": {"custom_model_data":630020}, "model": "item/yellow_lollipop"}
+	]
+}

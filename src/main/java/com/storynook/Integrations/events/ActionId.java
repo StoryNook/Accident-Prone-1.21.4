@@ -17,12 +17,15 @@ public final class ActionId {
     public static final String HYDRATE_THRESHOLD = "accidentprone:hydrate_threshold";
     public static final String CARRY_PICKUP = "accidentprone:carry_pickup";
     public static final String CARRY_DROP = "accidentprone:carry_drop";
+    public static final String HIGHCHAIR_PLACE = "accidentprone:highchair_place";
+    public static final String CHANGE_ON_TABLE = "accidentprone:change_on_table";
+    public static final String STOCK_CHANGING_TABLE = "accidentprone:stock_changing_table";
 
     public static final String[] ALL = new String[] {
         CHANGE, FEED, PAIL_FILL, WASH_PANTS, EQUIP_ARMOR_ON_LITTLE,
         CRAFT_UNDERWEAR, CRAFT_PULLUP, CRAFT_DIAPER, CRAFT_THICK_DIAPER,
         CRAFT_CRIB, CRAFT_WASHER, TOILET_RELIEF, ACCIDENT_HANDLED, HYDRATE_THRESHOLD,
-        CARRY_PICKUP, CARRY_DROP
+        CARRY_PICKUP, CARRY_DROP, HIGHCHAIR_PLACE, CHANGE_ON_TABLE, STOCK_CHANGING_TABLE
     };
 
     /**

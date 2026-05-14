@@ -110,6 +110,21 @@ public class IntegrationsBus {
 
         TABLE.put(ActionId.CARRY_DROP, new Descriptor("Caregivers", true, null,
             "Cooldown_Carry_Drop_Seconds", "pair"));
+
+        TABLE.put(ActionId.HIGHCHAIR_PLACE, new Descriptor("Nursery_Items", false, null,
+            "Cooldown_Highchair_Place_Seconds", "pair"));
+
+        TABLE.put(ActionId.CHANGE_ON_TABLE, new Descriptor("Nursery_Items", false,
+            new StatePredicate() {
+                public boolean test(Player w, Player t, Map<String, Object> c, Map<String, Object> i) {
+                    int wet = ((Number) c.getOrDefault("wetness", 0)).intValue();
+                    int full = ((Number) c.getOrDefault("fullness", 0)).intValue();
+                    return wet > 0 || full > 0;
+                }
+            }, "Cooldown_Change_On_Table_Seconds", "pair"));
+
+        TABLE.put(ActionId.STOCK_CHANGING_TABLE, new Descriptor("Nursery_Items", false,
+            null, "Cooldown_Stock_Changing_Table_Seconds", "worker"));
     }
 
     private final IIntegrationsBusHost host;

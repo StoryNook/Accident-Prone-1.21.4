@@ -87,7 +87,10 @@ public class PlayerEventListener implements Listener {
         if (Globalconfig.get("Hypno") != null && (Boolean) Globalconfig.get("Hypno")) {
             recipes.add("Hypnosis");
         }
-        
+        if (Globalconfig.get("Nursery_Items") != null && (Boolean) Globalconfig.get("Nursery_Items")) {
+            recipes.add("highchair");
+        }
+
         for (String recipe : recipes) {
             event.getPlayer().discoverRecipe(new NamespacedKey(plugin, recipe));
         }

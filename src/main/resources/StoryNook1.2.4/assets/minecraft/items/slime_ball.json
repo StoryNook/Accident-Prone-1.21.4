@@ -266,6 +266,132 @@
           "type": "minecraft:model",
           "model": "minecraft:item/subscribestar"
         }
+      },
+      {
+        "threshold": 630000.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/light_blue_highchair"
+        }
+      },
+      {
+        "threshold": 630001.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/pink_highchair"
+        }
+      },
+      {
+        "threshold": 630100.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_white"
+        }
+      },
+      {
+        "threshold": 630101.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_light_gray"
+        }
+      },
+      {
+        "threshold": 630102.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_gray"
+        }
+      },
+      {
+        "threshold": 630103.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_black"
+        }
+      },
+      {
+        "threshold": 630104.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_brown"
+        }
+      },
+      {
+        "threshold": 630105.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_red"
+        }
+      },
+      {
+        "threshold": 630106.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_orange"
+        }
+      },
+      {
+        "threshold": 630107.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_yellow"
+        }
+      },
+      {
+        "threshold": 630108.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_lime"
+        }
+      },
+      {
+        "threshold": 630109.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_green"
+        }
+      },
+      {
+        "threshold": 630110.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_light_blue"
+        }
+      },
+      {
+        "threshold": 630111.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_cyan"
+        }
+      },
+      {
+        "threshold": 630112.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_blue"
+        }
+      },
+      {
+        "threshold": 630113.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_purple"
+        }
+      },
+      {
+        "threshold": 630114.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_magenta"
+        }
+      },
+      {
+        "threshold": 630115.0,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/changingtable_pink"
+        }
       }
     ]
   }

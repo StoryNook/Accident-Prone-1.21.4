@@ -1,0 +1,39 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/leather_helmet"
+    },
+    "entries": [
+      { "threshold": 627100.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_birthday" } },
+      { "threshold": 627101.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_black" } },
+      { "threshold": 627102.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_blue" } },
+      { "threshold": 627103.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_brown" } },
+      { "threshold": 627104.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_bunny" } },
+      { "threshold": 627105.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_christmas" } },
+      { "threshold": 627106.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_cyan" } },
+      { "threshold": 627107.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_discord" } },
+      { "threshold": 627108.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_easter" } },
+      { "threshold": 627109.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_eevee" } },
+      { "threshold": 627110.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_gray" } },
+      { "threshold": 627111.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_green" } },
+      { "threshold": 627112.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_halloween" } },
+      { "threshold": 627113.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_light_blue" } },
+      { "threshold": 627114.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_light_gray" } },
+      { "threshold": 627115.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_lime" } },
+      { "threshold": 627116.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_magenta" } },
+      { "threshold": 627117.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_orange" } },
+      { "threshold": 627118.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_patreon" } },
+      { "threshold": 627119.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_pink" } },
+      { "threshold": 627120.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_prince" } },
+      { "threshold": 627121.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_princess" } },
+      { "threshold": 627122.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_purple" } },
+      { "threshold": 627123.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_red" } },
+      { "threshold": 627124.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_royal" } },
+      { "threshold": 627125.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_white" } },
+      { "threshold": 627126.0, "model": { "type": "minecraft:model", "model": "minecraft:item/paci_yellow" } }
+    ]
+  }
+}
