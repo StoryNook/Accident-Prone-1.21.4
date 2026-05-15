@@ -144,11 +144,15 @@ public class NannyCareEngine {
             }
         }
 
-        // Snapshot pre-change state for the soiled-pail item and the event log
-        boolean wasWet = stats.getDiaperWetness() > 0;
-        boolean wasMess = stats.getDiaperFullness() > 0;
+        // Snapshot pre-change state for the soiled-pail item and the event log.
+        // Must capture underwearType + rashPoints too — these feed the soiled
+        // factory dispatch in Changing.createDirtyDiaperItem, which mirrors
+        // the player-side flow (so AI Nanny and player change produce the
+        // same item).
+        int preType = stats.getUnderwearType();
         int preWet = (int) stats.getDiaperWetness();
         int preMess = (int) stats.getDiaperFullness();
+        int preRash = (int) stats.getRashPoints();
 
         // Phase 5a: unlock armor around the change so applyChange + the
         // leggings-slot mutation don't trip ArmorLockListener
@@ -160,24 +164,22 @@ public class NannyCareEngine {
         }
         Changing.applyChange(ward, cleanDiaper);
 
-        // Build a soiled stand-in item — first try the Nanny's own inventory so it
-        // takes up space; only fall back to a nearby DiaperPail when she's full.
-        ItemStack soiled = new ItemStack(Material.LEATHER_LEGGINGS, 1);
-        ItemMeta soiledMeta = soiled.getItemMeta();
-        if (soiledMeta != null) {
-            soiledMeta.setCustomModelData(soiledModelData(wasWet, wasMess));
-            soiled.setItemMeta(soiledMeta);
-        }
-        inventoryManager.addToPersonalInventory(data, soiled);
-        if (soiled.getAmount() > 0) {
-            // No room left in the Nanny's inventory — try a nearby DiaperPail.
-            // If there's none either, hand the soiled diaper to the ward; whatever
-            // doesn't fit in their inventory falls at their feet rather than vanishing.
-            boolean pailed = DiaperPail.deposit(ward.getLocation(), 30.0, soiled);
-            if (!pailed) {
-                java.util.Map<Integer, ItemStack> leftover = ward.getInventory().addItem(soiled);
-                for (ItemStack drop : leftover.values()) {
-                    ward.getWorld().dropItemNaturally(ward.getLocation(), drop);
+        // Build the soiled stand-in via the shared Changing helper so the
+        // Nanny's pail/inventory drop is the same item the player-side change
+        // flow produces. Returns null when the ward was already clean (nothing
+        // to stash).
+        ItemStack soiled = Changing.createDirtyDiaperItem(ward, preType, preWet, preMess, preRash);
+        if (soiled != null) {
+            inventoryManager.addToPersonalInventory(data, soiled);
+            if (soiled.getAmount() > 0) {
+                // No room in the Nanny's inventory — try a nearby DiaperPail.
+                // If none, hand to the ward; leftover drops at their feet.
+                boolean pailed = DiaperPail.deposit(ward.getLocation(), 30.0, soiled);
+                if (!pailed) {
+                    java.util.Map<Integer, ItemStack> leftover = ward.getInventory().addItem(soiled);
+                    for (ItemStack drop : leftover.values()) {
+                        ward.getWorld().dropItemNaturally(ward.getLocation(), drop);
+                    }
                 }
             }
         }
@@ -907,14 +909,6 @@ public class NannyCareEngine {
         }
     }
 
-    private int soiledModelData(boolean wasWet, boolean wasMess) {
-        // CMDs 626015-626018 are worn-leggings textures (item/pants*) — wrong
-        // for an inventory item. Use the diaper-icon CMDs from the slime_ball
-        // range_dispatch: 626004=diaper_dirty (covers messy or wet+mess),
-        // 626005=diaper_wet (wet only).
-        if (wasMess) return 626004;
-        return 626005;
-    }
 
     /**
      * Ward-approach gate. When the Nanny needs to move toward a ward (for care,

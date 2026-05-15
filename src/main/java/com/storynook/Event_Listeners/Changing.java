@@ -463,6 +463,50 @@ public class Changing implements Listener{
     }
 
     /**
+     * Builds the soiled-diaper item-stack representing what {@code target} was
+     * wearing just BEFORE a change happens (call this before {@link #applyChange},
+     * which zeroes wetness/fullness). Returns null if the pre-change state was
+     * clean (nothing to stash). Delegates to the existing {@code underwear.create*}
+     * factory methods so player-side change flow and Nanny-side autonomous change
+     * produce identical items — same CMD, same metadata (worn-by, soiling values,
+     * rash points), same icon in inventory.
+     *
+     * @param target       the ward who was just changed (used as the "owner"
+     *                     tag on the produced item)
+     * @param underwearType pre-change underwear type (0=undies, 1=pull-up,
+     *                     2=diaper, 3=thick diaper)
+     * @param wetness      pre-change wetness (0-100)
+     * @param fullness     pre-change fullness (0-100)
+     * @param rashPoints   pre-change rash points (carried over as the
+     *                     "timeworn" param to the factory; the factories use
+     *                     it to stamp rash effects)
+     * @return a freshly-built ItemStack, or {@code null} if there was nothing
+     *         soiled to stash.
+     */
+    public static ItemStack createDirtyDiaperItem(Player target, int underwearType,
+                                                  int wetness, int fullness, int rashPoints) {
+        if (target == null) return null;
+        // Dispatch mirrors the player-side flow at the bottom of this file's
+        // handleInteraction (lines ~494). Keep these branches aligned.
+        if (fullness > 0 && underwearType > 0) {
+            return com.storynook.items.underwear.createStinkyDiaper(target, wetness, fullness, rashPoints);
+        } else if (wetness > 0 && underwearType == 1) {
+            return com.storynook.items.underwear.createWetPullup(target, wetness, fullness, rashPoints);
+        } else if (wetness > 0 && underwearType == 2) {
+            return com.storynook.items.underwear.createWetDiaper(target, wetness, fullness, rashPoints);
+        } else if (wetness > 0 && underwearType == 3) {
+            return com.storynook.items.underwear.createWetThickDiaper(target, wetness, fullness, rashPoints);
+        } else if (wetness >= 100 && fullness >= 100) {
+            return com.storynook.items.underwear.createWetANDDirtyUndies(target, wetness, fullness, rashPoints);
+        } else if (wetness >= 100 && underwearType == 0) {
+            return com.storynook.items.underwear.createWetUndies(target, wetness, fullness, rashPoints);
+        } else if (fullness >= 100 && underwearType == 0) {
+            return com.storynook.items.underwear.createDirtyUndies(target, wetness, fullness, rashPoints);
+        }
+        return null;
+    }
+
+    /**
      * Performs the diaper-change stat mutation on {@code target} without any
      * actor-side UI (no boss bar, no held-item validation, no distance check,
      * no soiled-item distribution to an actor's inventory). Used by the

@@ -606,7 +606,7 @@ public class NannyChatEngine implements Listener {
                                           String userMessage, int historyTurns) {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("temperature", 0.8);
+        body.addProperty("temperature", 0.5);
         body.addProperty("max_tokens", configInt("Nanny_Chat_AI_Max_Tokens", 4000));
 
         JsonArray messages = new JsonArray();
@@ -654,6 +654,32 @@ public class NannyChatEngine implements Listener {
                 ? "little one" : ward.getDisplayName();
 
         StringBuilder sb = new StringBuilder();
+        // Hard rules first — these take priority over character.
+        sb.append("MOST MESSAGES DO NOT NEED A REPLY. The default response is the ");
+        sb.append("literal token <SKIP> (no quotes, no other text). Only generate a real ");
+        sb.append("reply when ONE of these is clearly true:\n");
+        sb.append("  1. The message mentions your name (\"").append(nannyName).append("\"), ");
+        sb.append("or a caregiver tier like Nanny, Mommy, Mama.\n");
+        sb.append("  2. The message is a question directed at you (contains \"?\" AND ");
+        sb.append("seems to ask about something you would know or do).\n");
+        sb.append("  3. The message is clearly a direct response to something you just ");
+        sb.append("said in the previous turn of this conversation.\n\n");
+        sb.append("ALL OTHER messages — server chatter, exclamations, single-word fragments, ");
+        sb.append("observations about the world, messages addressed to other players, ");
+        sb.append("broadcasts to nobody in particular — MUST return exactly <SKIP> with no ");
+        sb.append("explanation.\n\n");
+        sb.append("Examples that REQUIRE <SKIP>:\n");
+        sb.append("  - \"oh dear\"\n");
+        sb.append("  - \"banana\"\n");
+        sb.append("  - \"anyone want diamonds?\" (broadcast, not to you)\n");
+        sb.append("  - \"going mining brb\"\n");
+        sb.append("  - \"Dude! those are my diamonds!\" (addressed to another player)\n");
+        sb.append("  - \"lol\" / \"haha\" / \"nice\"\n\n");
+        sb.append("Examples that warrant a real reply:\n");
+        sb.append("  - \"").append(nannyName).append(" what are you doing?\"\n");
+        sb.append("  - \"Why are you so mean?\"\n");
+        sb.append("  - \"Mommy I'm hungry\"\n\n");
+        sb.append("When (and only when) a real reply is warranted, here is who you are:\n\n");
         sb.append("You are ").append(nannyName)
           .append(", a ").append(moodLabel)
           .append(" caregiver NPC in a Minecraft roleplay server. ");
@@ -663,12 +689,7 @@ public class NannyChatEngine implements Listener {
         sb.append("Do not narrate or repeat back what they said. Do not break character. ");
         sb.append("You do not perform actions in your reply — the plugin handles care, ");
         sb.append("crafting, and inventory automatically. Speak only about what you would ");
-        sb.append("say, not what you do.\n\n");
-        sb.append("If the message is general chatter not addressed to you, is something ");
-        sb.append("you have no reaction to, or you simply have nothing meaningful to add, ");
-        sb.append("reply with only the literal token <SKIP> and nothing else. Use <SKIP> ");
-        sb.append("liberally — silence is in character. Reply for real only when directly ");
-        sb.append("spoken to, asked a question, or when you genuinely want to chime in.");
+        sb.append("say, not what you do.");
 
         // --- Voice exemplars ---
         int sampleCount = configInt("Nanny_Chat_AI_Voice_Sample_Count", 6);
