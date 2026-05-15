@@ -768,8 +768,10 @@ public class NannyCareEngine {
     }
 
     /**
-     * Phase 5b: discipline pass. Fires at most one autonomous Warden action
-     * per call, in priority order (force-feed → leash → bind → hypnotize).
+     * Phase 5b: discipline pass. BASIC tier delegates to DisciplineDispatcher
+     * (score-banded picks with stacking-cap + per-action cooldowns).
+     * AI tier handles discipline directly in chat replies via {@code <PUNISH:...>}
+     * tags — skipped here.
      */
     private void tryDisciplineActions(NannyEntity entity, NannyData data, Player ward) {
         com.storynook.PlayerStatsManagement.PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
@@ -780,41 +782,13 @@ public class NannyCareEngine {
             return;
         }
 
-        if (NannyPolicy.allows(data, Capability.FORCE_FEED_LAXATIVE) && stats.getBowels() < 30) {
-            doForceFeedLaxative(entity, data, ward);
-            return;
-        }
-        if (NannyPolicy.allows(data, Capability.LEASH_WARD) && !ward.isLeashed()) {
-            org.bukkit.Location home = (data.getHomeWorld() == null || data.getHomeWorld().isEmpty())
-                    ? null
-                    : new org.bukkit.Location(org.bukkit.Bukkit.getWorld(data.getHomeWorld()),
-                            data.getHomeX(), data.getHomeY(), data.getHomeZ());
-            if (home != null && home.getWorld() != null
-                    && ward.getWorld().equals(home.getWorld())) {
-                double half = data.getHomeRadius() / 2.0;
-                if (ward.getLocation().distanceSquared(home) > half * half) {
-                    doLeash(entity, data, ward);
-                    return;
-                }
-            }
-        }
-        if (NannyPolicy.allows(data, Capability.BINDING_LEGGINGS)) {
-            ItemStack legs = ward.getInventory().getLeggings();
-            boolean cursed = legs != null && legs.getItemMeta() != null
-                    && legs.getItemMeta().hasEnchant(org.bukkit.enchantments.Enchantment.BINDING_CURSE);
-            if (!cursed) {
-                doEquipBindingLeggings(entity, data, ward);
-                return;
-            }
-        }
-        if (NannyPolicy.allows(data, Capability.HYPNOSIS_USE)) {
-            long now = System.currentTimeMillis();
-            Long last = lastHypnotize.get(ward.getUniqueId());
-            if (last == null || (now - last) >= 5L * 60L * 1000L) {
-                lastHypnotize.put(ward.getUniqueId(), now);
-                doHypnotize(entity, data, ward);
-            }
-        }
+        // BASIC tier delegates to DisciplineDispatcher (which uses behavior score + stacking cap).
+        // AI tier handles discipline directly in chat replies via <PUNISH:...> tags — skip here.
+        if (data.getChatTier() == NannyData.ChatTier.AI) return;
+
+        DisciplineDispatcher dispatcher = manager.getDisciplineDispatcher();
+        if (dispatcher == null) return;
+        dispatcher.pickAndEnactFromScore(data, ward);
     }
 
     /**

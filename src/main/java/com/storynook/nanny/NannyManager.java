@@ -829,6 +829,10 @@ public class NannyManager implements Listener {
     public BehaviorScoreboard getBehaviorScoreboard() { return behaviorScoreboard; }
     public void setBehaviorScoreboard(BehaviorScoreboard sb) { this.behaviorScoreboard = sb; }
 
+    private DisciplineDispatcher disciplineDispatcher;
+    public DisciplineDispatcher getDisciplineDispatcher() { return disciplineDispatcher; }
+    public void setDisciplineDispatcher(DisciplineDispatcher d) { this.disciplineDispatcher = d; }
+
     public MembershipProvider getMembershipProvider() {
         return membershipProvider;
     }
