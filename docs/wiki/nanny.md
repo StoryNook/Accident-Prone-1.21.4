@@ -235,7 +235,63 @@ Extracted that dispatch into `Changing.createDirtyDiaperItem(target, underwearTy
 
 ---
 
+## Behavior scoring & discipline
+
+Spec: `docs/superpowers/specs/2026-05-15-naughty-nice-points-design.md`.
+Plan: `docs/superpowers/plans/2026-05-15-naughty-nice-points.md`.
+
+### Concept
+
+Per-(Nanny, ward) bidirectional behavior score (-100 to +100) + fast-decaying streak (-50 to +50). Captures gameplay signals (punching the Nanny, chat sentiment, summon compliance, proactive hydration) and feeds them into discipline decisions for both BASIC and AI chat tiers.
+
+### Components
+
+- **`BehaviorScoreboard`** — owns score/streak maps. Clamps, sycophancy gate (score < 0 AND streak > +20 → halve positive deltas), lazy streak decay (1/2 per real-time minute), direction-reset on sign flip.
+- **`BehaviorSignals`** — Bukkit listener. Translates events into score deltas + fires `AccidentProneActionEvent`. Punch detection (−15), chat sentiment with throttled +2/−3 deltas, proactive water/food consume +1.
+- **`DisciplineDispatcher`** — shared decision/enactment surface. BASIC: score-band threshold ladder + random pick from eligible. AI: parses `<PUNISH:foo>` and `<REWARD:praise>` tags from chat replies.
+- **`DiaperPunishment`** — new capability: lock ward in binding diaper, block toilet, escalate to cursed pants on 3 violations or score floor.
+
+### BASIC threshold ladder
+
+| Score | Persistent slot cap | Events allowed |
+|---|---|---|
+| > -20 | 0 | — |
+| -20 to -40 | 0 | event (laxative, hypno) |
+| -40 to -65 | 1 | + 1 persistent |
+| -65 to -90 | 2 | + 2 persistent |
+| -90 to -100 | 3 | full stack |
+| ≤ -100 | 3 + auto-escalate diaper to cursed pants | full stack |
+
+Persistent slot inventory: `{LEASH_WARD, BINDING_LEGGINGS, DIAPER_PUNISHMENT}`. Score recovery un-stacks the least-severe persistent first.
+
+### AI tag syntax
+
+```
+<PUNISH:laxative>           - force-feed a laxative
+<PUNISH:leash>              - leash to your hand
+<PUNISH:binding>            - equip a binding-cursed diaper
+<PUNISH:hypno>              - speak a hypno trigger word
+<PUNISH:diaper:Nd>          - diaper-punishment for N Minecraft days (1-30)
+<REWARD:praise>             - suppress your next queued punishment for 5 minutes
+```
+
+Tags appended at the end of the AI's chat reply on their own line. Stripped from the visible message before broadcast. Per-action cooldown (default 5 minutes) prevents tag spam.
+
+### Diaper punishment
+
+Initial state: binding-cursed thick diaper (CMD 626006 + Binding_Curse), `underwearType=3`, `layers=4`. Timer set to `world.getFullTime() + (days × 24000)`. `Toilet.canRelieveOnToilet` + `/pee` + `/poop` consult `DiaperPunishment.isBlocked` first.
+
+Escalation (3 violations OR score ≤ -100): strip diaper, force-equip cursed pants (CMD 626015 + Binding_Curse + Unbreakable + DARK_RED display name). Stays until timer expires.
+
++20 behavior score earned during active punishment shaves 1 Minecraft day off the timer.
+
+### Config knobs (`Nanny.Behavior:` in config.yml)
+
+See spec for the full list of 16 knobs. Most-tuned in practice: `Discipline_Cooldown_Minutes`, `Diaper_Punishment_Max_Days`, `Praise_Grace_Seconds`.
+
+---
+
 ## Pending work
 
 - **Autonomous washer use** — spec `docs/superpowers/specs/2026-05-14-nanny-washer-design.md` (draft, **not yet implemented**). Would teach the Nanny to carry soiled cloth pants (`626015–626018`) to a player-placed washer, load it, top up coal fuel, and retrieve washed pants (`626022–626033`) — mirroring the existing `DiaperPail.deposit` flow for disposable diapers. Adds `NannyCareEngine.tryDoLaundry`, `NannyInventoryManager.isSoiledPants`, a `WasherRegistry`, and `LAUNDRY_STARTED` / `LAUNDRY_RETRIEVED` event types.
-- **Naughty/nice points + AI-mediated discipline** — spec `docs/superpowers/specs/2026-05-15-naughty-nice-points-design.md`, plan `docs/superpowers/plans/2026-05-15-naughty-nice-points.md` (both drafted, **not yet implemented**). Per-(Nanny, ward) behavior score (-100..+100) + fast-decaying streak feeds both BASIC threshold ladder and AI `<PUNISH:foo>` tag emission. Brand-new diaper-punishment subsystem with toilet interception, 3-strikes-to-cursed-pants escalation, and Minecraft-day timer. 11 new `AccidentProneActionEvent` action IDs for Jobs/BeautyQuests integration.
+- **Naughty/nice points + AI-mediated discipline** — see "Behavior scoring & discipline" section above. Per-(Nanny, ward) behavior score, BASIC threshold ladder, AI tag emission, diaper-punishment subsystem with cursed-pants escalation. 11 new `AccidentProneActionEvent` action IDs.

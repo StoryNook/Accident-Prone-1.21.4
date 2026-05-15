@@ -41,6 +41,17 @@ The 16 firing points, their preconditions, and the `ctx` keys each event carries
 | `accidentprone:hydrate_threshold` | Drinking pushes hydration over threshold (PlayerEventListener.onPlayerDrink) | hydration ≥ Hydrate_Threshold | per-worker, 600s | `hydration` |
 | `accidentprone:carry_pickup` | Caregiver successfully picks up their explicitly-listed ward (3s saddle gesture) | `target.isCaregiver(worker, true)` | per-pair, 10s | — |
 | `accidentprone:carry_drop` | Caregiver drops a carried ward (in crib or in place) | `target.isCaregiver(worker, true)` | per-pair, 10s | `dropped_in_crib`, `crib_id` |
+| `accidentprone:nanny_assaulted` | A player damages a Nanny NPC (BehaviorSignals.onEntityDamageByEntity) | — | none | `nanny` |
+| `accidentprone:behavior_naughty` | Naughty chat phrase or behavior signal detected (BehaviorSignals) | — | per-speaker, 30s throttle | `delta` |
+| `accidentprone:behavior_nice` | Nice chat phrase or proactive water/food consumption (BehaviorSignals) | — | per-speaker, 60s throttle | `delta`, `reason` |
+| `accidentprone:summon_complied` | Ward came to a Nanny summon (within range or chat acknowledgement) | — | none | — |
+| `accidentprone:accepted_change` | Ward accepted a change without resistance | — | none | — |
+| `accidentprone:diaper_punishment_started` | A Nanny imposes diaper-punishment on a ward (DiaperPunishment.start) | — | none | `days`, `nanny` |
+| `accidentprone:diaper_punishment_violated` | Ward tried to use toilet during active diaper-punishment | — | none | `remaining` |
+| `accidentprone:diaper_punishment_escalated` | Diaper-punishment escalated to cursed pants (3 strikes or score floor) | — | none | — |
+| `accidentprone:diaper_punishment_expired` | Diaper-punishment timer ran out naturally | — | none | — |
+| `accidentprone:cursed_pants_equipped` | Cursed indestructible pants force-equipped on ward | — | none | `reason` |
+| `accidentprone:behavior_score_changed` | (reserved) Behavior score changed for a ward — not yet wired | — | none | — |
 
 Cooldowns and thresholds are tunable in `plugins/Accident-Prone/integrations.yml` under `Events.Caregiver`, `Events.Crafter`, and `Events.Little`.
 
