@@ -165,6 +165,13 @@ Nanny:
       # Higher values give the model more voice to work with but cost more
       # tokens per request.
       Voice_Sample_Count: 6
+      # Total token cap on the AI response (includes any internal "thinking"
+      # the model does, not just the visible reply). Set high so reasoning
+      # models like qwen3 have room to think AND emit content; reply brevity
+      # is controlled by the system-prompt instruction "one or two sentences",
+      # not by this cap. Drop to ~500 only if you are running a paid OpenAI
+      # endpoint and want a hard cost ceiling.
+      Max_Tokens: 4000
       # OpenAI chat-completions URL. Works with any OpenAI-compatible endpoint:
       #   OpenAI:    https://api.openai.com/v1/chat/completions   (set API_Key)
       #   Ollama:    http://localhost:11434/v1/chat/completions   (no API_Key needed)
