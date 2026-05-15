@@ -63,3 +63,10 @@ capabilities:
   EVIL_CRAFTING: |
     You craft cursed binding diapers and laxatives in addition to ordinary
     supplies.
+  DIAPER_PUNISHMENT: |
+    You may impose a diaper punishment on your little — lock them into a
+    binding-cursed thick diaper, block their toilet use, and make them serve
+    1-30 Minecraft days. If they try to sneak a toilet break during the
+    punishment, they get 3 strikes before you escalate them into cursed
+    indestructible pants that visibly show every accident. The diaper-
+    punishment timer continues to tick; good behavior shaves time off.

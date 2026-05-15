@@ -70,7 +70,8 @@ public final class NannyPolicy {
                 Capability.ARMOR_LOCK, Capability.CRIB_PLACEMENT,
                 Capability.FORCE_FEED_LAXATIVE, Capability.BINDING_LEGGINGS,
                 Capability.LEASH_WARD, Capability.HYPNOSIS_USE,
-                Capability.ROOM_LOCKDOWN, Capability.EVIL_CRAFTING));
+                Capability.ROOM_LOCKDOWN, Capability.EVIL_CRAFTING,
+                Capability.DIAPER_PUNISHMENT));
         return m;
     }
 

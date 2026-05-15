@@ -20,5 +20,6 @@ public enum Capability {
     LEASH_WARD,
     HYPNOSIS_USE,
     ROOM_LOCKDOWN,
-    EVIL_CRAFTING
+    EVIL_CRAFTING,
+    DIAPER_PUNISHMENT
 }
