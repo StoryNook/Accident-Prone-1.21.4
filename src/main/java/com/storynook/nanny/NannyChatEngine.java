@@ -218,6 +218,9 @@ public class NannyChatEngine implements Listener {
     public void fireTriggers(Player speaker, String message) {
         if (speaker == null || message == null) return;
         if (!plugin.citizensEnabled) return;
+        // Diagnostic: confirms the chat reached the engine. Comment out once stable.
+        plugin.getLogger().info("[NannyChat] fireTriggers " + speaker.getName()
+                + ": '" + truncate(message, 60) + "'");
 
         int radius = configInt("Nanny_Chat_Local_Radius", 30);
         int minWords = configInt("Nanny_Chat_Min_Words", 3);
@@ -233,9 +236,9 @@ public class NannyChatEngine implements Listener {
             NannyData data = nanny.getData();
 
             Location here = nanny.getLocation();
-            if (here == null) continue;
-            if (!here.getWorld().equals(loc.getWorld())) continue;
-            if (here.distanceSquared(loc) > radius * radius) continue;
+            if (here == null) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": not spawned"); continue; }
+            if (!here.getWorld().equals(loc.getWorld())) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": different world"); continue; }
+            if (here.distanceSquared(loc) > radius * radius) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": out of range (" + Math.sqrt(here.distanceSquared(loc)) + " > " + radius + ")"); continue; }
 
             NannyEventLog log = manager.getEventLog(nannyUUID);
             if (log != null) {
@@ -243,9 +246,9 @@ public class NannyChatEngine implements Listener {
                         truncate(message, 80));
             }
 
-            if (!data.isChatEnabled()) continue;
-            if (!isAllowedSpeaker(speaker, data)) continue;
-            if (countWords(message) < minWords) continue;
+            if (!data.isChatEnabled()) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": chat disabled"); continue; }
+            if (!isAllowedSpeaker(speaker, data)) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": speaker not in chatRespondTo=" + data.getChatRespondTo()); continue; }
+            if (countWords(message) < minWords) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": only " + countWords(message) + " words (need " + minWords + ")"); continue; }
 
             long now = System.currentTimeMillis();
             Long last = lastResponse.get(nannyUUID);
@@ -314,10 +317,12 @@ public class NannyChatEngine implements Listener {
 
     private void respond(Player speaker, NannyData data, NannyEntity nanny,
                          String category, String userMessage) {
+        plugin.getLogger().info("[NannyChat] respond " + data.getName() + " tier=" + data.getChatTier() + " category=" + category);
         if (data.getChatTier() == NannyData.ChatTier.AI) {
             MembershipProvider provider = manager.getMembershipProvider();
             String endpoint = configString("Nanny_Chat_AI_Endpoint", "");
             boolean unlocked = provider != null && provider.isUnlocked(data.getOwnerUUID());
+            plugin.getLogger().info("[NannyChat] AI check: providerClass=" + (provider != null ? provider.getClass().getSimpleName() : "null") + " unlocked=" + unlocked + " endpoint=" + (endpoint == null || endpoint.isEmpty() ? "EMPTY" : "set") + " owner=" + data.getOwnerUUID());
             if (unlocked && endpoint != null && !endpoint.isEmpty()) {
                 requestAiResponse(endpoint, data, speaker, userMessage, aiText -> {
                     String resolved;
