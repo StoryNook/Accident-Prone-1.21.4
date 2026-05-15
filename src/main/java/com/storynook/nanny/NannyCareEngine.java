@@ -908,9 +908,12 @@ public class NannyCareEngine {
     }
 
     private int soiledModelData(boolean wasWet, boolean wasMess) {
-        if (wasWet && wasMess) return 626017;
-        if (wasMess) return 626016;
-        return 626015;  // wet (or default fallback)
+        // CMDs 626015-626018 are worn-leggings textures (item/pants*) — wrong
+        // for an inventory item. Use the diaper-icon CMDs from the slime_ball
+        // range_dispatch: 626004=diaper_dirty (covers messy or wet+mess),
+        // 626005=diaper_wet (wet only).
+        if (wasMess) return 626004;
+        return 626005;
     }
 
     /**

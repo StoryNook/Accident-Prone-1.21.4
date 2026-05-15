@@ -150,7 +150,10 @@ Nanny:
     Default_Tier: BASIC
     Default_Respond_To: OWNER
     Local_Radius: 30
-    Min_Words: 3              # skip messages with fewer than this many words
+    Min_Words: 1              # short messages are allowed; the AI tier uses
+                              # a <SKIP> token to self-regulate when she does
+                              # or doesn't reply, so a coarse word-count gate
+                              # mostly gets in the way
     Ambient_Chance: 1         # percent chance Nanny chimes in unprompted on a passing message
     AI:
       Provider: OPENAI

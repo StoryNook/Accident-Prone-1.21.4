@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -125,6 +124,11 @@ public class NannyChatEngine implements Listener {
     /** nannyUUID → epoch millis of last response, for per-Nanny floor + ambient timer reset. */
     private final Map<UUID, Long> lastResponse = new HashMap<>();
 
+    /** nannyUUID → epoch millis of last user-chat-initiated reply. Used only by
+     *  {@link #fireTriggers} so that background lines (ambient, reminders,
+     *  post-action commentary) don't consume the AI cost throttle. */
+    private final Map<UUID, Long> lastChatReply = new HashMap<>();
+
     /** "{nannyUUID}:{throttleKey}:{wardUUID}" → epoch millis of last fire, per-trigger throttle. */
     private final Map<String, Long> triggerThrottle = new HashMap<>();
 
@@ -216,11 +220,12 @@ public class NannyChatEngine implements Listener {
     }
 
     public void fireTriggers(Player speaker, String message) {
-        if (speaker == null || message == null) return;
-        if (!plugin.citizensEnabled) return;
+        if (speaker == null || message == null) { plugin.getLogger().info("[NannyChat] bail: speaker/message null"); return; }
+        if (!plugin.citizensEnabled) { plugin.getLogger().info("[NannyChat] bail: citizens disabled"); return; }
         // Diagnostic: confirms the chat reached the engine. Comment out once stable.
         plugin.getLogger().info("[NannyChat] fireTriggers " + speaker.getName()
-                + ": '" + truncate(message, 60) + "'");
+                + ": '" + truncate(message, 60) + "' activeNannies="
+                + manager.getActiveNannies().size());
 
         int radius = configInt("Nanny_Chat_Local_Radius", 30);
         int minWords = configInt("Nanny_Chat_Min_Words", 3);
@@ -228,17 +233,27 @@ public class NannyChatEngine implements Listener {
         int ambientPct = configInt("Nanny_Chat_Ambient_Chance", 1);
 
         Location loc = speaker.getLocation();
-        if (loc == null || loc.getWorld() == null) return;
+        if (loc == null || loc.getWorld() == null) { plugin.getLogger().info("[NannyChat] bail: speaker location/world null"); return; }
+        plugin.getLogger().info("[NannyChat] speaker at " + loc.getWorld().getName() + " " + loc.getBlockX() + "," + loc.getBlockY() + "," + loc.getBlockZ() + " — iterating " + manager.getActiveNannies().size() + " nanny entries");
 
         for (Map.Entry<UUID, NannyEntity> entry : manager.getActiveNannies().entrySet()) {
             UUID nannyUUID = entry.getKey();
             NannyEntity nanny = entry.getValue();
             NannyData data = nanny.getData();
+            plugin.getLogger().info("[NannyChat] loop iter: nannyUUID=" + nannyUUID + " name=" + (data != null ? data.getName() : "<null data>"));
 
-            Location here = nanny.getLocation();
-            if (here == null) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": not spawned"); continue; }
-            if (!here.getWorld().equals(loc.getWorld())) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": different world"); continue; }
-            if (here.distanceSquared(loc) > radius * radius) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": out of range (" + Math.sqrt(here.distanceSquared(loc)) + " > " + radius + ")"); continue; }
+            try {
+                Location here = nanny.getLocation();
+                plugin.getLogger().info("[NannyChat]   here=" + (here == null ? "null" : here.getWorld().getName() + " " + here.getBlockX() + "," + here.getBlockY() + "," + here.getBlockZ()));
+                if (here == null) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": not spawned"); continue; }
+                if (!here.getWorld().equals(loc.getWorld())) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": different world"); continue; }
+                double distSq = here.distanceSquared(loc);
+                plugin.getLogger().info("[NannyChat]   distSq=" + distSq + " radiusSq=" + (radius * radius));
+                if (distSq > radius * radius) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": out of range (" + Math.sqrt(distSq) + " > " + radius + ")"); continue; }
+            } catch (Throwable t) {
+                plugin.getLogger().warning("[NannyChat] EXCEPTION in location check for " + (data != null ? data.getName() : "?") + ": " + t.getClass().getSimpleName() + ": " + t.getMessage());
+                continue;
+            }
 
             NannyEventLog log = manager.getEventLog(nannyUUID);
             if (log != null) {
@@ -251,8 +266,15 @@ public class NannyChatEngine implements Listener {
             if (countWords(message) < minWords) { plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": only " + countWords(message) + " words (need " + minWords + ")"); continue; }
 
             long now = System.currentTimeMillis();
-            Long last = lastResponse.get(nannyUUID);
-            if (last != null && (now - last) < throttleSec * 1000L) continue;
+            // Cost-control throttle for user-initiated chat. Distinct from
+            // lastResponse (which is poked by ambient/reminder background lines)
+            // so that Nanny saying something autonomously doesn't block her
+            // from replying to the user for 30 seconds afterwards.
+            Long last = lastChatReply.get(nannyUUID);
+            if (last != null && (now - last) < throttleSec * 1000L) {
+                plugin.getLogger().info("[NannyChat] skip " + data.getName() + ": throttle active (" + ((now - last) / 1000L) + "s since last chat reply, need " + throttleSec + "s)");
+                continue;
+            }
 
             // BASIC tier: gate on Nanny name / keyword match — canned lines would feel
             // repetitive if every message triggered. AI tier bypasses the gate so the
@@ -264,6 +286,11 @@ public class NannyChatEngine implements Listener {
             if (!isAiTier && category == null) continue;
             if (category == null) category = "general";
 
+            // Update both maps:
+            // - lastChatReply guards future user-chat triggers (cost throttle)
+            // - lastResponse lets background tasks (ambient idle) push their
+            //   timer forward so they don't fire on top of the chat reply
+            lastChatReply.put(nannyUUID, now);
             lastResponse.put(nannyUUID, now);
             respond(speaker, data, nanny, category, message);
         }
@@ -324,7 +351,19 @@ public class NannyChatEngine implements Listener {
             boolean unlocked = provider != null && provider.isUnlocked(data.getOwnerUUID());
             plugin.getLogger().info("[NannyChat] AI check: providerClass=" + (provider != null ? provider.getClass().getSimpleName() : "null") + " unlocked=" + unlocked + " endpoint=" + (endpoint == null || endpoint.isEmpty() ? "EMPTY" : "set") + " owner=" + data.getOwnerUUID());
             if (unlocked && endpoint != null && !endpoint.isEmpty()) {
+                plugin.getLogger().info("[NannyChat] AI request -> " + endpoint
+                        + " model=" + configString("Nanny_Chat_AI_Model", "gpt-4o-mini")
+                        + " for: '" + truncate(userMessage, 60) + "'");
                 requestAiResponse(endpoint, data, speaker, userMessage, aiText -> {
+                    plugin.getLogger().info("[NannyChat] AI response received: "
+                            + (aiText == null ? "<null>" : aiText.isEmpty() ? "<empty>" : "'" + truncate(aiText, 60) + "'"));
+                    // <SKIP> sentinel — the model decides not to reply. Per system
+                    // prompt, model returns only "<SKIP>" (case-insensitive, optional
+                    // whitespace) when the message doesn't warrant a response.
+                    if (aiText != null && aiText.trim().equalsIgnoreCase("<SKIP>")) {
+                        plugin.getLogger().info("[NannyChat] model returned <SKIP> — staying quiet");
+                        return;
+                    }
                     String resolved;
                     if (aiText != null && !aiText.isEmpty()) {
                         resolved = applyPlaceholders(aiText, speaker, data);
@@ -621,7 +660,15 @@ public class NannyChatEngine implements Listener {
         sb.append("Your little is named \"").append(wardName).append("\". ");
         sb.append("Speak directly to them. Keep replies short — one or two ");
         sb.append("sentences, no roleplay actions in asterisks, no emoji. ");
-        sb.append("Do not narrate or repeat back what they said. Do not break character.");
+        sb.append("Do not narrate or repeat back what they said. Do not break character. ");
+        sb.append("You do not perform actions in your reply — the plugin handles care, ");
+        sb.append("crafting, and inventory automatically. Speak only about what you would ");
+        sb.append("say, not what you do.\n\n");
+        sb.append("If the message is general chatter not addressed to you, is something ");
+        sb.append("you have no reaction to, or you simply have nothing meaningful to add, ");
+        sb.append("reply with only the literal token <SKIP> and nothing else. Use <SKIP> ");
+        sb.append("liberally — silence is in character. Reply for real only when directly ");
+        sb.append("spoken to, asked a question, or when you genuinely want to chime in.");
 
         // --- Voice exemplars ---
         int sampleCount = configInt("Nanny_Chat_AI_Voice_Sample_Count", 6);
@@ -641,6 +688,12 @@ public class NannyChatEngine implements Listener {
             for (String prose : fragments) {
                 sb.append("\n- ").append(prose);
             }
+        }
+
+        // --- Inventory snapshot ---
+        String inv = summarizeInventory(data);
+        if (inv != null && !inv.isEmpty()) {
+            sb.append("\n\nYour supplies right now:").append(inv);
         }
 
         // --- Dynamic world/ward context (existing behavior) ---
@@ -670,6 +723,91 @@ public class NannyChatEngine implements Listener {
             sb.append("\n\n").append(override);
         }
         return sb.toString();
+    }
+
+    /**
+     * Counts items in the Nanny's personal inventory grouped by category so
+     * the AI knows what she actually has on hand. Without this the model
+     * hallucinates ("I crafted one for you"). Returns a multi-line bullet
+     * string starting with "\n- " for each non-zero category, or empty
+     * string if everything is zero.
+     */
+    private String summarizeInventory(NannyData data) {
+        if (data == null) return "";
+        org.bukkit.inventory.ItemStack[] inv = data.getPersonalInventory();
+        if (inv == null) return "";
+
+        int cleanDiapers = 0, soiledDiapers = 0, food = 0, waterBottles = 0,
+            emptyBottles = 0, laxatives = 0, hypnoClocks = 0, cursedDiapers = 0,
+            coal = 0;
+        for (org.bukkit.inventory.ItemStack stack : inv) {
+            if (stack == null || stack.getType() == org.bukkit.Material.AIR) continue;
+            int amt = stack.getAmount();
+            if (NannyInventoryManager.isCleanDiaper(stack)) {
+                // Could be a cursed (binding) diaper — flag separately
+                if (stack.getItemMeta() != null
+                        && stack.getItemMeta().hasEnchant(org.bukkit.enchantments.Enchantment.BINDING_CURSE)) {
+                    cursedDiapers += amt;
+                } else {
+                    cleanDiapers += amt;
+                }
+            } else if (isSoiledDiaperIcon(stack)) {
+                soiledDiapers += amt;
+            } else if (isHypnoClock(stack)) {
+                hypnoClocks += amt;
+            } else if (isLaxative(stack)) {
+                laxatives += amt;
+            } else if (NannyInventoryManager.isWaterBottle(stack)) {
+                waterBottles += amt;
+            } else if (NannyInventoryManager.isEmptyGlassBottle(stack)) {
+                emptyBottles += amt;
+            } else if (NannyInventoryManager.isAnyFood(stack)) {
+                food += amt;
+            } else if (stack.getType() == org.bukkit.Material.COAL
+                    || stack.getType() == org.bukkit.Material.CHARCOAL) {
+                coal += amt;
+            }
+        }
+
+        StringBuilder s = new StringBuilder();
+        if (cleanDiapers > 0)   s.append("\n- ").append(cleanDiapers).append(" clean diaper").append(cleanDiapers == 1 ? "" : "s");
+        if (cursedDiapers > 0)  s.append("\n- ").append(cursedDiapers).append(" binding-cursed diaper").append(cursedDiapers == 1 ? "" : "s");
+        if (soiledDiapers > 0)  s.append("\n- ").append(soiledDiapers).append(" soiled diaper").append(soiledDiapers == 1 ? "" : "s").append(" (heading to the pail)");
+        if (food > 0)           s.append("\n- ").append(food).append(" food item").append(food == 1 ? "" : "s");
+        if (waterBottles > 0)   s.append("\n- ").append(waterBottles).append(" water bottle").append(waterBottles == 1 ? "" : "s");
+        if (emptyBottles > 0)   s.append("\n- ").append(emptyBottles).append(" empty glass bottle").append(emptyBottles == 1 ? "" : "s");
+        if (laxatives > 0)      s.append("\n- ").append(laxatives).append(" laxative").append(laxatives == 1 ? "" : "s");
+        if (hypnoClocks > 0)    s.append("\n- ").append(hypnoClocks).append(" hypnosis clock").append(hypnoClocks == 1 ? "" : "s");
+        if (coal > 0)           s.append("\n- ").append(coal).append(" coal");
+        if (s.length() == 0)    s.append("\n- (empty — you cannot hand anything over until you craft or restock)");
+        return s.toString();
+    }
+
+    private boolean isSoiledDiaperIcon(org.bukkit.inventory.ItemStack stack) {
+        if (stack == null || stack.getType() != org.bukkit.Material.LEATHER_LEGGINGS) return false;
+        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+        if (meta == null || !meta.hasCustomModelData()) return false;
+        int cmd = meta.getCustomModelData();
+        return cmd == 626004 || cmd == 626005 || cmd == 626011
+                || cmd == 626015 || cmd == 626016 || cmd == 626017 || cmd == 626018;
+    }
+
+    private boolean isHypnoClock(org.bukkit.inventory.ItemStack stack) {
+        if (stack == null || stack.getType() != org.bukkit.Material.CLOCK) return false;
+        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return false;
+        return meta.getPersistentDataContainer().has(
+                new org.bukkit.NamespacedKey(plugin, "hypnosis"),
+                org.bukkit.persistence.PersistentDataType.BYTE);
+    }
+
+    private boolean isLaxative(org.bukkit.inventory.ItemStack stack) {
+        if (stack == null || stack.getType() != org.bukkit.Material.BREAD) return false;
+        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return false;
+        return meta.getPersistentDataContainer().has(
+                new org.bukkit.NamespacedKey(plugin, "laxative_effect"),
+                org.bukkit.persistence.PersistentDataType.BYTE);
     }
 
     /**
