@@ -43,7 +43,12 @@ public class NannyEventLog {
         NANNY_CHAT,
         WARD_CHAT,
         SEEKING_WARD,
-        STUCK_TELEPORT
+        STUCK_TELEPORT,
+        DIAPER_PUNISHMENT_STARTED,
+        DIAPER_PUNISHMENT_VIOLATED,
+        DIAPER_PUNISHMENT_ESCALATED,
+        DIAPER_PUNISHMENT_EXPIRED,
+        BEHAVIOR_SCORE_CHANGED
     }
 
     // -------------------------------------------------------------------------

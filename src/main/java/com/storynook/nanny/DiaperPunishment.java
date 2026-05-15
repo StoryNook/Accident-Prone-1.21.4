@@ -73,6 +73,9 @@ public class DiaperPunishment {
 
         plugin.getIntegrationsBus().fire(ward, ActionId.DIAPER_PUNISHMENT_STARTED, ward,
                 java.util.Map.of("days", days, "nanny", data.getNannyUUID().toString()));
+        NannyEventLog startLog = plugin.getNannyManager().getEventLog(data.getNannyUUID());
+        if (startLog != null) startLog.log(NannyEventLog.NannyEventType.DIAPER_PUNISHMENT_STARTED,
+                ward.getUniqueId(), "days=" + days);
         plugin.getLogger().info("[DiaperPunishment] started " + days + "d on " + ward.getName());
     }
 
@@ -101,6 +104,11 @@ public class DiaperPunishment {
 
         plugin.getIntegrationsBus().fire(ward, ActionId.DIAPER_PUNISHMENT_VIOLATED, ward,
                 java.util.Map.of("remaining", remaining));
+        if (data != null) {
+            NannyEventLog violLog = plugin.getNannyManager().getEventLog(data.getNannyUUID());
+            if (violLog != null) violLog.log(NannyEventLog.NannyEventType.DIAPER_PUNISHMENT_VIOLATED,
+                    ward.getUniqueId(), "remaining=" + remaining);
+        }
 
         int score = -1;
         if (data != null && sb != null) score = sb.getScore(data, ward.getUniqueId());
@@ -123,6 +131,15 @@ public class DiaperPunishment {
                 java.util.Map.of("reason", "violation_escalation"));
         plugin.getIntegrationsBus().fire(ward, ActionId.DIAPER_PUNISHMENT_ESCALATED, ward,
                 java.util.Map.of());
+        UUID escalateNid = stats.getDiaperPunishmentNannyUUID();
+        if (escalateNid != null) {
+            NannyData escalateData = plugin.getNannyManager().getAllNannies().get(escalateNid);
+            if (escalateData != null) {
+                NannyEventLog escalateLog = plugin.getNannyManager().getEventLog(escalateData.getNannyUUID());
+                if (escalateLog != null) escalateLog.log(NannyEventLog.NannyEventType.DIAPER_PUNISHMENT_ESCALATED,
+                        ward.getUniqueId(), "");
+            }
+        }
         plugin.getLogger().info("[DiaperPunishment] ESCALATED to cursed pants for " + ward.getName());
     }
 
@@ -155,6 +172,14 @@ public class DiaperPunishment {
         stats.setDiaperPunishmentEscalated(false);
 
         plugin.getIntegrationsBus().fire(ward, ActionId.DIAPER_PUNISHMENT_EXPIRED, ward, java.util.Map.of());
+        if (nid != null) {
+            NannyData expireData = plugin.getNannyManager().getAllNannies().get(nid);
+            if (expireData != null) {
+                NannyEventLog expireLog = plugin.getNannyManager().getEventLog(expireData.getNannyUUID());
+                if (expireLog != null) expireLog.log(NannyEventLog.NannyEventType.DIAPER_PUNISHMENT_EXPIRED,
+                        ward.getUniqueId(), "");
+            }
+        }
         plugin.getLogger().info("[DiaperPunishment] expired for " + ward.getName());
         com.storynook.PlayerStatsManagement.SavePlayerStats.savePlayerStats(ward);
     }
