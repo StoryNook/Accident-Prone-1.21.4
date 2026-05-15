@@ -211,6 +211,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
     mergeConfigFiles("HyponosisWords.yml");
     mergeConfigFiles("welcomebook.yml");
     mergeConfigFiles("nanny_messages.yml");
+    mergeConfigFiles("nanny_personalities.yml");
     mergeConfigFiles("integrations.yml");
     mergeConfigFiles("StoryNook1.2.4.zip");
     try {
