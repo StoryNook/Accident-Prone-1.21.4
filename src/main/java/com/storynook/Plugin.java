@@ -39,6 +39,8 @@ import com.storynook.items.Nanny;
 import com.storynook.menus.*;
 import com.storynook.nanny.NannyManager;
 import com.storynook.nanny.NannyChatEngine;
+import com.storynook.nanny.BehaviorScoreboard;
+import com.storynook.nanny.BehaviorSignals;
 import com.storynook.Integrations.NannyVentureChatHook;
 import com.storynook.Commands.NannyCommand;
 
@@ -271,6 +273,10 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         NannyMenu nannymenu = new NannyMenu(this);
         nannyManager = new NannyManager(this);
         nannyManager.init();
+        BehaviorScoreboard behaviorScoreboard = new BehaviorScoreboard();
+        BehaviorSignals behaviorSignals = new BehaviorSignals(this, behaviorScoreboard, nannyManager);
+        getServer().getPluginManager().registerEvents(behaviorSignals, this);
+        nannyManager.setBehaviorScoreboard(behaviorScoreboard);
         getServer().getPluginManager().registerEvents(nannymenu, this);
         getServer().getPluginManager().registerEvents(nannyManager, this);
         NannyChatEngine nannyChatEngine = nannyManager.getChatEngine();
