@@ -171,6 +171,71 @@ These run in the no-care branch of `NannyCareEngine.evaluateAndAct`, one interac
 
 ---
 
+## Personality-driven AI prompt (shipped)
+
+Spec: `docs/superpowers/specs/2026-05-15-nanny-personality-prompt-design.md`. Replaces the old single-adjective AI mood prompt (`"a caring caretaker"`) with a building-blocks system. Each Nanny has a per-call system prompt assembled from voice exemplars sampled live from `nanny_messages.yml` plus capability fragments from a new admin-editable resource, plus dynamic world context.
+
+- **New resource:** `src/main/resources/nanny_personalities.yml` (merged into data folder by `Plugin.mergeConfigFiles` like other YAML resources; `/diaperreload` re-reads it). Two top-level keys: `always_on:` (capabilities every Nanny has: `BASIC_CARE`, `WATER_REFILL`, `ORE_SPOTTING`) and `capabilities:` (one fragment per `Capability` enum value the Nanny is permitted to use). Each entry is short first-person prose. Admins override any fragment by editing the data-folder copy.
+- **New `NannyData` field:** `customTone` (`MoodTier` enum, default `CARING`). For CUSTOM-mood Nannies, the AI's voice samples are drawn from the `customTone` tier instead of the meaningless "CUSTOM" tier. Set via a `BOOK` cycler in the Advanced tab (visible only when mood = CUSTOM). Cycles `SWEET → CARING → STRICT → WARDEN → SWEET`. Persisted alongside `moodTier`. Both null and `CUSTOM` clamp to `CARING` defensively.
+- **New config knob:** `Nanny.Chat.AI.Voice_Sample_Count` (default `6`). Number of example lines sampled from `nanny_messages.yml` and embedded as `Speak in this style — here are example lines you have said before:` in the system prompt. `0` disables the exemplar block. Sampled categories are voice-bearing only: prefixes `idle_` and `keyword_`, plus exact match `greeting`. Action-specific categories like `low_supplies`, `mob_warning`, `ore_spotted_*`, `discipline` are excluded — they're status reports, not voice tells.
+- **`buildSystemPrompt` assembly order** (`NannyChatEngine.java`):
+  1. Identity preamble (mood label uses `voiceTier`, not `mood`, so CUSTOM Nannies present as `"a sweet caregiver"` etc. — `mood.name()` of CUSTOM would be a meaningless adjective)
+  2. Voice exemplars from `nanny_messages.yml` for the active tier
+  3. `Your abilities:` — composed via `resolveFragmentList(data, mood, ward)`:
+     - Always-on keys (`BASIC_CARE`, `WATER_REFILL`, `ORE_SPOTTING`) always prepended; deduped against the gated loop
+     - Capability iteration: for fixed moods, `NannyPolicy.allows(data, cap)`; for CUSTOM, `data.getCustomSettings().get(cap.name())`
+     - Cross-feature gate via `isFeatureGloballyEnabled` (HYPNOSIS_USE needs `Hypno`; FORCE_FEED_LAXATIVE needs `Messing` + `Diapers`; BINDING_LEGGINGS / EVIL_CRAFTING need `Messing` + `Diapers` + `Binding_Diapers`) — the AI never advertises tools the plugin will refuse to fire
+  4. World/ward context — time of day, weather, soiled diaper, hungry, thirsty (phrased as "Your little..." not "the ward...")
+  5. Optional admin override from `Nanny.Chat.AI.System_Prompt`
+- **`{hypno_triggers}` placeholder:** substituted in any fragment with the comma-joined `word (type)` list from `PlayerStats.getHypnoTriggers()` for the current ward. Empty list → friendly fallback string. Lets the AI know the *actual* active words on this ward so she can weave them in.
+- **`/diaperreload` rebuilds chat engine + re-merges YAML.** Edit `nanny_personalities.yml` or `nanny_messages.yml`, reload, see the change live. `CommandHandler` calls `mergeConfigFiles` for both files plus `nannyManager.getChatEngine().reload()` (which calls `loadMessages()` + `loadPersonalities()`).
+
+---
+
+## AI chat behavior (shipped)
+
+Several refinements to how the AI tier actually decides when and how to reply:
+
+- **AI tier bypasses the keyword/name gate.** `NannyChatEngine.fireTriggers` previously dropped any message that didn't mention the Nanny's name or contain a `KEYWORD_MAP` stem (`wet`, `messy`, `hungry`, etc.) — which made BASIC-tier sense (canned lines feel repetitive on every message) but broke AI-tier conversational flow. AI tier now responds to anything that clears the existing filters (`minWords`, `chatRespondTo`, `Local_Radius`, throttle). BASIC tier still uses the keyword gate.
+- **`<SKIP>` sentinel for selective AI replies.** System prompt instructs the model: reply with only the literal `<SKIP>` (case-insensitive) for messages that don't need a response — server chatter, exclamations, single-word fragments, messages addressed to other players. The AI callback strips and respects it before broadcasting. Concrete examples are embedded in the prompt (`"oh dear"` → SKIP; `"Nanny what are you doing?"` → reply).
+- **Inventory awareness.** A `Your supplies right now:` block is appended to the system prompt summarizing the Nanny's `personalInventory` (clean diapers, soiled diapers, food, water bottles, empty bottles, laxatives, hypno clocks, coal, cursed diapers). Stops the model from hallucinating `"I crafted one for you"` when the inventory is empty. Predicates reuse `NannyInventoryManager.isCleanDiaper / isWaterBottle / isAnyFood / isEmptyGlassBottle` plus new helpers for soiled/hypno/laxative detection.
+- **Action-implying phrase ban.** System prompt explicitly forbids `"down the hatch"`, `"eat up"`, `"open wide"`, `"here you go"`, `"hold still"`, etc. — phrases that read as a promise of an action that doesn't actually fire (the care engine handles actions on its own clock; chat is decoupled). The little gets confused when the Nanny says these without follow-through.
+- **VentureChat hook bounces to main thread.** `NannyVentureChatHook.onVentureChat` fires on `VentureChat`'s async scheduler thread. Calling `engine.fireTriggers` directly there meant `nanny.getLocation()` and friends ran async → silent `IllegalStateException` swallowed by VentureChat's handler wrapper → chat never reached the engine. The hook now wraps in `Bukkit.getScheduler().runTask(plugin, () -> ...)` mirroring the vanilla `AsyncPlayerChatEvent` path. Also strips chat color codes via `ChatColor.stripColor(e.getChat())` so keyword/name matching sees plain text.
+- **`Max_Tokens` config + thinking-model awareness.** New `Nanny.Chat.AI.Max_Tokens` (default `4000`) replaces a hard-coded `200`. The 200 cap silently broke reasoning models like `qwen3.5:9b` — they fill the budget on internal reasoning before emitting `content`, so the OpenAI extractor saw an empty string and the plugin fell back to a non-existent `"general"` BASIC category, dropping the reply. Symptom: GPU spins on Ollama but the Nanny says nothing. Bump default to 4000 so reasoning models have room to think AND respond; reply brevity is controlled by the system-prompt instruction `"one or two sentences"`, not by token cap. On paid OpenAI you can drop this lower for a cost ceiling.
+- **Empty-content warning log.** When `extractAssistantContent` returns empty after a `2xx` response, the AI callback now logs `[Nanny AI] empty content from <endpoint> — if using a reasoning/thinking model (qwen3, deepseek-r1, etc.) bump Nanny.Chat.AI.Max_Tokens, otherwise pick a non-thinking model (llama3.1:8b, dolphin-llama3).` No more silent debug.
+- **Separate throttle for chat-initiated vs background replies.** Previously, `fireTriggers` and `speakIfNearby` (used by ambient idle, potty reminders, post-action commentary) both consumed and checked the same `lastResponse` map — so whenever the Nanny said anything autonomously, your next 30s of chat got silently dropped. There are now two maps: `lastChatReply` (touched only by `fireTriggers`) and `lastResponse` (touched by both). Background lines no longer steal the user-chat cooldown.
+- **Configurable `Chat_Cooldown_Seconds` default lowered to `5`.** The 30s default was modeled on paid-OpenAI cost concerns; with local Ollama (the typical setup) it just blocked back-and-forth conversation. Admins on paid endpoints can bump it back up.
+- **`Min_Words` default lowered to `1`.** The original 3-word minimum was a coarse anti-spam filter; the `<SKIP>` mechanism handles spam more intelligently. One-word replies (`"hey"`, `"ow"`) can now register with AI-tier Nannies. BASIC tier still benefits from the keyword gate.
+
+### Recommended models for AI tier
+
+| Model | Pulled size | Latency | Notes |
+|---|---|---|---|
+| `llama3.1:8b` | 4.9 GB | ~2-3s | Solid default for chat. Non-thinking. Recommended. |
+| `dolphin-llama3:latest` | 4.7 GB | ~10-15s | RP-flavored fine-tune. Slower but better persona. |
+| `gemma4:26b` | 17 GB | ~10-20s | Higher quality, slower. |
+| `qwen3.5:9b` | ~6 GB | ~5-20s + reasoning | **Thinking model.** Works at `Max_Tokens: 4000+`. |
+
+Avoid pure reasoning models (`deepseek-r1`, etc.) on the OpenAI-compatible endpoint unless you bump `Max_Tokens` high — they shove their answer into a `reasoning` field that the standard extractor doesn't read.
+
+---
+
+## UX improvements (shipped)
+
+- **Right-click Nanny NPC → settings menu (owner only).** `NannyManager.onNannyRightClick` listens for Citizens `NPCRightClickEvent`. Matches the clicked NPC against `activeNannies`, verifies clicker UUID equals `data.getOwnerUUID()`, then opens `NannyMenu.open(player, plugin)` — the same UI as `/nanny settings`. Non-owners get no-op (existing Citizens default).
+- **Custom Tone cycler in Advanced tab.** `Material.BOOK` item at slot 13 of the Advanced inventory, visible only when `mood == CUSTOM`. Click cycles voice tier. Slot-skip logic added to the capability loop so the BOOK never gets overwritten.
+
+---
+
+## Shared soiled-diaper item factory
+
+`NannyCareEngine.doChange` previously hand-rolled a `LEATHER_LEGGINGS` stand-in with CMDs `626015-626018` — but those are the *worn-leggings* textures (`item/pants`, `pants_wet`, etc.), not inventory-icon textures, so the Nanny's pail-bound items showed as soiled pants icons instead of soiled diaper icons. The player-side change flow already had correct dispatch (the `underwear.createStinkyDiaper / createWet* / createDirty*` factories produce items with the right CMD + owner tag + soiling values + rash points).
+
+Extracted that dispatch into `Changing.createDirtyDiaperItem(target, underwearType, wetness, fullness, rashPoints)` and call it from `NannyCareEngine.doChange`. AI-Nanny and player change now produce identical soiled items. Snapshot pre-change state (including `underwearType` and `rashPoints`) before calling `Changing.applyChange` since that resets stats.
+
+---
+
 ## Pending work
 
 - **Autonomous washer use** — spec `docs/superpowers/specs/2026-05-14-nanny-washer-design.md` (draft, **not yet implemented**). Would teach the Nanny to carry soiled cloth pants (`626015–626018`) to a player-placed washer, load it, top up coal fuel, and retrieve washed pants (`626022–626033`) — mirroring the existing `DiaperPail.deposit` flow for disposable diapers. Adds `NannyCareEngine.tryDoLaundry`, `NannyInventoryManager.isSoiledPants`, a `WasherRegistry`, and `LAUNDRY_STARTED` / `LAUNDRY_RETRIEVED` event types.
+- **Naughty/nice points + AI-mediated discipline** — spec `docs/superpowers/specs/2026-05-15-naughty-nice-points-design.md`, plan `docs/superpowers/plans/2026-05-15-naughty-nice-points.md` (both drafted, **not yet implemented**). Per-(Nanny, ward) behavior score (-100..+100) + fast-decaying streak feeds both BASIC threshold ladder and AI `<PUNISH:foo>` tag emission. Brand-new diaper-punishment subsystem with toilet interception, 3-strikes-to-cursed-pants escalation, and Minecraft-day timer. 11 new `AccidentProneActionEvent` action IDs for Jobs/BeautyQuests integration.
