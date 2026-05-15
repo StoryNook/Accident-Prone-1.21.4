@@ -53,6 +53,7 @@ public class NannyData {
     private LocalDateTime lastOwnerSeen;
     private boolean dormant;
     private MoodTier moodTier;
+    private MoodTier customTone = MoodTier.CARING;
     private List<UUID> wards;
     private ChestMode chestMode;
     private List<String> selectedChests;
@@ -187,6 +188,7 @@ public class NannyData {
         config.set("lastOwnerSeen", lastOwnerSeen != null ? lastOwnerSeen.format(DATE_FMT) : "");
         config.set("dormant", dormant);
         config.set("moodTier", moodTier != null ? moodTier.name() : MoodTier.CARING.name());
+        config.set("customTone", customTone != null ? customTone.name() : MoodTier.CARING.name());
 
         List<String> wardStrings = (wards != null) ?
                 wards.stream().map(UUID::toString).collect(Collectors.toList()) :
@@ -289,6 +291,12 @@ public class NannyData {
             data.moodTier = MoodTier.valueOf(config.getString("moodTier", "CARING"));
         } catch (IllegalArgumentException e) {
             data.moodTier = MoodTier.CARING;
+        }
+
+        try {
+            data.customTone = MoodTier.valueOf(config.getString("customTone", "CARING"));
+        } catch (IllegalArgumentException e) {
+            data.customTone = MoodTier.CARING;
         }
 
         List<String> wardStrings = config.getStringList("wards");
@@ -439,6 +447,9 @@ public class NannyData {
 
     public MoodTier getMoodTier() { return moodTier; }
     public void setMoodTier(MoodTier moodTier) { this.moodTier = moodTier; }
+
+    public MoodTier getCustomTone() { return customTone == null ? MoodTier.CARING : customTone; }
+    public void setCustomTone(MoodTier t) { this.customTone = (t == null) ? MoodTier.CARING : t; }
 
     public List<UUID> getWards() { return wards; }
     public void setWards(List<UUID> wards) { this.wards = wards; }

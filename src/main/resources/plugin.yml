@@ -10,7 +10,7 @@ commands:
   settings:
     description: "Open player settings for SNDP"
   pee:
-    desctription: "Allows the player to wet themselves"
+    description: "Allows the player to wet themselves"
   poop:
     description: "Allows the player to mess themselves"
   debug:
