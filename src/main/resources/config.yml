@@ -160,6 +160,11 @@ Nanny:
       Chat_Cooldown_Seconds: 30
       Context_Event_Count: 25
       Context_Chat_Count: 10
+      # Number of example lines from nanny_messages.yml injected into the
+      # AI system prompt to teach the Nanny's voice. 0 disables exemplars.
+      # Higher values give the model more voice to work with but cost more
+      # tokens per request.
+      Voice_Sample_Count: 6
       # OpenAI chat-completions URL. Works with any OpenAI-compatible endpoint:
       #   OpenAI:    https://api.openai.com/v1/chat/completions   (set API_Key)
       #   Ollama:    http://localhost:11434/v1/chat/completions   (no API_Key needed)

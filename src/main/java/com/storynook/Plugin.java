@@ -880,6 +880,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         globalConfig.put("Nanny_Chat_AI_Cooldown_Seconds", config.getInt("Nanny.Chat.AI.Chat_Cooldown_Seconds", 30));
         globalConfig.put("Nanny_Chat_AI_Context_Event_Count", config.getInt("Nanny.Chat.AI.Context_Event_Count", 25));
         globalConfig.put("Nanny_Chat_AI_Context_Chat_Count", config.getInt("Nanny.Chat.AI.Context_Chat_Count", 10));
+        globalConfig.put("Nanny_Chat_AI_Voice_Sample_Count", config.getInt("Nanny.Chat.AI.Voice_Sample_Count", 6));
         globalConfig.put("Nanny_Chat_Min_Words", config.getInt("Nanny.Chat.Min_Words", 3));
         globalConfig.put("Nanny_Chat_Ambient_Chance", config.getInt("Nanny.Chat.Ambient_Chance", 1));
         globalConfig.put("Nanny_Chat_AI_Endpoint", config.getString("Nanny.Chat.AI.Endpoint", ""));
