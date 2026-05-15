@@ -575,50 +575,156 @@ public class NannyChatEngine implements Listener {
 
     /**
      * Builds the system prompt sent as the first message of every AI request.
-     * Combines per-Nanny identity (name + mood) with current world context
-     * (biome, time-of-day, ward's wet/hungry state) so the model can stay in
-     * character and reference the situation. Truncated values keep the token
-     * cost predictable.
+     * Assembles: identity → voice exemplars from nanny_messages.yml →
+     * capability fragment block from nanny_personalities.yml (gated by
+     * NannyPolicy or customSettings, then intersected with global feature flags)
+     * → world/ward context → admin override.
      */
     private String buildSystemPrompt(NannyData data, Player ward) {
+        String nannyName = (data == null || data.getName() == null) ? "Nanny" : data.getName();
+        NannyData.MoodTier mood = (data == null || data.getMoodTier() == null)
+                ? NannyData.MoodTier.CARING : data.getMoodTier();
+        // For CUSTOM, the voice tier comes from customTone, not from "CUSTOM" itself.
+        NannyData.MoodTier voiceTier = (mood == NannyData.MoodTier.CUSTOM)
+                ? data.getCustomTone() : mood;
+        String moodLabel = mood.name().toLowerCase();
+        String wardName = (ward == null || ward.getDisplayName() == null)
+                ? "little one" : ward.getDisplayName();
+
         StringBuilder sb = new StringBuilder();
-        String nannyName = data.getName() == null ? "Nanny" : data.getName();
-        String mood = data.getMoodTier() == null ? "CARING" : data.getMoodTier().name();
-        String wardName = (ward == null || ward.getDisplayName() == null) ? "the little one" : ward.getDisplayName();
+        sb.append("You are ").append(nannyName)
+          .append(", a ").append(moodLabel)
+          .append(" caregiver NPC in a Minecraft roleplay server. ");
+        sb.append("Your little is named \"").append(wardName).append("\". ");
+        sb.append("Speak directly to them. Keep replies short — one or two ");
+        sb.append("sentences, no roleplay actions in asterisks, no emoji. ");
+        sb.append("Do not narrate or repeat back what they said. Do not break character.");
 
-        sb.append("You are ").append(nannyName).append(", a caregiver NPC in a Minecraft roleplay server. ");
-        sb.append("Speak in character as a ").append(mood.toLowerCase()).append(" caretaker. ");
-        sb.append("Address the user as \"").append(wardName).append("\". ");
-        sb.append("Keep replies short — one or two sentences, no roleplay actions in asterisks, no emoji. ");
-        sb.append("Do not narrate or repeat back what the user said. Do not break character.");
+        // --- Voice exemplars ---
+        int sampleCount = configInt("Nanny_Chat_AI_Voice_Sample_Count", 6);
+        java.util.List<String> samples = sampleVoiceLines(messages, voiceTier.name(),
+                sampleCount, random);
+        if (!samples.isEmpty()) {
+            sb.append("\n\nSpeak in this style — here are example lines you have said before:");
+            for (String line : samples) {
+                sb.append("\n- \"").append(applyPlaceholders(line, ward, data)).append("\"");
+            }
+        }
 
+        // --- Capability fragments ---
+        java.util.List<String> fragments = resolveFragmentList(data, mood, ward);
+        if (!fragments.isEmpty()) {
+            sb.append("\n\nYour abilities:");
+            for (String prose : fragments) {
+                sb.append("\n- ").append(prose);
+            }
+        }
+
+        // --- Dynamic world/ward context (existing behavior) ---
         if (ward != null) {
             sb.append("\n\nCurrent context:");
-            // Time of day
             if (ward.getWorld() != null) {
                 long t = ward.getWorld().getTime();
-                String tw = (t < 6000) ? "morning" : (t < 12000) ? "afternoon" : (t < 13000) ? "dusk" : "night";
+                String tw = (t < 6000) ? "morning" : (t < 12000) ? "afternoon"
+                          : (t < 13000) ? "dusk" : "night";
                 sb.append(" Time: ").append(tw).append('.');
                 if (ward.getWorld().hasStorm()) sb.append(" Weather: raining.");
             }
-            // Ward state — pulled from PlayerStats if available
             com.storynook.PlayerStatsManagement.PlayerStats stats =
                     plugin.getPlayerStats(ward.getUniqueId());
             if (stats != null) {
                 if (stats.getDiaperWetness() > 50 || stats.getDiaperFullness() > 50) {
-                    sb.append(" The ward's diaper is soiled.");
+                    sb.append(" Your little's diaper is soiled.");
                 }
-                if (ward.getFoodLevel() < 10) sb.append(" The ward is hungry.");
-                if (stats.getHydration() < 30) sb.append(" The ward is thirsty.");
+                if (ward.getFoodLevel() < 10) sb.append(" Your little is hungry.");
+                if (stats.getHydration() < 30) sb.append(" Your little is thirsty.");
             }
         }
 
-        // Optional admin override appended after the auto-generated context.
+        // --- Optional admin override ---
         String override = configString("Nanny_Chat_AI_System_Prompt", "");
         if (override != null && !override.isEmpty()) {
             sb.append("\n\n").append(override);
         }
         return sb.toString();
+    }
+
+    /**
+     * Resolves the ordered list of fragment prose strings to include in the
+     * AI system prompt for {@code data}. Steps:
+     * <ol>
+     *   <li>Add the always-on fragment keys.</li>
+     *   <li>Iterate Capability values; include if NannyPolicy allows (fixed
+     *       moods) or customSettings has it true (CUSTOM).</li>
+     *   <li>Intersect with globally-enabled feature flags so the AI never
+     *       advertises tools the plugin cannot fire.</li>
+     *   <li>Substitute {hypno_triggers} + standard placeholders in each prose.</li>
+     * </ol>
+     */
+    private java.util.List<String> resolveFragmentList(
+            NannyData data, NannyData.MoodTier mood, Player ward) {
+        java.util.List<String> result = new java.util.ArrayList<>();
+        if (personalities.isEmpty()) return result;
+
+        // Always-on
+        String[] alwaysOnKeys = {"BASIC_CARE", "WATER_REFILL", "ORE_SPOTTING"};
+        for (String key : alwaysOnKeys) {
+            String prose = personalities.get(key);
+            if (prose != null) result.add(interpolateFragment(prose, ward, data));
+        }
+
+        // Gated capabilities
+        for (Capability cap : Capability.values()) {
+            boolean granted;
+            if (mood == NannyData.MoodTier.CUSTOM) {
+                granted = Boolean.TRUE.equals(data.getCustomSettings().get(cap.name()));
+            } else {
+                granted = NannyPolicy.allows(data, cap);
+            }
+            if (!granted) continue;
+            if (!isFeatureGloballyEnabled(cap)) continue;
+            String prose = personalities.get(cap.name());
+            if (prose != null) result.add(interpolateFragment(prose, ward, data));
+        }
+        return result;
+    }
+
+    /**
+     * Cross-feature gate: returns false when the global feature flag
+     * controlling a capability is off, so the AI never advertises tools the
+     * plugin would refuse to fire. BASIC_CARE / POTTY_REMINDERS /
+     * CRIB_PLACEMENT / ARMOR_LOCK / BLOCK_CAREGIVERS / LEASH_WARD /
+     * ROOM_LOCKDOWN have no specific gating beyond the existing Nanny system
+     * being on (they're caregiving primitives), so they always pass here.
+     */
+    private boolean isFeatureGloballyEnabled(Capability cap) {
+        java.util.Map<String, Object> gc = plugin.getGlobalConfig();
+        switch (cap) {
+            case HYPNOSIS_USE:
+                return Boolean.TRUE.equals(gc.get("Hypno"));
+            case FORCE_FEED_LAXATIVE:
+            case BINDING_LEGGINGS:
+            case EVIL_CRAFTING:
+                return Boolean.TRUE.equals(gc.get("Messing"))
+                    && Boolean.TRUE.equals(gc.get("Diapers"));
+            default:
+                return true;
+        }
+    }
+
+    /** Applies {hypno_triggers} + standard placeholders to a fragment. */
+    private String interpolateFragment(String prose, Player ward, NannyData data) {
+        if (prose == null) return "";
+        if (prose.contains("{hypno_triggers}")) {
+            java.util.List<com.storynook.PlayerStatsManagement.HypnoTrigger> triggers = null;
+            if (ward != null) {
+                com.storynook.PlayerStatsManagement.PlayerStats stats =
+                        plugin.getPlayerStats(ward.getUniqueId());
+                if (stats != null) triggers = stats.getHypnoTriggers();
+            }
+            prose = prose.replace("{hypno_triggers}", resolveHypnoTriggers(triggers));
+        }
+        return applyPlaceholders(prose, ward, data);
     }
 
     /**
