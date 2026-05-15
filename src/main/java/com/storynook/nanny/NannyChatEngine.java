@@ -251,8 +251,15 @@ public class NannyChatEngine implements Listener {
             Long last = lastResponse.get(nannyUUID);
             if (last != null && (now - last) < throttleSec * 1000L) continue;
 
+            // BASIC tier: gate on Nanny name / keyword match — canned lines would feel
+            // repetitive if every message triggered. AI tier bypasses the gate so the
+            // model can reply conversationally to anything; the 30s throttle prevents
+            // spam. On AI failure, respond() falls back to pickBasicLine(category, ...)
+            // which returns null for the "general" sentinel — i.e. silent fallback.
             String category = pickCategory(message, data, ambientPct);
-            if (category == null) continue;
+            boolean isAiTier = data.getChatTier() == NannyData.ChatTier.AI;
+            if (!isAiTier && category == null) continue;
+            if (category == null) category = "general";
 
             lastResponse.put(nannyUUID, now);
             respond(speaker, data, nanny, category, message);
