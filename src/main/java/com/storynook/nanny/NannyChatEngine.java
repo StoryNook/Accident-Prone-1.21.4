@@ -527,6 +527,17 @@ public class NannyChatEngine implements Listener {
 
                 if (code >= 200 && code < 300) {
                     result = extractAssistantContent(responseBody);
+                    if (result == null || result.isEmpty()) {
+                        // Thinking models (e.g. qwen3.5:9b) silently emit empty
+                        // content when max_tokens cuts off mid-reasoning. Surface
+                        // it so the admin can bump Max_Tokens or pick a different
+                        // model instead of debugging "GPU spins but no chat".
+                        plugin.getLogger().warning("[Nanny AI] empty content from "
+                                + endpoint + " — if using a reasoning/thinking "
+                                + "model (qwen3, deepseek-r1, etc.) bump "
+                                + "Nanny.Chat.AI.Max_Tokens, otherwise pick a "
+                                + "non-thinking model (llama3.1:8b, dolphin-llama3).");
+                    }
                 } else {
                     plugin.getLogger().warning("[Nanny AI] HTTP " + code + " from "
                             + endpoint + ": " + truncate(responseBody, 200));
@@ -552,7 +563,7 @@ public class NannyChatEngine implements Listener {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
         body.addProperty("temperature", 0.8);
-        body.addProperty("max_tokens", 200);
+        body.addProperty("max_tokens", configInt("Nanny_Chat_AI_Max_Tokens", 4000));
 
         JsonArray messages = new JsonArray();
         messages.add(makeMessage("system", buildSystemPrompt(data, ward)));
