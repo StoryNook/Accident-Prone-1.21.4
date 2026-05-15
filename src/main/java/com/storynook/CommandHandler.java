@@ -54,13 +54,15 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                     
                     // Reload config
                     plugin.reloadConfig();
-                    
+
                     // Reload any other configuration files
                     plugin.mergeConfigFiles("config.yml");
                     plugin.mergeConfigFiles("sounds.yml");
                     plugin.mergeConfigFiles("messages.yml");
                     plugin.mergeConfigFiles("HyponosisWords.yml");
-                    
+                    plugin.mergeConfigFiles("nanny_messages.yml");
+                    plugin.mergeConfigFiles("nanny_personalities.yml");
+
                     // Reload sounds
                     plugin.loadSounds();
 
@@ -86,6 +88,12 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
                     // re-reads fresh YAML state.
                     if (plugin.getChangingTableInventoryManager() != null) {
                         plugin.getChangingTableInventoryManager().clearCache();
+                    }
+
+                    // Re-read nanny YAML files now that the merge has updated them
+                    if (plugin.getNannyManager() != null
+                            && plugin.getNannyManager().getChatEngine() != null) {
+                        plugin.getNannyManager().getChatEngine().reload();
                     }
 
                     // Reload player data

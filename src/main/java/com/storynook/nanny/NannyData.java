@@ -449,8 +449,14 @@ public class NannyData {
     public MoodTier getMoodTier() { return moodTier; }
     public void setMoodTier(MoodTier moodTier) { this.moodTier = moodTier; }
 
-    public MoodTier getCustomTone() { return customTone == null ? MoodTier.CARING : customTone; }
-    public void setCustomTone(MoodTier t) { this.customTone = (t == null) ? MoodTier.CARING : t; }
+    public MoodTier getCustomTone() {
+        if (customTone == null || customTone == MoodTier.CUSTOM) return MoodTier.CARING;
+        return customTone;
+    }
+
+    public void setCustomTone(MoodTier t) {
+        this.customTone = (t == null || t == MoodTier.CUSTOM) ? MoodTier.CARING : t;
+    }
 
     public List<UUID> getWards() { return wards; }
     public void setWards(List<UUID> wards) { this.wards = wards; }
