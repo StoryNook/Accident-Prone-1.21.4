@@ -725,6 +725,13 @@ public class NannyChatEngine implements Listener {
             sb.append("\n\nYour supplies right now:").append(inv);
         }
 
+        // --- Behavior score + Tools + Tag instructions (AI tier only) ---
+        if (data != null && data.getChatTier() == NannyData.ChatTier.AI) {
+            sb.append(summarizeBehavior(data, ward));
+            sb.append(summarizeTools(data, ward));
+            sb.append(tagInstructions());
+        }
+
         // --- Dynamic world/ward context (existing behavior) ---
         if (ward != null) {
             sb.append("\n\nCurrent context:");
@@ -810,6 +817,87 @@ public class NannyChatEngine implements Listener {
         if (coal > 0)           s.append("\n- ").append(coal).append(" coal");
         if (s.length() == 0)    s.append("\n- (empty — you cannot hand anything over until you craft or restock)");
         return s.toString();
+    }
+
+    private String summarizeBehavior(NannyData data, Player ward) {
+        if (data == null || ward == null) return "";
+        BehaviorScoreboard sb = manager.getBehaviorScoreboard();
+        if (sb == null) return "";
+        int score = sb.getScore(data, ward.getUniqueId());
+        int streak = sb.getStreak(data, ward.getUniqueId());
+        String gloss = scoreGloss(score);
+        StringBuilder s = new StringBuilder();
+        s.append("\nBehavior of \"").append(ward.getDisplayName() == null ? "little one" : ward.getDisplayName())
+         .append("\" toward you:\n");
+        s.append("  Score: ").append(score).append(" (").append(gloss).append(")\n");
+        s.append("  Recent trend: ").append(streak > 0 ? "+" : "").append(streak);
+        return s.toString();
+    }
+
+    private String scoreGloss(int score) {
+        if (score >= 60)  return "darling — your favorite little";
+        if (score >= 30)  return "behaving well";
+        if (score >= -30) return "neutral, ordinary";
+        if (score >= -60) return "trending naughty, time to consider correction";
+        if (score >= -85) return "steady misbehavior, leaning toward punishment-worthy";
+        return "deeply naughty, the maximum tools are appropriate";
+    }
+
+    private String summarizeTools(NannyData data, Player ward) {
+        if (data == null) return "";
+        StringBuilder s = new StringBuilder();
+        s.append("\n\nTools you are currently permitted to use:");
+        boolean any = false;
+        for (Capability cap : Capability.values()) {
+            if (!NannyPolicy.allows(data, cap)) continue;
+            if (!isFeatureGloballyEnabled(cap)) continue;
+            if (cap == Capability.BASIC_CARE || cap == Capability.POTTY_REMINDERS
+                    || cap == Capability.CRIB_PLACEMENT || cap == Capability.BLOCK_CAREGIVERS
+                    || cap == Capability.ARMOR_LOCK || cap == Capability.ROOM_LOCKDOWN
+                    || cap == Capability.EVIL_CRAFTING) continue;  // care primitives, not discipline tools
+            s.append("\n  - ").append(cap.name());
+            if (cap == Capability.HYPNOSIS_USE) {
+                String triggers = "(none)";
+                if (ward != null) {
+                    com.storynook.PlayerStatsManagement.PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
+                    if (stats != null && stats.getHypnoTriggers() != null) {
+                        triggers = resolveHypnoTriggers(stats.getHypnoTriggers());
+                    }
+                }
+                s.append(" — active triggers: ").append(triggers);
+            } else if (cap == Capability.DIAPER_PUNISHMENT) {
+                s.append(" (1-30 days, you choose duration)");
+            }
+            any = true;
+        }
+        if (!any) {
+            s.append("\n  (none — mood tier or feature flags forbid all discipline tools)");
+        }
+        // Active persistent punishments
+        if (ward != null) {
+            java.util.List<String> active = data.getActivePersistentPunishments()
+                    .getOrDefault(ward.getUniqueId(), java.util.List.of());
+            if (!active.isEmpty()) {
+                s.append("\n\nCurrently active persistent punishments:");
+                for (String a : active) s.append("\n  - ").append(a);
+            }
+        }
+        return s.toString();
+    }
+
+    private String tagInstructions() {
+        return "\n\nTo deploy a punishment or reward, append ONE tag at the end of your reply,\n"
+             + "on its own line, surrounded by < >. The tag is parsed and stripped before\n"
+             + "the player sees the message.\n\n"
+             + "Tags currently available:\n"
+             + "  <PUNISH:laxative>           - force-feed a laxative\n"
+             + "  <PUNISH:leash>              - leash to your hand\n"
+             + "  <PUNISH:binding>            - equip a binding-cursed diaper\n"
+             + "  <PUNISH:hypno>              - speak a hypno trigger word\n"
+             + "  <PUNISH:diaper:Nd>          - diaper-punishment for N Minecraft days (1-30)\n"
+             + "  <REWARD:praise>             - suppress your next queued punishment for 5 minutes\n\n"
+             + "Use tags sparingly. Don't tag for trivial misbehavior. Most replies are\n"
+             + "just chat, no tag. A tag is the moment of consequence, not the threat.";
     }
 
     private boolean isSoiledDiaperIcon(org.bukkit.inventory.ItemStack stack) {
