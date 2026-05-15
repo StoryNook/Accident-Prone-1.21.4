@@ -12,20 +12,25 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockbukkit.mockbukkit.MockBukkit;
-import org.mockbukkit.mockbukkit.ServerMock;
-
-import com.storynook.Plugin;
 
 public class NannyDataCustomToneTest {
 
-    private ServerMock server;
-    private Plugin plugin;
+    /**
+     * We avoid {@code MockBukkit.load(Plugin.class)} because triggering
+     * {@code Plugin.onEnable} causes MockBukkit to throw
+     * {@code UnimplementedOperationException} on recipe registration,
+     * which the framework reports as a JUnit skip.
+     *
+     * Instead we just initialise MockBukkit's static server (so
+     * {@link YamlConfiguration} works) and pass {@code null} for the
+     * plugin reference. {@link NannyData} is null-safe on
+     * {@code plugin.getGlobalConfig()} as of this change.
+     */
     private File dataFolder;
 
     @BeforeEach
     public void setUp() throws Exception {
-        server = MockBukkit.mock();
-        plugin = MockBukkit.load(Plugin.class);
+        MockBukkit.mock();
         dataFolder = Files.createTempDirectory("nanny-data-test").toFile();
         new File(dataFolder, "nannies").mkdirs();
     }
@@ -39,7 +44,7 @@ public class NannyDataCustomToneTest {
     public void customToneDefaultsToCaring() {
         UUID nid = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
-        NannyData data = new NannyData(nid, owner, "TestNanny", plugin);
+        NannyData data = new NannyData(nid, owner, "TestNanny", null);
         assertEquals(NannyData.MoodTier.CARING, data.getCustomTone());
     }
 
@@ -47,11 +52,11 @@ public class NannyDataCustomToneTest {
     public void customToneRoundTripsThroughSaveLoad() {
         UUID nid = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
-        NannyData data = new NannyData(nid, owner, "TestNanny", plugin);
+        NannyData data = new NannyData(nid, owner, "TestNanny", null);
         data.setCustomTone(NannyData.MoodTier.WARDEN);
         data.save(dataFolder);
 
-        NannyData loaded = NannyData.load(nid, dataFolder, plugin);
+        NannyData loaded = NannyData.load(nid, dataFolder, null);
         assertNotNull(loaded);
         assertEquals(NannyData.MoodTier.WARDEN, loaded.getCustomTone());
     }
@@ -60,7 +65,7 @@ public class NannyDataCustomToneTest {
     public void customToneNullDefaultsToCaring() {
         UUID nid = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
-        NannyData data = new NannyData(nid, owner, "TestNanny", plugin);
+        NannyData data = new NannyData(nid, owner, "TestNanny", null);
         data.setCustomTone(null);
         assertEquals(NannyData.MoodTier.CARING, data.getCustomTone());
     }
@@ -69,7 +74,7 @@ public class NannyDataCustomToneTest {
     public void customToneMissingInYamlLoadsAsCaring() {
         UUID nid = UUID.randomUUID();
         UUID owner = UUID.randomUUID();
-        NannyData data = new NannyData(nid, owner, "TestNanny", plugin);
+        NannyData data = new NannyData(nid, owner, "TestNanny", null);
         data.save(dataFolder);
 
         // Strip the customTone key from the saved file
@@ -78,7 +83,7 @@ public class NannyDataCustomToneTest {
         y.set("customTone", null);
         try { y.save(file); } catch (Exception e) { throw new RuntimeException(e); }
 
-        NannyData loaded = NannyData.load(nid, dataFolder, plugin);
+        NannyData loaded = NannyData.load(nid, dataFolder, null);
         assertEquals(NannyData.MoodTier.CARING, loaded.getCustomTone());
     }
 }

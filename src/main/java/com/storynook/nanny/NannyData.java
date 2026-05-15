@@ -82,7 +82,8 @@ public class NannyData {
         this.ownerUUID = ownerUUID;
         this.name = name;
 
-        Map<String, Object> globalConfig = plugin.getGlobalConfig();
+        Map<String, Object> globalConfig =
+                (plugin != null) ? plugin.getGlobalConfig() : new HashMap<>();
 
         this.citizensNpcId = -1;
         this.homeWorld = "";
