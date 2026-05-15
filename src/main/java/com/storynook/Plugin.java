@@ -212,6 +212,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
     mergeConfigFiles("welcomebook.yml");
     mergeConfigFiles("nanny_messages.yml");
     mergeConfigFiles("nanny_personalities.yml");
+    mergeConfigFiles("nanny_behavior_words.yml");
     mergeConfigFiles("integrations.yml");
     mergeConfigFiles("StoryNook1.2.4.zip");
     try {
@@ -886,6 +887,22 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         globalConfig.put("Nanny_Chat_Ambient_Chance", config.getInt("Nanny.Chat.Ambient_Chance", 1));
         globalConfig.put("Nanny_Chat_AI_Endpoint", config.getString("Nanny.Chat.AI.Endpoint", ""));
         globalConfig.put("Nanny_Chat_AI_System_Prompt", config.getString("Nanny.Chat.AI.System_Prompt", ""));
+        globalConfig.put("Nanny_Behavior_enabled", config.getBoolean("Nanny.Behavior.enabled", true));
+        globalConfig.put("Nanny_Behavior_Score_Decay_Per_MCDay", config.getInt("Nanny.Behavior.Score_Decay_Per_MCDay", 1));
+        globalConfig.put("Nanny_Behavior_Score_Threshold_Warn", config.getInt("Nanny.Behavior.Score_Threshold_Warn", -20));
+        globalConfig.put("Nanny_Behavior_Score_Threshold_Moderate", config.getInt("Nanny.Behavior.Score_Threshold_Moderate", -40));
+        globalConfig.put("Nanny_Behavior_Score_Threshold_Serious", config.getInt("Nanny.Behavior.Score_Threshold_Serious", -65));
+        globalConfig.put("Nanny_Behavior_Score_Threshold_Severe", config.getInt("Nanny.Behavior.Score_Threshold_Severe", -90));
+        globalConfig.put("Nanny_Behavior_Score_Floor", config.getInt("Nanny.Behavior.Score_Floor", -100));
+        globalConfig.put("Nanny_Behavior_Discipline_Cooldown_Minutes", config.getInt("Nanny.Behavior.Discipline_Cooldown_Minutes", 5));
+        globalConfig.put("Nanny_Behavior_Diaper_Punishment_Min_Days", config.getInt("Nanny.Behavior.Diaper_Punishment_Min_Days", 1));
+        globalConfig.put("Nanny_Behavior_Diaper_Punishment_Max_Days", config.getInt("Nanny.Behavior.Diaper_Punishment_Max_Days", 30));
+        globalConfig.put("Nanny_Behavior_Diaper_Punishment_Violations_Before_Escalation", config.getInt("Nanny.Behavior.Diaper_Punishment_Violations_Before_Escalation", 3));
+        globalConfig.put("Nanny_Behavior_Praise_Grace_Seconds", config.getInt("Nanny.Behavior.Praise_Grace_Seconds", 300));
+        globalConfig.put("Nanny_Behavior_Sycophancy_Score_Threshold", config.getInt("Nanny.Behavior.Sycophancy_Score_Threshold", 0));
+        globalConfig.put("Nanny_Behavior_Sycophancy_Streak_Threshold", config.getInt("Nanny.Behavior.Sycophancy_Streak_Threshold", 20));
+        globalConfig.put("Nanny_Behavior_Sycophancy_Dampen_Pct", config.getInt("Nanny.Behavior.Sycophancy_Dampen_Pct", 50));
+        globalConfig.put("Nanny_Behavior_Good_Behavior_Day_Off_Threshold", config.getInt("Nanny.Behavior.Good_Behavior_Day_Off_Threshold", 20));
 
         getLogger().info("Successfully loaded global config.");
 

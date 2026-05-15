@@ -1,0 +1,48 @@
+# nanny_behavior_words.yml
+#
+# Word lists driving BASIC-tier sentiment scoring for the Nanny behavior
+# system. All matches use word-boundary regex (case-insensitive) — "ass"
+# matches "ass", "asses", "asshole", etc., but NOT "passage" or "class".
+#
+# Per-(ward, phrase) throttle is enforced by Java (30s naughty, 60s nice)
+# so chat spam can't grind the score.
+#
+# Override any list by editing this file. Plugin merges in new defaults
+# on update; existing entries are preserved.
+
+naughty_phrases:
+  - "shut up"
+  - "stupid"
+  - "dumb"
+  - "ugly"
+  - "hate you"
+  - "fuck"
+  - "bitch"
+  - "asshole"
+  - "screw you"
+  - "go away"
+  - "leave me alone"
+
+nice_phrases:
+  - "thank you"
+  - "thanks"
+  - "please"
+  - "love you"
+  - "you're nice"
+  - "good nanny"
+  - "best nanny"
+  - "appreciate"
+  - "kind"
+  - "wonderful"
+
+# Phrases that count as "I'm coming" responses to a Nanny summon.
+# Used by the summon-compliance signal (the proximity check is the
+# primary trigger; chat acknowledgement is a bonus path).
+compliance_keywords:
+  - "coming"
+  - "on my way"
+  - "be right there"
+  - "almost there"
+  - "okay"
+  - "yes nanny"
+  - "yes mommy"

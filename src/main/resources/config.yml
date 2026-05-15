@@ -191,6 +191,41 @@ Nanny:
       # server-wide style notes ("no foul language", "lean wholesome", etc.).
       System_Prompt: ""
 
+  Behavior:
+    enabled: true
+    # Score drifts toward 0 by N per Minecraft day (24000 ticks).
+    Score_Decay_Per_MCDay: 1
+    # Streak halves every real-time minute. The value here is the factor
+    # applied each half-life (0.5 = halve). Used for documentation only;
+    # the half-life period itself is fixed at 60s in code.
+    Streak_Decay_Per_Minute: 0.5
+    # Score thresholds for BASIC-tier discipline ladder.
+    Score_Threshold_Warn: -20
+    Score_Threshold_Moderate: -40
+    Score_Threshold_Serious: -65
+    Score_Threshold_Severe: -90
+    Score_Floor: -100
+    # Per-(Nanny, ward, action) cooldown after enacting any discipline.
+    Discipline_Cooldown_Minutes: 5
+    # Diaper-punishment duration range. AI chooses within these; BASIC
+    # picks random within these.
+    Diaper_Punishment_Min_Days: 1
+    Diaper_Punishment_Max_Days: 30
+    # Toilet-violation strikes before escalating to cursed pants.
+    Diaper_Punishment_Violations_Before_Escalation: 3
+    # AI <REWARD:praise> suppresses the next Java threshold check for
+    # this many seconds.
+    Praise_Grace_Seconds: 300
+    # Sycophancy gate: when score < this AND streak > the next threshold,
+    # incoming positive deltas are dampened by the percent below.
+    # Note: 0 means "any negative score"; this matches BehaviorScoreboard.SYCOPHANCY_SCORE_THRESHOLD.
+    Sycophancy_Score_Threshold: 0
+    Sycophancy_Streak_Threshold: 20
+    Sycophancy_Dampen_Pct: 50
+    # +N score earned during an active diaper-punishment shaves 1 day
+    # off the remaining timer.
+    Good_Behavior_Day_Off_Threshold: 20
+
 #Listed in the /settings menu so they can get in touch with your discord, or offer easy was for them to support you
 Links:
   Discord_Link: https://discord.gg/ARsZxjC4ts
