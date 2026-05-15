@@ -423,6 +423,29 @@ public class NannyManager implements Listener {
     }
 
     /**
+     * Right-clicking a Nanny NPC opens the {@code /nanny settings} menu,
+     * but only for that Nanny's owner. Non-owners get the default Citizens
+     * interaction (which is no-op for our NPCs).
+     */
+    @EventHandler
+    public void onNannyRightClick(net.citizensnpcs.api.event.NPCRightClickEvent event) {
+        if (!plugin.citizensEnabled) return;
+        Player clicker = event.getClicker();
+        if (clicker == null) return;
+        net.citizensnpcs.api.npc.NPC clickedNpc = event.getNPC();
+        if (clickedNpc == null) return;
+        for (NannyEntity entity : activeNannies.values()) {
+            if (clickedNpc.equals(entity.getNpc())) {
+                NannyData data = entity.getData();
+                if (data != null && data.getOwnerUUID().equals(clicker.getUniqueId())) {
+                    com.storynook.menus.NannyMenu.open(clicker, plugin);
+                }
+                return;
+            }
+        }
+    }
+
+    /**
      * Prevents mobs from targeting any of our active Nanny NPCs.
      */
     @EventHandler

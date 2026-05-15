@@ -157,7 +157,11 @@ Nanny:
       API_Key: ""
       Model: "gpt-4o-mini"
       Required_Membership_Tier: ""
-      Chat_Cooldown_Seconds: 30
+      # Minimum seconds between AI chat replies per Nanny. Local LLMs are
+      # essentially free, so a short cooldown gives a conversational feel.
+      # Bump higher (30+) if you're running a paid OpenAI endpoint and want
+      # a hard rate ceiling.
+      Chat_Cooldown_Seconds: 5
       Context_Event_Count: 25
       Context_Chat_Count: 10
       # Number of example lines from nanny_messages.yml injected into the
