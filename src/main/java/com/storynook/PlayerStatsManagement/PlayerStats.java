@@ -34,6 +34,12 @@ public class PlayerStats {
     private List<UUID> MyDiaperBindees = new ArrayList<>();
     private List<HypnoTrigger> hypnoTriggers = new ArrayList<>();
     private int hypnoPermission = 0;
+    private boolean diaperPunishment = false;
+    private long    diaperPunishmentExpiresAtTick = 0L;
+    private int     diaperPunishmentRemainingViolations = 3;
+    private int     diaperPunishmentScoreAtStart = 0;
+    private UUID    diaperPunishmentNannyUUID = null;
+    private boolean diaperPunishmentEscalated = false;
     private String nannyMembershipProvider = "";
     private String nannyMembershipEmail = "";
     private String nannyMembershipRefreshToken = "";
@@ -301,6 +307,18 @@ public class PlayerStats {
 
     public int getHypnoPermission() { return hypnoPermission; }
     public void setHypnoPermission(int permission) { hypnoPermission = permission; }
+    public boolean isDiaperPunishment() { return diaperPunishment; }
+    public void setDiaperPunishment(boolean v) { this.diaperPunishment = v; }
+    public long getDiaperPunishmentExpiresAtTick() { return diaperPunishmentExpiresAtTick; }
+    public void setDiaperPunishmentExpiresAtTick(long v) { this.diaperPunishmentExpiresAtTick = v; }
+    public int getDiaperPunishmentRemainingViolations() { return diaperPunishmentRemainingViolations; }
+    public void setDiaperPunishmentRemainingViolations(int v) { this.diaperPunishmentRemainingViolations = v; }
+    public int getDiaperPunishmentScoreAtStart() { return diaperPunishmentScoreAtStart; }
+    public void setDiaperPunishmentScoreAtStart(int v) { this.diaperPunishmentScoreAtStart = v; }
+    public UUID getDiaperPunishmentNannyUUID() { return diaperPunishmentNannyUUID; }
+    public void setDiaperPunishmentNannyUUID(UUID v) { this.diaperPunishmentNannyUUID = v; }
+    public boolean isDiaperPunishmentEscalated() { return diaperPunishmentEscalated; }
+    public void setDiaperPunishmentEscalated(boolean v) { this.diaperPunishmentEscalated = v; }
     public String getNannyMembershipProvider() { return nannyMembershipProvider; }
     public void setNannyMembershipProvider(String v) { nannyMembershipProvider = v == null ? "" : v; }
     public String getNannyMembershipEmail() { return nannyMembershipEmail; }

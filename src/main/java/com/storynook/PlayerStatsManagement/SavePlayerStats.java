@@ -122,6 +122,16 @@ public class SavePlayerStats {
             config.set("nanny_membership_last_check", stats.getNannyMembershipLastCheck());
         }
 
+        if (Globalconfig.get("Nanny") != null && (Boolean) Globalconfig.get("Nanny")) {
+            config.set("diaperPunishment", stats.isDiaperPunishment());
+            config.set("diaperPunishmentExpiresAtTick", stats.getDiaperPunishmentExpiresAtTick());
+            config.set("diaperPunishmentRemainingViolations", stats.getDiaperPunishmentRemainingViolations());
+            config.set("diaperPunishmentScoreAtStart", stats.getDiaperPunishmentScoreAtStart());
+            config.set("diaperPunishmentNannyUUID",
+                    stats.getDiaperPunishmentNannyUUID() == null ? "" : stats.getDiaperPunishmentNannyUUID().toString());
+            config.set("diaperPunishmentEscalated", stats.isDiaperPunishmentEscalated());
+        }
+
         if (Globalconfig.get("Caregivers") != null && (Boolean) Globalconfig.get("Caregivers")) {
             List<String> uuidCaregiver = (stats.getCaregivers() != null) ?
                 stats.getCaregivers().stream()

@@ -64,6 +64,15 @@ public class CreateDefaultStats {
             stats.setNannyMembershipLastCheck("");
         }
 
+        if (config.get("Nanny") != null && (Boolean) config.get("Nanny")) {
+            stats.setDiaperPunishment(false);
+            stats.setDiaperPunishmentExpiresAtTick(0L);
+            stats.setDiaperPunishmentRemainingViolations(3);
+            stats.setDiaperPunishmentScoreAtStart(0);
+            stats.setDiaperPunishmentNannyUUID(null);
+            stats.setDiaperPunishmentEscalated(false);
+        }
+
         stats.setBladder(0);
         
         stats.setBladderFillRate(defaultBladderRate); 

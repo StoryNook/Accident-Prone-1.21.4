@@ -134,6 +134,19 @@ public class LoadStats {
             stats.setNannyMembershipLastCheck(config.getString("nanny_membership_last_check", ""));
         }
 
+        if (Globalconfig.get("Nanny") != null && (Boolean) Globalconfig.get("Nanny")) {
+            stats.setDiaperPunishment(config.getBoolean("diaperPunishment", false));
+            stats.setDiaperPunishmentExpiresAtTick(config.getLong("diaperPunishmentExpiresAtTick", 0L));
+            stats.setDiaperPunishmentRemainingViolations(config.getInt("diaperPunishmentRemainingViolations", 3));
+            stats.setDiaperPunishmentScoreAtStart(config.getInt("diaperPunishmentScoreAtStart", 0));
+            String dpNanny = config.getString("diaperPunishmentNannyUUID", "");
+            if (dpNanny != null && !dpNanny.isEmpty()) {
+                try { stats.setDiaperPunishmentNannyUUID(UUID.fromString(dpNanny)); }
+                catch (IllegalArgumentException ignored) {}
+            }
+            stats.setDiaperPunishmentEscalated(config.getBoolean("diaperPunishmentEscalated", false));
+        }
+
         stats.setBladder(config.getDouble("bladder", 0));
         stats.setBladderFillRate(config.getDouble("bladderFillRate", 0.2));
         stats.setHydration(config.getInt("hydration", 100));
