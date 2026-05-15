@@ -8,12 +8,15 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -103,6 +106,12 @@ public class NannyChatEngine implements Listener {
         m.put("nanny", "keyword_nanny");
         KEYWORD_MAP = java.util.Collections.unmodifiableMap(m);
     }
+
+    /** Categories whose lines feed the AI voice-exemplar block — prefix match. */
+    private static final String[] VOICE_SAMPLE_PREFIXES = {"idle_", "keyword_"};
+    /** Categories whose lines feed the AI voice-exemplar block — exact match. */
+    private static final java.util.Set<String> VOICE_SAMPLE_EXACT =
+            java.util.Set.of("greeting");
 
     private final Plugin plugin;
     private final NannyManager manager;
@@ -702,6 +711,38 @@ public class NannyChatEngine implements Listener {
             }
         }
         return result;
+    }
+
+    /**
+     * Collects every line for {@code tier} from message categories that are
+     * voice-bearing (idle_*, keyword_*, greeting), then draws a flat random
+     * sample of up to {@code count}. Static + Random-injected so it's
+     * deterministically unit-testable.
+     */
+    static List<String> sampleVoiceLines(
+            Map<String, Map<String, List<String>>> messages,
+            String tier, int count, Random random) {
+        if (count <= 0 || messages == null || tier == null) return new ArrayList<>();
+        List<String> pool = new ArrayList<>();
+        for (Map.Entry<String, Map<String, List<String>>> entry : messages.entrySet()) {
+            String category = entry.getKey();
+            if (!matchesVoiceCategory(category)) continue;
+            Map<String, List<String>> byTier = entry.getValue();
+            if (byTier == null) continue;
+            List<String> lines = byTier.get(tier);
+            if (lines != null) pool.addAll(lines);
+        }
+        if (pool.isEmpty()) return new ArrayList<>();
+        Collections.shuffle(pool, random);
+        return new ArrayList<>(pool.subList(0, Math.min(count, pool.size())));
+    }
+
+    private static boolean matchesVoiceCategory(String category) {
+        if (VOICE_SAMPLE_EXACT.contains(category)) return true;
+        for (String prefix : VOICE_SAMPLE_PREFIXES) {
+            if (category.startsWith(prefix)) return true;
+        }
+        return false;
     }
 
     public void shutdown() {
