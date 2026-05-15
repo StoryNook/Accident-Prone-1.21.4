@@ -125,6 +125,18 @@ public class IntegrationsBus {
 
         TABLE.put(ActionId.STOCK_CHANGING_TABLE, new Descriptor("Nursery_Items", false,
             null, "Cooldown_Stock_Changing_Table_Seconds", "worker"));
+
+        TABLE.put(ActionId.NANNY_ASSAULTED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.BEHAVIOR_NAUGHTY, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.BEHAVIOR_NICE, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.SUMMON_COMPLIED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.ACCEPTED_CHANGE, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.DIAPER_PUNISHMENT_STARTED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.DIAPER_PUNISHMENT_VIOLATED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.DIAPER_PUNISHMENT_ESCALATED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.DIAPER_PUNISHMENT_EXPIRED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.CURSED_PANTS_EQUIPPED, new Descriptor("Nanny", false, null, null, "worker"));
+        TABLE.put(ActionId.BEHAVIOR_SCORE_CHANGED, new Descriptor("Nanny", false, null, null, "worker"));
     }
 
     private final IIntegrationsBusHost host;

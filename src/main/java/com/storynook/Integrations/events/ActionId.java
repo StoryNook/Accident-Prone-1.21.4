@@ -20,12 +20,26 @@ public final class ActionId {
     public static final String HIGHCHAIR_PLACE = "accidentprone:highchair_place";
     public static final String CHANGE_ON_TABLE = "accidentprone:change_on_table";
     public static final String STOCK_CHANGING_TABLE = "accidentprone:stock_changing_table";
+    public static final String NANNY_ASSAULTED               = "accidentprone:nanny_assaulted";
+    public static final String BEHAVIOR_NAUGHTY              = "accidentprone:behavior_naughty";
+    public static final String BEHAVIOR_NICE                 = "accidentprone:behavior_nice";
+    public static final String SUMMON_COMPLIED               = "accidentprone:summon_complied";
+    public static final String ACCEPTED_CHANGE               = "accidentprone:accepted_change";
+    public static final String DIAPER_PUNISHMENT_STARTED     = "accidentprone:diaper_punishment_started";
+    public static final String DIAPER_PUNISHMENT_VIOLATED    = "accidentprone:diaper_punishment_violated";
+    public static final String DIAPER_PUNISHMENT_ESCALATED   = "accidentprone:diaper_punishment_escalated";
+    public static final String DIAPER_PUNISHMENT_EXPIRED     = "accidentprone:diaper_punishment_expired";
+    public static final String CURSED_PANTS_EQUIPPED         = "accidentprone:cursed_pants_equipped";
+    public static final String BEHAVIOR_SCORE_CHANGED        = "accidentprone:behavior_score_changed";
 
     public static final String[] ALL = new String[] {
         CHANGE, FEED, PAIL_FILL, WASH_PANTS, EQUIP_ARMOR_ON_LITTLE,
         CRAFT_UNDERWEAR, CRAFT_PULLUP, CRAFT_DIAPER, CRAFT_THICK_DIAPER,
         CRAFT_CRIB, CRAFT_WASHER, TOILET_RELIEF, ACCIDENT_HANDLED, HYDRATE_THRESHOLD,
-        CARRY_PICKUP, CARRY_DROP, HIGHCHAIR_PLACE, CHANGE_ON_TABLE, STOCK_CHANGING_TABLE
+        CARRY_PICKUP, CARRY_DROP, HIGHCHAIR_PLACE, CHANGE_ON_TABLE, STOCK_CHANGING_TABLE,
+        NANNY_ASSAULTED, BEHAVIOR_NAUGHTY, BEHAVIOR_NICE, SUMMON_COMPLIED, ACCEPTED_CHANGE,
+        DIAPER_PUNISHMENT_STARTED, DIAPER_PUNISHMENT_VIOLATED, DIAPER_PUNISHMENT_ESCALATED,
+        DIAPER_PUNISHMENT_EXPIRED, CURSED_PANTS_EQUIPPED, BEHAVIOR_SCORE_CHANGED
     };
 
     /**
