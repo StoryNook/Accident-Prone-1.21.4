@@ -587,7 +587,7 @@ public class NannyChatEngine implements Listener {
         // For CUSTOM, the voice tier comes from customTone, not from "CUSTOM" itself.
         NannyData.MoodTier voiceTier = (mood == NannyData.MoodTier.CUSTOM)
                 ? data.getCustomTone() : mood;
-        String moodLabel = mood.name().toLowerCase();
+        String moodLabel = voiceTier.name().toLowerCase();
         String wardName = (ward == null || ward.getDisplayName() == null)
                 ? "little one" : ward.getDisplayName();
 
@@ -668,13 +668,18 @@ public class NannyChatEngine implements Listener {
 
         // Always-on
         String[] alwaysOnKeys = {"BASIC_CARE", "WATER_REFILL", "ORE_SPOTTING"};
+        java.util.Set<String> alreadyAdded = new java.util.HashSet<>();
         for (String key : alwaysOnKeys) {
             String prose = personalities.get(key);
-            if (prose != null) result.add(interpolateFragment(prose, ward, data));
+            if (prose != null) {
+                result.add(interpolateFragment(prose, ward, data));
+                alreadyAdded.add(key);
+            }
         }
 
         // Gated capabilities
         for (Capability cap : Capability.values()) {
+            if (alreadyAdded.contains(cap.name())) continue;
             boolean granted;
             if (mood == NannyData.MoodTier.CUSTOM) {
                 granted = Boolean.TRUE.equals(data.getCustomSettings().get(cap.name()));
@@ -703,10 +708,13 @@ public class NannyChatEngine implements Listener {
             case HYPNOSIS_USE:
                 return Boolean.TRUE.equals(gc.get("Hypno"));
             case FORCE_FEED_LAXATIVE:
+                return Boolean.TRUE.equals(gc.get("Messing"))
+                    && Boolean.TRUE.equals(gc.get("Diapers"));
             case BINDING_LEGGINGS:
             case EVIL_CRAFTING:
                 return Boolean.TRUE.equals(gc.get("Messing"))
-                    && Boolean.TRUE.equals(gc.get("Diapers"));
+                    && Boolean.TRUE.equals(gc.get("Diapers"))
+                    && Boolean.TRUE.equals(gc.get("Binding_Diapers"));
             default:
                 return true;
         }
