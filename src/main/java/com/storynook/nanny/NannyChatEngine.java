@@ -364,9 +364,23 @@ public class NannyChatEngine implements Listener {
                         plugin.getLogger().info("[NannyChat] model returned <SKIP> — staying quiet");
                         return;
                     }
+
+                    // Parse tags BEFORE broadcasting. Tags are stripped from visible text.
+                    ParseResult parsed = parseTagsForTest(aiText);
+                    String cleanedText = parsed.cleanedText;
+                    DisciplineDispatcher dispatcher = manager.getDisciplineDispatcher();
+                    for (ParsedTag tag : parsed.tags) {
+                        if ("PUNISH".equals(tag.type) || "REWARD".equals(tag.type)) {
+                            if (dispatcher != null) {
+                                Integer dur = tag.duration;
+                                dispatcher.enactFromTag(data, speaker, tag.action, dur);
+                            }
+                        }
+                    }
+
                     String resolved;
-                    if (aiText != null && !aiText.isEmpty()) {
-                        resolved = applyPlaceholders(aiText, speaker, data);
+                    if (cleanedText != null && !cleanedText.isEmpty()) {
+                        resolved = applyPlaceholders(cleanedText, speaker, data);
                     } else {
                         String fallback = pickBasicLine(category, data);
                         resolved = fallback == null ? null : applyPlaceholders(fallback, speaker, data);
@@ -1135,6 +1149,58 @@ public class NannyChatEngine implements Listener {
             if (category.startsWith(prefix)) return true;
         }
         return false;
+    }
+
+    // -------------------------------------------------------------------
+    // AI tag parsing — ParsedTag, ParseResult, parseTagsForTest
+    // -------------------------------------------------------------------
+
+    /** A single structured tag extracted from an AI reply (e.g. {@code <PUNISH:laxative>}). */
+    public static class ParsedTag {
+        public final String type;     // PUNISH or REWARD
+        public final String action;   // laxative, leash, binding, hypno, diaper, praise
+        public final Integer duration; // null unless tag was <PUNISH:diaper:Nd>
+        public ParsedTag(String type, String action, Integer duration) {
+            this.type = type;
+            this.action = action;
+            this.duration = duration;
+        }
+    }
+
+    /** Result of parsing an AI reply: visible text with tags stripped + the ordered tag list. */
+    public static class ParseResult {
+        public final String cleanedText;
+        public final java.util.List<ParsedTag> tags;
+        public ParseResult(String cleanedText, java.util.List<ParsedTag> tags) {
+            this.cleanedText = cleanedText;
+            this.tags = tags;
+        }
+    }
+
+    /**
+     * Regex: {@code <(PUNISH|REWARD):([a-z_]+)(?::(\d+)d)?>}
+     * Group 1 = type, group 2 = action, group 3 = duration digits (null if absent).
+     */
+    private static final java.util.regex.Pattern TAG_PATTERN =
+            java.util.regex.Pattern.compile("<(PUNISH|REWARD):([a-z_]+)(?::(\\d+)d)?>");
+
+    /**
+     * Parses {@code <PUNISH:...>} / {@code <REWARD:...>} tags out of an AI reply.
+     * Tags are removed from the visible text; unknown tag shapes are left intact.
+     * Package-visible (not private) so unit tests can call it without MockBukkit.
+     */
+    static ParseResult parseTagsForTest(String text) {
+        java.util.List<ParsedTag> tags = new java.util.ArrayList<>();
+        if (text == null) return new ParseResult("", tags);
+        java.util.regex.Matcher m = TAG_PATTERN.matcher(text);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            Integer dur = m.group(3) == null ? null : Integer.parseInt(m.group(3));
+            tags.add(new ParsedTag(m.group(1), m.group(2), dur));
+            m.appendReplacement(sb, "");
+        }
+        m.appendTail(sb);
+        return new ParseResult(sb.toString().trim().replaceAll("\\s+", " "), tags);
     }
 
     /**
