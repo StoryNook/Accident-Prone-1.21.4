@@ -124,6 +124,11 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
         }   
         if (command.getName().equalsIgnoreCase("pee") && sender instanceof Player) {
             Player player = (Player) sender;
+            if (plugin.getDiaperPunishment() != null && plugin.getDiaperPunishment().isBlocked(player)) {
+                plugin.getDiaperPunishment().recordViolation(player);
+                player.sendMessage(org.bukkit.ChatColor.RED + "Your Nanny says you're not allowed.");
+                return true;
+            }
             PlayerStats stats = plugin.getPlayerStats(player.getUniqueId());
             if (stats.getBladder() > 10) {
                 if (plugin.isOnToilet(player.getUniqueId())) {
@@ -146,6 +151,11 @@ public class CommandHandler implements CommandExecutor, TabCompleter{
         }
         if (command.getName().equalsIgnoreCase("poop") && sender instanceof Player) {
             Player player = (Player) sender;
+            if (plugin.getDiaperPunishment() != null && plugin.getDiaperPunishment().isBlocked(player)) {
+                plugin.getDiaperPunishment().recordViolation(player);
+                player.sendMessage(org.bukkit.ChatColor.RED + "Your Nanny says you're not allowed.");
+                return true;
+            }
             PlayerStats stats = plugin.getPlayerStats(player.getUniqueId());
             if (stats.getBowels() > 10) {
                 if (plugin.isOnToilet(player.getUniqueId())) {

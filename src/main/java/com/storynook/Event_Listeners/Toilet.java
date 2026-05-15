@@ -263,6 +263,11 @@ public class Toilet implements Listener{
     // (threshold scales linearly from 100 at incon 1 to MinFill at incon 10).
     // When Accidents is off, the legacy "always relieve" behavior is preserved.
     private boolean canRelieveOnToilet(Player player, PlayerStats stats, boolean isBladder) {
+        if (plugin.getDiaperPunishment() != null && plugin.getDiaperPunishment().isBlocked(player)) {
+            plugin.getDiaperPunishment().recordViolation(player);
+            player.sendMessage(org.bukkit.ChatColor.RED + "Your Nanny says you're not allowed.");
+            return false;
+        }
         if (!Boolean.TRUE.equals(plugin.getGlobalConfig().get("Accidents"))) {
             return true;
         }
