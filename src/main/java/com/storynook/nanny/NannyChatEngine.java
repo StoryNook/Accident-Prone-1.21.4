@@ -110,6 +110,9 @@ public class NannyChatEngine implements Listener {
     /** category → tier → response list */
     private Map<String, Map<String, List<String>>> messages = new HashMap<>();
 
+    /** Flattened fragment key → prose. Built from always_on: + capabilities: in nanny_personalities.yml. */
+    private Map<String, String> personalities = new HashMap<>();
+
     /** nannyUUID → epoch millis of last response, for per-Nanny floor + ambient timer reset. */
     private final Map<UUID, Long> lastResponse = new HashMap<>();
 
@@ -140,6 +143,7 @@ public class NannyChatEngine implements Listener {
         this.plugin = plugin;
         this.manager = manager;
         loadMessages();
+        loadPersonalities();
     }
 
     // -------------------------------------------------------------------
@@ -148,6 +152,7 @@ public class NannyChatEngine implements Listener {
 
     public void reload() {
         loadMessages();
+        loadPersonalities();
     }
 
     private void loadMessages() {
@@ -172,6 +177,21 @@ public class NannyChatEngine implements Listener {
             next.put(category, tierMap);
         }
         messages = next;
+    }
+
+    private void loadPersonalities() {
+        File file = new File(plugin.getDataFolder(), "nanny_personalities.yml");
+        if (!file.exists()) {
+            personalities = new HashMap<>();
+            return;
+        }
+        org.bukkit.configuration.file.FileConfiguration yaml =
+                org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(file);
+        personalities = loadPersonalitiesFromConfig(yaml);
+        if (personalities.isEmpty()) {
+            plugin.getLogger().warning(
+                    "[Nanny AI] nanny_personalities.yml empty — AI ability list disabled");
+        }
     }
 
     // -------------------------------------------------------------------
@@ -659,6 +679,29 @@ public class NannyChatEngine implements Listener {
     private String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max) + "...";
+    }
+
+    /**
+     * Reads always_on: and capabilities: sections from a personalities YAML
+     * and returns one flat fragment-key → prose map. Static so it can be
+     * unit-tested without booting Bukkit.
+     */
+    static Map<String, String> loadPersonalitiesFromConfig(
+            org.bukkit.configuration.file.FileConfiguration yaml) {
+        Map<String, String> result = new HashMap<>();
+        if (yaml == null) return result;
+        for (String section : new String[]{"always_on", "capabilities"}) {
+            org.bukkit.configuration.ConfigurationSection sec =
+                    yaml.getConfigurationSection(section);
+            if (sec == null) continue;
+            for (String key : sec.getKeys(false)) {
+                String prose = sec.getString(key);
+                if (prose != null && !prose.isEmpty()) {
+                    result.put(key, prose.trim());
+                }
+            }
+        }
+        return result;
     }
 
     public void shutdown() {
