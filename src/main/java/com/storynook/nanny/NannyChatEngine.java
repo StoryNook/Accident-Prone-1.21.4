@@ -745,6 +745,28 @@ public class NannyChatEngine implements Listener {
         return false;
     }
 
+    /**
+     * Formats a list of active hypno triggers as a comma-joined
+     * "{word} ({type})" string for the {hypno_triggers} placeholder. Returns
+     * a friendly fallback when the list is null or empty.
+     */
+    static String resolveHypnoTriggers(
+            java.util.List<com.storynook.PlayerStatsManagement.HypnoTrigger> triggers) {
+        if (triggers == null || triggers.isEmpty()) {
+            return "none currently active — the clock generates a random "
+                 + "trigger word from your server's word list when used";
+        }
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (com.storynook.PlayerStatsManagement.HypnoTrigger t : triggers) {
+            if (t == null) continue;
+            if (!first) sb.append(", ");
+            sb.append(t.getWord()).append(" (").append(t.getType()).append(")");
+            first = false;
+        }
+        return sb.toString();
+    }
+
     public void shutdown() {
         stopReminderTask();
         stopAmbientTask();

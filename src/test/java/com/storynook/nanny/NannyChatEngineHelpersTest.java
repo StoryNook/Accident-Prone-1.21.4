@@ -145,4 +145,31 @@ public class NannyChatEngineHelpersTest {
                 msgs, "SWEET", 3, new java.util.Random(42));
         assertEquals(a, b);
     }
+
+    // --- resolveHypnoTriggers ---
+
+    @Test
+    public void resolveHypnoTriggersJoinsWordAndType() {
+        java.util.List<com.storynook.PlayerStatsManagement.HypnoTrigger> triggers = java.util.List.of(
+            new com.storynook.PlayerStatsManagement.HypnoTrigger(
+                    "naptime", "wetting", null, null),
+            new com.storynook.PlayerStatsManagement.HypnoTrigger(
+                    "sleepy", "messing", null, null));
+        String got = NannyChatEngine.resolveHypnoTriggers(triggers);
+        assertTrue(got.contains("naptime (wetting)"));
+        assertTrue(got.contains("sleepy (messing)"));
+        assertTrue(got.contains(", "));
+    }
+
+    @Test
+    public void resolveHypnoTriggersEmptyReturnsFallback() {
+        String got = NannyChatEngine.resolveHypnoTriggers(java.util.Collections.emptyList());
+        assertTrue(got.toLowerCase().contains("none currently active"));
+    }
+
+    @Test
+    public void resolveHypnoTriggersNullReturnsFallback() {
+        String got = NannyChatEngine.resolveHypnoTriggers(null);
+        assertTrue(got.toLowerCase().contains("none currently active"));
+    }
 }
