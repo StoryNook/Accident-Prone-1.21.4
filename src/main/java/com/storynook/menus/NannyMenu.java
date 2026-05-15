@@ -25,6 +25,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 import com.storynook.Plugin;
+import com.storynook.nanny.BehaviorScoreboard;
 import com.storynook.nanny.Capability;
 import com.storynook.nanny.NannyData;
 import com.storynook.nanny.NannyManager;
@@ -147,6 +148,12 @@ public class NannyMenu implements Listener {
             "Unlocks the cursed crafting recipes",
             "(binding diapers, etc).",
             "Only relevant if Evil supplies are enabled."
+        });
+        CAP_INFO.put(Capability.DIAPER_PUNISHMENT, new String[] {
+            "Diaper Punishment",
+            "Lock the ward into a binding diaper, block their",
+            "toilet use for 1-30 Minecraft days. 3 violations",
+            "escalate to cursed indestructible pants."
         });
         CAP_INFO.put(Capability.BASIC_CARE, new String[] {
             "Basic Care",
@@ -289,6 +296,37 @@ public class NannyMenu implements Listener {
         menu.setItem(14, follow);
         menu.setItem(16, home);
         menu.setItem(22, summon);
+
+        // Behavior history info item (bottom-right of General tab)
+        {
+            ItemStack histItem = new ItemStack(Material.WRITABLE_BOOK);
+            ItemMeta hm = histItem.getItemMeta();
+            if (hm != null) {
+                hm.setDisplayName(ChatColor.AQUA + "Behavior History");
+                java.util.List<String> lore = new java.util.ArrayList<>();
+                BehaviorScoreboard sb = plugin.getNannyManager() == null ? null
+                        : plugin.getNannyManager().getBehaviorScoreboard();
+                java.util.List<UUID> wardsAndOwner = new java.util.ArrayList<>(data.getWards());
+                if (!wardsAndOwner.contains(data.getOwnerUUID())) wardsAndOwner.add(data.getOwnerUUID());
+                if (sb == null || wardsAndOwner.isEmpty()) {
+                    lore.add(ChatColor.GRAY + "(no wards yet)");
+                } else {
+                    for (UUID w : wardsAndOwner) {
+                        org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(w);
+                        String pname = op.getName() == null ? w.toString().substring(0, 8) : op.getName();
+                        int score = sb.getScore(data, w);
+                        int streak = sb.getStreak(data, w);
+                        lore.add(ChatColor.WHITE + pname + ChatColor.GRAY + ": "
+                                + (score < 0 ? ChatColor.RED : ChatColor.GREEN) + "score=" + score
+                                + ChatColor.GRAY + " streak=" + streak);
+                    }
+                }
+                hm.setLore(lore);
+                histItem.setItemMeta(hm);
+            }
+            menu.setItem(26, histItem);
+        }
+
         placeTabs(menu, "general");
 
         player.openInventory(menu);
@@ -675,7 +713,8 @@ public class NannyMenu implements Listener {
             Capability.LEASH_WARD,
             Capability.HYPNOSIS_USE,
             Capability.ROOM_LOCKDOWN,
-            Capability.EVIL_CRAFTING
+            Capability.EVIL_CRAFTING,
+            Capability.DIAPER_PUNISHMENT
         };
 
         int slot = 9;
