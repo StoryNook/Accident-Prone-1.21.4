@@ -651,6 +651,20 @@ public class NannyMenu implements Listener {
             return;
         }
 
+        // Custom Tone cycler — slot 13 (centered, above the capability rows)
+        ItemStack toneItem = new ItemStack(Material.BOOK);
+        ItemMeta tm = toneItem.getItemMeta();
+        if (tm != null) {
+            tm.setDisplayName(ChatColor.AQUA + "Custom Tone");
+            java.util.List<String> tlore = new java.util.ArrayList<>();
+            tlore.add(ChatColor.GRAY + "Voice tier for this CUSTOM Nanny.");
+            tlore.add(ChatColor.GRAY + "Current: " + ChatColor.WHITE + data.getCustomTone().name());
+            tlore.add(ChatColor.YELLOW + "Click to cycle SWEET → CARING → STRICT → WARDEN");
+            tm.setLore(tlore);
+            toneItem.setItemMeta(tm);
+        }
+        menu.setItem(13, toneItem);
+
         Capability[] caps = {
             Capability.POTTY_REMINDERS,
             Capability.ARMOR_LOCK,
@@ -685,6 +699,7 @@ public class NannyMenu implements Listener {
             if (on) glow(item);
             menu.setItem(slot, item);
             slot++;
+            if (slot == 13) slot = 14;
             if (slot == 18) slot = 19;
         }
         player.openInventory(menu);
@@ -824,6 +839,27 @@ public class NannyMenu implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null) return;
         Material type = clicked.getType();
+
+        if (type == Material.BOOK) {
+            // Custom Tone cycler
+            NannyData.MoodTier[] order = {
+                NannyData.MoodTier.SWEET,
+                NannyData.MoodTier.CARING,
+                NannyData.MoodTier.STRICT,
+                NannyData.MoodTier.WARDEN
+            };
+            NannyData.MoodTier current = data.getCustomTone();
+            int next = 0;
+            for (int i = 0; i < order.length; i++) {
+                if (order[i] == current) { next = (i + 1) % order.length; break; }
+            }
+            data.setCustomTone(order[next]);
+            data.save(plugin.getDataFolder());
+            player.sendMessage(ChatColor.AQUA + "Custom Tone: " + ChatColor.WHITE + order[next].name());
+            openAdvanced(player, plugin);
+            return;
+        }
+
         if (type != Material.LIME_DYE && type != Material.GRAY_DYE) return;
         Capability cap = readCapability(clicked, plugin);
         if (cap == null) return;
