@@ -67,6 +67,30 @@ public class NannyCareEngine {
     }
 
     // ---------------------------------------------------------------
+    // Public adapters for DisciplineDispatcher
+    // ---------------------------------------------------------------
+
+    public void publicForceFeedLaxative(NannyData data, org.bukkit.entity.Player ward) {
+        NannyEntity e = manager.getActiveNannies().get(data.getNannyUUID());
+        if (e != null) doForceFeedLaxative(e, data, ward);
+    }
+
+    public void publicLeash(NannyData data, org.bukkit.entity.Player ward) {
+        NannyEntity e = manager.getActiveNannies().get(data.getNannyUUID());
+        if (e != null) doLeash(e, data, ward);
+    }
+
+    public void publicEquipBindingLeggings(NannyData data, org.bukkit.entity.Player ward) {
+        NannyEntity e = manager.getActiveNannies().get(data.getNannyUUID());
+        if (e != null) doEquipBindingLeggings(e, data, ward);
+    }
+
+    public void publicHypnotize(NannyData data, org.bukkit.entity.Player ward) {
+        NannyEntity e = manager.getActiveNannies().get(data.getNannyUUID());
+        if (e != null) doHypnotize(e, data, ward);
+    }
+
+    // ---------------------------------------------------------------
     // Per-tick evaluation
     // ---------------------------------------------------------------
 

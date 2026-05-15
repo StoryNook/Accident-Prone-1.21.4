@@ -104,6 +104,8 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
   public com.storynook.furniture.CribPdcKeys getCribPdcKeysForDebug() { return cribPdcKeys; }
   private com.storynook.nanny.crypto.CryptoService cryptoService;
   private com.storynook.nanny.membership.OAuthHelper oauthHelper;
+  private com.storynook.nanny.DiaperPunishment diaperPunishment;
+  public com.storynook.nanny.DiaperPunishment getDiaperPunishment() { return diaperPunishment; }
 
   public com.storynook.nanny.crypto.CryptoService getCryptoService() { return cryptoService; }
   public com.storynook.nanny.membership.OAuthHelper getOAuthHelper() { return oauthHelper; }
@@ -273,6 +275,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         NannyMenu nannymenu = new NannyMenu(this);
         nannyManager = new NannyManager(this);
         nannyManager.init();
+        diaperPunishment = new com.storynook.nanny.DiaperPunishment(this);
         BehaviorScoreboard behaviorScoreboard = new BehaviorScoreboard();
         BehaviorSignals behaviorSignals = new BehaviorSignals(this, behaviorScoreboard, nannyManager);
         getServer().getPluginManager().registerEvents(behaviorSignals, this);
