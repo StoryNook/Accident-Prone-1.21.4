@@ -277,6 +277,7 @@ public class Plugin extends JavaPlugin implements com.storynook.Integrations.IIn
         nannyManager = new NannyManager(this);
         nannyManager.init();
         diaperPunishment = new com.storynook.nanny.DiaperPunishment(this);
+        diaperPunishment.start();
         BehaviorScoreboard behaviorScoreboard = new BehaviorScoreboard();
         BehaviorSignals behaviorSignals = new BehaviorSignals(this, behaviorScoreboard, nannyManager);
         getServer().getPluginManager().registerEvents(behaviorSignals, this);
