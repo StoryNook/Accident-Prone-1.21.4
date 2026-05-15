@@ -72,6 +72,20 @@ public class NannyData {
     private Map<String, Boolean> customSettings;
     private Map<UUID, Boolean> lockedArmor;
     private List<String> lockedRoomBlocks;
+    /** Per-ward bidirectional behavior score, range -100..+100. */
+    private Map<UUID, Integer> behaviorScore = new HashMap<>();
+    /** Per-ward fast-decaying streak (recent intent), range -50..+50. */
+    private Map<UUID, Integer> behaviorStreak = new HashMap<>();
+    /** Per-ward epoch-millis of last decay tick — lazy-decay marker. */
+    private Map<UUID, Long> behaviorLastDecay = new HashMap<>();
+    /** Per-ward epoch-millis after which "came when called" reward expires. */
+    private Map<UUID, Long> pendingSummonExpiresAt = new HashMap<>();
+    /** Per-ward per-action cooldown timestamps (action name → cooldown-until millis). */
+    private Map<UUID, Map<String, Long>> disciplineCooldowns = new HashMap<>();
+    /** Per-ward epoch-millis until which the next queued Java punishment is suppressed by recent AI <REWARD:praise>. */
+    private Map<UUID, Long> praiseGraceUntil = new HashMap<>();
+    /** Per-ward list of currently-active persistent punishment action names. */
+    private Map<UUID, List<String>> activePersistentPunishments = new HashMap<>();
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -227,6 +241,35 @@ public class NannyData {
         }
         config.set("customSettings", cs);
 
+        // behavior maps — UUID keys serialized as strings
+        Map<String, Integer> bsOut = new HashMap<>();
+        for (Map.Entry<UUID, Integer> e : behaviorScore.entrySet()) bsOut.put(e.getKey().toString(), e.getValue());
+        config.set("behaviorScore", bsOut);
+
+        Map<String, Integer> bstrOut = new HashMap<>();
+        for (Map.Entry<UUID, Integer> e : behaviorStreak.entrySet()) bstrOut.put(e.getKey().toString(), e.getValue());
+        config.set("behaviorStreak", bstrOut);
+
+        Map<String, Long> bldOut = new HashMap<>();
+        for (Map.Entry<UUID, Long> e : behaviorLastDecay.entrySet()) bldOut.put(e.getKey().toString(), e.getValue());
+        config.set("behaviorLastDecay", bldOut);
+
+        Map<String, Long> pseOut = new HashMap<>();
+        for (Map.Entry<UUID, Long> e : pendingSummonExpiresAt.entrySet()) pseOut.put(e.getKey().toString(), e.getValue());
+        config.set("pendingSummonExpiresAt", pseOut);
+
+        Map<String, Map<String, Long>> dcOut = new HashMap<>();
+        for (Map.Entry<UUID, Map<String, Long>> e : disciplineCooldowns.entrySet()) dcOut.put(e.getKey().toString(), e.getValue());
+        config.set("disciplineCooldowns", dcOut);
+
+        Map<String, Long> pgOut = new HashMap<>();
+        for (Map.Entry<UUID, Long> e : praiseGraceUntil.entrySet()) pgOut.put(e.getKey().toString(), e.getValue());
+        config.set("praiseGraceUntil", pgOut);
+
+        Map<String, List<String>> appOut = new HashMap<>();
+        for (Map.Entry<UUID, List<String>> e : activePersistentPunishments.entrySet()) appOut.put(e.getKey().toString(), e.getValue());
+        config.set("activePersistentPunishments", appOut);
+
         Map<String, Object> la = new HashMap<>();
         for (Map.Entry<UUID, Boolean> e : getLockedArmor().entrySet()) {
             la.put(e.getKey().toString(), e.getValue());
@@ -377,6 +420,66 @@ public class NannyData {
         }
         data.customSettings = cs;
 
+        // behavior maps — string keys deserialized back to UUID
+        org.bukkit.configuration.ConfigurationSection bsSec = config.getConfigurationSection("behaviorScore");
+        if (bsSec != null) {
+            for (String k : bsSec.getKeys(false)) {
+                try { data.behaviorScore.put(UUID.fromString(k), bsSec.getInt(k)); }
+                catch (IllegalArgumentException ignored) {}
+            }
+        }
+        org.bukkit.configuration.ConfigurationSection bstrSec = config.getConfigurationSection("behaviorStreak");
+        if (bstrSec != null) {
+            for (String k : bstrSec.getKeys(false)) {
+                try { data.behaviorStreak.put(UUID.fromString(k), bstrSec.getInt(k)); }
+                catch (IllegalArgumentException ignored) {}
+            }
+        }
+        org.bukkit.configuration.ConfigurationSection bldSec = config.getConfigurationSection("behaviorLastDecay");
+        if (bldSec != null) {
+            for (String k : bldSec.getKeys(false)) {
+                try { data.behaviorLastDecay.put(UUID.fromString(k), bldSec.getLong(k)); }
+                catch (IllegalArgumentException ignored) {}
+            }
+        }
+        org.bukkit.configuration.ConfigurationSection pseSec = config.getConfigurationSection("pendingSummonExpiresAt");
+        if (pseSec != null) {
+            for (String k : pseSec.getKeys(false)) {
+                try { data.pendingSummonExpiresAt.put(UUID.fromString(k), pseSec.getLong(k)); }
+                catch (IllegalArgumentException ignored) {}
+            }
+        }
+        org.bukkit.configuration.ConfigurationSection dcSec = config.getConfigurationSection("disciplineCooldowns");
+        if (dcSec != null) {
+            for (String wardKey : dcSec.getKeys(false)) {
+                try {
+                    UUID wardUuid = UUID.fromString(wardKey);
+                    org.bukkit.configuration.ConfigurationSection inner = dcSec.getConfigurationSection(wardKey);
+                    if (inner == null) continue;
+                    Map<String, Long> wardMap = new HashMap<>();
+                    for (String act : inner.getKeys(false)) wardMap.put(act, inner.getLong(act));
+                    data.disciplineCooldowns.put(wardUuid, wardMap);
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+        org.bukkit.configuration.ConfigurationSection pgSec = config.getConfigurationSection("praiseGraceUntil");
+        if (pgSec != null) {
+            for (String k : pgSec.getKeys(false)) {
+                try { data.praiseGraceUntil.put(UUID.fromString(k), pgSec.getLong(k)); }
+                catch (IllegalArgumentException ignored) {}
+            }
+        }
+        org.bukkit.configuration.ConfigurationSection appSec = config.getConfigurationSection("activePersistentPunishments");
+        if (appSec != null) {
+            for (String wardKey : appSec.getKeys(false)) {
+                try {
+                    UUID wardUuid = UUID.fromString(wardKey);
+                    List<String> list = appSec.getStringList(wardKey);
+                    if (list != null) data.activePersistentPunishments.put(wardUuid, new ArrayList<>(list));
+                } catch (IllegalArgumentException ignored) {}
+            }
+        }
+
         Map<UUID, Boolean> la = new HashMap<>();
         org.bukkit.configuration.ConfigurationSection laSec = config.getConfigurationSection("lockedArmor");
         if (laSec != null) {
@@ -511,6 +614,14 @@ public class NannyData {
         return customSettings;
     }
     public void setCustomSettings(Map<String, Boolean> v) { this.customSettings = v; }
+
+    public Map<UUID, Integer> getBehaviorScore() { return behaviorScore; }
+    public Map<UUID, Integer> getBehaviorStreak() { return behaviorStreak; }
+    public Map<UUID, Long> getBehaviorLastDecay() { return behaviorLastDecay; }
+    public Map<UUID, Long> getPendingSummonExpiresAt() { return pendingSummonExpiresAt; }
+    public Map<UUID, Map<String, Long>> getDisciplineCooldowns() { return disciplineCooldowns; }
+    public Map<UUID, Long> getPraiseGraceUntil() { return praiseGraceUntil; }
+    public Map<UUID, List<String>> getActivePersistentPunishments() { return activePersistentPunishments; }
 
     public Map<UUID, Boolean> getLockedArmor() {
         if (lockedArmor == null) lockedArmor = new HashMap<>();
