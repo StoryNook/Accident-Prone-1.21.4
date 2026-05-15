@@ -66,24 +66,49 @@ Nanny:
 ### Finding your Campaign_ID
 
 This is the numeric id Patreon uses for *your* campaign. The plugin uses it to
-ignore patronage of unrelated creators (otherwise any active patron of any
-creator could unlock AI on your server).
+ignore patronage of unrelated creators — without it, any active patron of any
+creator on Patreon would unlock AI on your server.
 
-The easiest way: get an access token for your own creator account
-(authenticate yourself through `/nanny link patreon` on a test server, or use
-Patreon's "Creator's Access Token" shown on your app's detail page), then:
+**Step 1 — get your Creator's Access Token.**
+
+1. Open <https://www.patreon.com/portal/registration/register-clients>.
+2. Click your existing OAuth client (or create one if you haven't yet).
+3. On the detail page there's a field labelled **"Creator's Access Token"**.
+   Copy that string. Treat it like a password — it can read your campaign data.
+
+**Step 2 — query the campaigns endpoint:**
 
 ```bash
 curl -H "Authorization: Bearer <your-creator-access-token>" \
      "https://www.patreon.com/api/oauth2/v2/campaigns"
 ```
 
-The response's `data[0].id` is your Campaign_ID. Paste it into config.
+**Step 3 — read `data[0].id` from the response.** Example:
 
-If you leave Campaign_ID blank, the plugin falls back to legacy behavior: any
-active Patreon membership counts. Fine for self-hosted single-creator setups,
-**not safe for public release** — anyone who pays any creator on Patreon would
-unlock AI on your server.
+```json
+{
+  "data": [
+    {
+      "id": "9315392",
+      "type": "campaign",
+      "attributes": {}
+    }
+  ],
+  "meta": { "pagination": { "total": 1, "cursors": { "next": null } } }
+}
+```
+
+The campaign id here is `9315392`. Paste *that number* into
+`Nanny.Membership.Patreon.Campaign_ID` (as a YAML string — keep the quotes).
+
+**Step 4 — rotate the Creator Access Token.** Once you have the Campaign_ID,
+the token's job is done. Rotate it on the same Patreon portal page,
+especially if the value has been visible anywhere it shouldn't (logs,
+screenshots, transcripts). The Campaign_ID itself is not secret.
+
+If you leave `Campaign_ID` blank, the plugin falls back to legacy behavior:
+any active Patreon membership counts. Fine for self-hosted single-creator
+setups, **not safe for public release**.
 
 ### Tier names
 
