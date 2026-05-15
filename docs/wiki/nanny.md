@@ -5,13 +5,16 @@ description: Phases 1–6 component reference for the Nanny NPC subsystem.
 
 # Nanny NPC system
 
-The largest feature in the plugin. Citizens2-backed NPC caregiver that watches over wards: changes their diapers, feeds them, navigates to find them, chats, applies discipline, and (optionally) gates an AI chat tier behind Patreon/Subscribestar membership. Feature-complete through Phase 6.
+The largest feature in the plugin. Citizens2-backed NPC caregiver that watches over wards: changes their diapers, feeds them, navigates to find them, chats, applies discipline, refills water bottles, places tired wards in cribs, and (optionally) gates an AI chat tier behind Patreon/Subscribestar membership **or** a LuckPerms-assignable permission node. Phases 1–6 plus the post-Phase-6 work below are all shipped; the next unbuilt item is autonomous washer use (see *Pending work*).
 
 **Design spec (read this first when starting any Nanny work):**
 `docs/superpowers/specs/2026-04-30-nanny-npc-design.md`
 
 **Membership integration spec:**
 `docs/superpowers/specs/2026-04-30-membership-integration-design.md`
+
+**Dialogue expansion spec:**
+`docs/superpowers/specs/2026-04-30-nanny-dialogue-expansion.md`
 
 ---
 
@@ -126,3 +129,48 @@ The largest feature in the plugin. Citizens2-backed NPC caregiver that watches o
 - New commands: `/nanny link <provider> [code|state]`, `/nanny unlink`, `/nanny refresh [player]` (admin-gated). Tab completer supports them and offers `patreon`/`subscribestar` for the second arg of `link`.
 - Reference helper page (`docs/security/oauth-redirect.html`) — single static HTML, parses `?code=&state=` from URL + `#provider` from hash, displays `code|state` as a copyable string. Self-hosters can deploy to GitHub Pages / Cloudflare Pages / etc. and override `Nanny.Membership.Redirect_URI` (must also re-pin the redirect URI in their own OAuth client registration).
 - Admin docs: `docs/security/hardening.md` (threat model, key path, backup advice), `docs/membership-setup.md` (per-provider setup guide).
+
+### Membership providers — OR semantics
+
+`CompositeMembershipProvider` wraps every *enabled* sub-provider and returns unlocked if **any** of them unlocks the player. The three sub-providers are independent and can be enabled in any combination:
+
+- **`PermissionMembershipProvider`** — `isUnlocked` is a live `Player.hasPermission(node)` check (`refresh` is a no-op, no persistence). Config: `Nanny.Membership.Permission.{enabled,node}`. This is the LuckPerms / DiscordSRV-role path — no OAuth, no encrypted tokens. A player with the node gets AI chat; revoke the node and they lose it immediately.
+- **`PatreonMembershipProvider`** / **`SubscribestarMembershipProvider`** — OAuth code-paste link flow, encrypted refresh tokens, tier checks.
+
+`Plugin.buildMembershipProvider()` returns `AlwaysLockedProvider` when `Nanny.Membership.enabled` is false **or** no sub-provider is enabled — the master `Nanny.Membership.enabled` flag must be on for *any* provider (including Permission) to be built. So the permission-only setup is: `Nanny.Membership.enabled: true` + `Nanny.Membership.Permission.enabled: true` + a `node`. `Settings_Menu.Membership` is **not** required for the Permission path (it only gates persistence of the six OAuth-related `PlayerStats` fields).
+
+---
+
+## Dialogue Expansion (shipped)
+
+Spec: `docs/superpowers/specs/2026-04-30-nanny-dialogue-expansion.md`. Makes the BASIC (non-AI) tier feel like a companion — she narrates her own actions, reacts to in-game events, and idles aloud on a timer. All content is YAML-only in `nanny_messages.yml` (57 categories × 4 mood tiers); adding lines never touches Java.
+
+- **`NannyChatEngine.speakIfNearby(ward, category, throttleKey, throttleMs, priority)`** — single entry point for all event-driven Nanny speech. Per-Nanny `MIN_LINE_GAP_MS` (3s) floor prevents back-to-back lines; per-`(nanny, throttleKey, ward)` throttle prevents one trigger spamming. Priority constants (`PRI_DISCIPLINE` > `PRI_MOB`/`PRI_ACCIDENT` > `PRI_CARE` > `PRI_LIFECYCLE` > `PRI_DISCOVERY` > `PRI_IDLE`) are informational for now — the throttles already prevent overlap.
+- **Post-action commentary** — `NannyCareEngine.speakPostAction` fires `changed_ward` / `equipped_diaper` / `fed_ward` / `hydrated_ward` / `tucked_in` after the matching care action. `speakDiscipline` fires `force_fed_lax` / `bound_in_diaper` / `leashed_ward` / `hypnotized_ward` (plus a generic `discipline` fallback) after Phase 5b actions.
+- **Reactive scans** (`NannyCareEngine.tryReactiveScans`, runs in the no-care branch when the Nanny is within action range) — `ward_low_health` (HP < 6), `night_warning` (outdoors at night, 1h throttle), `lava_warning` (LAVA within 4 blocks, per-vein throttle), `mob_warning` / `mob_warning_creeper` (hostiles near a *busy* ward — SWEET/CARING/CUSTOM tiers only; STRICT/WARDEN stay quiet by design and let the hit land).
+- **Ore spotting** (`tryOreSpotting`) — only when the Nanny is in follow mode following the **owner**. Narrates `ore_spotted_diamond` / `_emerald` / `_ancient_debris` / `_gold` (gold 50%-suppressed) for veins within 4 blocks, with a 30-min per-vein TTL cache.
+- **Ambient idle** (`startAmbientTask`, 100-tick task) — each Nanny picks a random 4–6 min delay; any broadcast (from any source) resets it. Context-aware category pick: `idle_following` / `idle_raining` / `idle_night` / `idle_outdoors` / `idle_at_home`, falling back to `idle_ambient`.
+- **Potty reminders** (`startReminderTask`, 1200-tick task) — Phase 5a; broadcasts `care_reminder` when a nearby ward's bladder/bowels ≥ 70 and the Nanny has `POTTY_REMINDERS` capability.
+- **Placeholders** — `{ward}` / `{you}` / `{nanny}` / `{biome}` / `{time}` substituted in any line by `applyPlaceholders`.
+- **Lifecycle lines** — `greeting` (on join + chat name-mention), `arrived_home` (follow-boundary return), `found_ward` (seek arrival), `nanny_summoned` (after `/nanny summon`), `respawn_after_death`, `low_supplies`.
+
+---
+
+## Autonomous behaviors beyond core care (shipped)
+
+These run in the no-care branch of `NannyCareEngine.evaluateAndAct`, one interaction per tick, matching the engine's "one task per cycle" discipline.
+
+- **Water-bottle refill** (`tryRefillBottles`) — if the Nanny holds empty glass bottles, is in the ward's world and within 32 blocks of the ward, she finds a water source within 8 blocks (`WATER_CAULDRON` or source-level `WATER`), navigates to it, and fills one bottle per tick (`GLASS_BOTTLE` → water `POTION`, decrementing cauldron level). **Toilet cauldrons are skipped** — identified by an `IRON_TRAPDOOR` directly above. `doHydrate` prefers a water bottle over a melon slice and returns the empty bottle to her inventory, closing the loop. Ungated by follow/seek — she's walking to *water*, not the ward.
+- **Crib placement** — `doPlaceInCrib` now uses `CribRegistry.findNearestCrib` (new display-entity cribs first, legacy `"Crib"`-named ArmorStands as fallback). New cribs require a vanilla bed (`crib.hasBed()`) and use soft containment (`CribContainmentTask` + `PlayerStats.setContainedInCribId`); legacy cribs use `addPassenger`. Kill-switch: `Crib_New_System=false` forces the legacy-only path. See `docs/superpowers/specs/2026-05-03-crib-redesign-design.md`.
+
+### Follow & seek — current behavior
+
+- **Follow mode** (`NannyData.followMode`): `NannyManager.setFollowMode` tops up supplies via `prepareFollowSupplies`, then `NannyNavigator.setFollowTarget(ward)` (Citizens entity-follow, 2.5-block distance margin). Re-engaged on owner join and on `PlayerChangedWorldEvent`. `NannyCareEngine.checkFollowBoundary` auto-disables follow if the owner strays past `homeRadius × 2` from home — she navigates home and speaks `arrived_home`.
+- **Seek mode** (`NannyData.seekEnabled`, default true, COMPASS toggle in the Behavior tab): on join, if seek is on and the player is > 10 blocks away or in another world, `NannyNavigator.seekTo` is issued (cross-world teleports the Nanny first). `checkSeekArrival` speaks `found_ward` within 3 blocks and clears the seek flag.
+- **`tryApproachWard` gating**: when a ward needs care and the Nanny is out of action range, she only walks to them if `seekEnabled` is true and `followMode` is false. **If both follow and seek are off, she stays put — the ward must come within the 3-block action range.** Cross-world is never approached from the tick loop; `PlayerChangedWorldEvent` brings her over.
+
+---
+
+## Pending work
+
+- **Autonomous washer use** — spec `docs/superpowers/specs/2026-05-14-nanny-washer-design.md` (draft, **not yet implemented**). Would teach the Nanny to carry soiled cloth pants (`626015–626018`) to a player-placed washer, load it, top up coal fuel, and retrieve washed pants (`626022–626033`) — mirroring the existing `DiaperPail.deposit` flow for disposable diapers. Adds `NannyCareEngine.tryDoLaundry`, `NannyInventoryManager.isSoiledPants`, a `WasherRegistry`, and `LAUNDRY_STARTED` / `LAUNDRY_RETRIEVED` event types.
