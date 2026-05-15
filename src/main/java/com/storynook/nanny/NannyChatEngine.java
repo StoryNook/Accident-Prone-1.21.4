@@ -689,7 +689,15 @@ public class NannyChatEngine implements Listener {
         sb.append("Do not narrate or repeat back what they said. Do not break character. ");
         sb.append("You do not perform actions in your reply — the plugin handles care, ");
         sb.append("crafting, and inventory automatically. Speak only about what you would ");
-        sb.append("say, not what you do.");
+        sb.append("say, not what you do.\n\n");
+        sb.append("CRUCIAL: do NOT use phrases that imply an action is happening right ");
+        sb.append("now unless the little explicitly asked for that action. Banned: ");
+        sb.append("\"down the hatch\", \"eat up\", \"open wide\", \"here you go\", ");
+        sb.append("\"hold still\", \"this'll just take a moment\", \"there you go\", ");
+        sb.append("\"in you go\". The little reads these as a promise that an action is ");
+        sb.append("about to happen and gets confused when nothing follows. If you would ");
+        sb.append("normally say such a phrase, just describe how you feel about the ");
+        sb.append("situation instead.");
 
         // --- Voice exemplars ---
         int sampleCount = configInt("Nanny_Chat_AI_Voice_Sample_Count", 6);
