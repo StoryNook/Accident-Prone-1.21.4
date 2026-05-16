@@ -580,15 +580,50 @@ public class NannyChatEngine implements Listener {
      * of the Nanny. {@code primary} (if non-null and not already in the set) is
      * always included — used for chat responses to a specific speaker who may be
      * a non-ward visitor. Other nearby players see nothing.
+     *
+     * <p>Routes through VentureChat when present ({@link #ventureChatBroadcast});
+     * falls back to {@link #directBroadcast} on any exception or when VC declines
+     * (channel missing / not distance-bounded).
      */
     private void broadcast(NannyEntity nanny, NannyData data, String line, Player primary) {
         if (line == null || line.isEmpty()) return;
         Location here = nanny.getLocation();
         if (here == null || here.getWorld() == null) return;
-        int radius = configInt("Nanny_Chat_Local_Radius", 30);
-        double r2 = (double) radius * radius;
         String formatted = ChatColor.LIGHT_PURPLE + "[" + data.getName() + "] "
                 + ChatColor.WHITE + line;
+
+        boolean delivered = false;
+        if (plugin.VentureChat) {
+            try {
+                delivered = ventureChatBroadcast(nanny, data, formatted, primary, here);
+            } catch (Throwable t) {
+                plugin.getLogger().warning("[NannyChat] VentureChat broadcast failed ("
+                        + t.getClass().getSimpleName() + ": " + t.getMessage()
+                        + ") — falling back to direct send.");
+                delivered = false;
+            }
+        }
+        if (!delivered) {
+            directBroadcast(data, formatted, primary, here);
+        }
+
+        NannyEventLog log = manager.getEventLog(data.getNannyUUID());
+        if (log != null) {
+            log.log(NannyEventLog.NannyEventType.NANNY_CHAT, null, truncate(line, 80));
+        }
+        nextAmbientFireAt.put(data.getNannyUUID(),
+                System.currentTimeMillis() + randomAmbientDelay());
+    }
+
+    /**
+     * Today's recipient-set routing — owner + wards in range, plus the primary
+     * speaker. Used directly when VentureChat is absent, and as the fallback
+     * when {@link #ventureChatBroadcast} declines to deliver (channel missing,
+     * not distance-bounded, API exception).
+     */
+    private void directBroadcast(NannyData data, String formatted, Player primary, Location here) {
+        int radius = configInt("Nanny_Chat_Local_Radius", 30);
+        double r2 = (double) radius * radius;
 
         java.util.Set<UUID> recipients = new java.util.HashSet<>();
         if (data.getOwnerUUID() != null) recipients.add(data.getOwnerUUID());
@@ -598,18 +633,28 @@ public class NannyChatEngine implements Listener {
         for (UUID rid : recipients) {
             Player rp = Bukkit.getPlayer(rid);
             if (rp == null || !rp.isOnline()) continue;
-            // Skip wards / owners who are too far away — keeps the local-radius semantic.
             if (rp != primary && (rp.getWorld() != here.getWorld()
                     || rp.getLocation().distanceSquared(here) > r2)) continue;
             rp.sendMessage(formatted);
         }
+    }
 
-        NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-        if (log != null) {
-            log.log(NannyEventLog.NannyEventType.NANNY_CHAT, null, truncate(line, 80));
-        }
-        nextAmbientFireAt.put(data.getNannyUUID(),
-                System.currentTimeMillis() + randomAmbientDelay());
+    /**
+     * VentureChat routing — broadcasts to every player listening to the
+     * configured local channel within VC's configured channel distance,
+     * plus the {@code primary} speaker directly (they may be tuned to a
+     * different channel; they were addressed, so they should see it).
+     *
+     * <p>Returns {@code true} on successful delivery (so the caller skips
+     * the direct path), {@code false} when the named channel doesn't exist
+     * or isn't distance-bounded — both indicate a misconfigured admin, and
+     * we'd rather fall back than broadcast server-wide.
+     *
+     * <p>Stub for now — Task 5 implements the body.
+     */
+    private boolean ventureChatBroadcast(NannyEntity nanny, NannyData data,
+                                         String formatted, Player primary, Location here) {
+        return false;
     }
 
     private long randomAmbientDelay() {
