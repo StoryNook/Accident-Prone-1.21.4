@@ -473,4 +473,42 @@ public class NannyTaskArbiterTest {
         }
         @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
     }
+
+    // ---------------------------------------------------------------
+    // Phase E — arbiter owns nav (withinActionRange, navigateToActiveTarget)
+    // ---------------------------------------------------------------
+
+    @Test
+    public void withinActionRange_noActiveTask_returnsFalse() {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        assertFalse(arbiter.withinActionRange(null));
+    }
+
+    @Test
+    public void withinActionRange_targetlessActiveTask_returnsTrue() {
+        // Targetless tasks (e.g. inventory-routing) act immediately regardless of nanny location.
+        PlayerMock ward = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        arbiter.register(new FixedPriorityTask("targetless", 50));  // FixedPriorityTask targets null
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("targetless", arbiter.activeTaskId());
+        // Even with nanny=null, targetless task is in range.
+        assertTrue(arbiter.withinActionRange(null));
+    }
+
+    @Test
+    public void navigateToActiveTarget_noNavigator_isNoOp() {
+        // The arbiter without a navigator (e.g. early in NannyManager wiring) must
+        // tolerate the call without throwing. Just verifies the null-guard.
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        // No setNavigator call → navigator field is null.
+        arbiter.navigateToActiveTarget();  // should not throw
+    }
+
+    @Test
+    public void navigateToActiveTarget_noActiveTask_isNoOp() {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        arbiter.navigateToActiveTarget();  // activeTask null → no-op, no NPE
+    }
 }

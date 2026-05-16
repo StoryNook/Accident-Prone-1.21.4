@@ -20,9 +20,51 @@ public class NannyTaskArbiter {
 
     private final List<NannyTask> registered = new ArrayList<>();
     private final List<TransientTask> transients = new ArrayList<>();
+    private NannyNavigator navigator;
 
     public void register(NannyTask task) {
         registered.add(task);
+    }
+
+    /**
+     * Inject the per-Nanny navigator. Set once per Nanny when its arbiter is wired —
+     * NannyManager creates the navigator after the NPC entity exists, so the
+     * constructor-injection alternative would order this badly.
+     */
+    public void setNavigator(NannyNavigator nav) {
+        this.navigator = nav;
+    }
+
+    /**
+     * True iff Nanny is in the same world as activeTask.target AND within the
+     * task's actionRangeBlocks. Targetless tasks (e.g. RecycleCursedPantsTask)
+     * are always "in range" — they act immediately. Returns false when no
+     * activeTask is set.
+     */
+    public boolean withinActionRange(NannyEntity nanny) {
+        if (activeTask == null) return false;
+        Location target = activeTask.target();
+        if (target == null) return true;
+        Location here = nanny == null ? null : nanny.getLocation();
+        if (here == null) return false;
+        if (here.getWorld() == null || target.getWorld() == null) return false;
+        if (!here.getWorld().equals(target.getWorld())) return false;
+        double range = activeTask.task().actionRangeBlocks();
+        return here.distanceSquared(target) <= range * range;
+    }
+
+    /**
+     * Issue navigation toward the active task's target. No-op when activeTask is
+     * null, has no target, or the navigator has not been wired. Uses the existing
+     * isNavigatingToward no-thrash guard so re-issuing every tick is safe.
+     */
+    public void navigateToActiveTarget() {
+        if (activeTask == null) return;
+        if (activeTask.target() == null) return;
+        if (navigator == null) return;
+        if (!navigator.isNavigatingToward(activeTask.target(), 3.0)) {
+            navigator.navigateTo(activeTask.target());
+        }
     }
 
     public void injectReactive(NannyTask task, int ttlTicks) {

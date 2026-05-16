@@ -168,25 +168,28 @@ public class NannyCareEngine {
         PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
         if (stats == null) return;
 
-        // Build candidates across all registered tasks. Currently: change, equip,
-        // feed, hydrate. Phase C / D add refill, deposit, crib, discipline,
-        // reactive-discipline. Any registered task winning means we dispatch
-        // through the arbiter — no per-task whitelist needed.
+        // Bind the per-Nanny navigator to the arbiter (idempotent — set every
+        // tick because the navigator can be re-created if the Nanny is despawned
+        // and respawned). The arbiter is the only caller of navigator.navigateTo
+        // for task-driven nav; lifecycle nav (checkHomeEnforcement,
+        // checkFollowBoundary) still calls the navigator directly but gates on
+        // arbiter.isIdle().
+        arbiter.setNavigator(manager.getNavigator(data.getNannyUUID()));
+
+        // Build candidates across all registered tasks. Any registered task winning
+        // means we dispatch through the arbiter — no per-task whitelist needed.
         java.util.List<NannyTaskArbiter.ScoredCandidate> sorted =
                 arbiter.buildAndSortCandidatesAt(entity.getLocation(), entity, data, java.util.List.of(ward));
-        if (!sorted.isEmpty()) {
-            arbiter.applyLatch(sorted);
-            NannyTaskArbiter.ActiveTaskRef active = arbiter.getActiveTask();
-            if (active != null) {
-                if (isWithinActionRange(entity, ward)) {
-                    Result r = active.task().act(entity, data, ward);
-                    arbiter.applyActResult(r);
-                } else {
-                    tryApproachWard(entity, data, ward);
-                }
+        arbiter.applyLatch(sorted);
+
+        NannyTaskArbiter.ActiveTaskRef active = arbiter.getActiveTask();
+        if (active != null) {
+            if (arbiter.withinActionRange(entity)) {
+                Result r = active.task().act(entity, data, ward);
+                arbiter.applyActResult(r);
+            } else {
+                arbiter.navigateToActiveTarget();
             }
-            arbiter.tickTransientTTL();
-            return;
         }
         arbiter.tickTransientTTL();
 
@@ -757,31 +760,13 @@ public class NannyCareEngine {
 
 
     /**
-     * Ward-approach gate. When the Nanny needs to move toward a ward (for care,
-     * discipline, or crib placement), this is the single check site that
-     * decides if she's allowed to. Semantics:
-     *
-     * <ul>
-     *   <li>Cross-world: never approach. PlayerChangedWorldEvent brings her over.</li>
-     *   <li>{@code followMode == true}: Citizens entity-follow handles approach.
-     *       Don't issue a competing fixed-target nav.</li>
-     *   <li>{@code seekEnabled == true}: issue navigateTo to her current location.</li>
-     *   <li>both off: she stays put — ward must come within action range.</li>
-     * </ul>
-     */
-    private void tryApproachWard(NannyEntity entity, NannyData data, Player ward) {
-        Location here = entity.getLocation();
-        if (here != null && !here.getWorld().equals(ward.getWorld())) return;
-        NannyNavigator navigator = manager.getNavigator(data.getNannyUUID());
-        if (navigator == null) return;
-        if (data.isFollowMode()) return;
-        if (!data.isSeekEnabled()) return;
-        navigator.navigateTo(ward.getLocation());
-    }
-
-    /**
      * Returns true if the Nanny is within 3 blocks of the ward (close enough
      * to act without moving). Returns true when Citizens2 is absent.
+     *
+     * <p>Kept for reaction-side-effect handlers (triggerPunishmentOverdose,
+     * tryReactiveScans helpers) that need a "is the Nanny here?" check without
+     * going through the arbiter. Task-driven range checks should use
+     * {@link NannyTaskArbiter#withinActionRange(NannyEntity)} instead.
      */
     private boolean isWithinActionRange(NannyEntity entity, Player ward) {
         if (!plugin.citizensEnabled) return true;
