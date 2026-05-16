@@ -360,22 +360,41 @@ public class NannyChatEngine implements Listener {
                     // <SKIP> sentinel — the model decides not to reply. Per system
                     // prompt, model returns only "<SKIP>" (case-insensitive, optional
                     // whitespace) when the message doesn't warrant a response.
-                    if (aiText != null && aiText.trim().equalsIgnoreCase("<SKIP>")) {
-                        plugin.getLogger().info("[NannyChat] model returned <SKIP> — staying quiet");
-                        return;
-                    }
-
-                    // Parse tags BEFORE broadcasting. Tags are stripped from visible text.
+                    // Parse tags FIRST so SCORE/PUNISH/REWARD always apply, even when the
+                    // visible reply is <SKIP>. The AI can score a message without engaging in chat.
                     ParseResult parsed = parseTagsForTest(aiText);
                     String cleanedText = parsed.cleanedText;
                     DisciplineDispatcher dispatcher = manager.getDisciplineDispatcher();
+                    BehaviorScoreboard sb = manager.getBehaviorScoreboard();
                     for (ParsedTag tag : parsed.tags) {
-                        if ("PUNISH".equals(tag.type) || "REWARD".equals(tag.type)) {
+                        if ("SCORE".equals(tag.type)) {
+                            if (sb == null) continue;
+                            try {
+                                int delta = Integer.parseInt(tag.action);
+                                if (delta > 15) delta = 15;
+                                if (delta < -15) delta = -15;
+                                int before = sb.getScore(data, speaker.getUniqueId());
+                                sb.record(data, speaker.getUniqueId(), "ai_judgment", delta);
+                                int after = sb.getScore(data, speaker.getUniqueId());
+                                plugin.getLogger().info("[Discipline] AI score tag " + delta
+                                        + " on " + speaker.getName() + ": " + before + " -> " + after);
+                            } catch (NumberFormatException nfe) {
+                                plugin.getLogger().info("[Discipline] bad SCORE tag: " + tag.action);
+                            }
+                        } else if ("PUNISH".equals(tag.type) || "REWARD".equals(tag.type)) {
                             if (dispatcher != null) {
                                 Integer dur = tag.duration;
                                 dispatcher.enactFromTag(data, speaker, tag.action, dur);
                             }
                         }
+                    }
+
+                    // After applying tags, check for SKIP semantics — either explicit "<SKIP>"
+                    // or an entirely tag-only reply with no visible prose left.
+                    String trimmed = cleanedText == null ? "" : cleanedText.trim();
+                    if (trimmed.isEmpty() || trimmed.equalsIgnoreCase("<SKIP>")) {
+                        plugin.getLogger().info("[NannyChat] SKIP'd (tags applied: " + parsed.tags.size() + ")");
+                        return;
                     }
 
                     String resolved;
@@ -900,18 +919,35 @@ public class NannyChatEngine implements Listener {
     }
 
     private String tagInstructions() {
-        return "\n\nTo deploy a punishment or reward, append ONE tag at the end of your reply,\n"
-             + "on its own line, surrounded by < >. The tag is parsed and stripped before\n"
-             + "the player sees the message.\n\n"
-             + "Tags currently available:\n"
+        return "\n\n=== TAG SYSTEM (REQUIRED) ===\n"
+             + "EVERY reply you produce — INCLUDING <SKIP> replies — MUST begin with a SCORE\n"
+             + "tag on its own line. The tag is parsed and stripped before the player sees\n"
+             + "the message. This is non-negotiable; the system uses your SCORE judgment to\n"
+             + "track the player's trust over time.\n\n"
+             + "Required SCORE scale (signed integer, -15 to +15, clamped):\n"
+             + "  <SCORE:+0>                  - genuinely neutral, no behavior signal\n"
+             + "  <SCORE:-3>                  - mildly rude or dismissive\n"
+             + "  <SCORE:-5>                  - moderately naughty (refusing care, sass)\n"
+             + "  <SCORE:-10>                 - clearly naughty (insult, hostility, defiance)\n"
+             + "  <SCORE:-15>                 - egregious (slur, threat, deep cruelty)\n"
+             + "  <SCORE:+2>                  - mildly nice (cooperative, polite request)\n"
+             + "  <SCORE:+3>                  - nice (sincere thanks, kind words)\n"
+             + "  <SCORE:+8>                  - very nice (affectionate, helpful)\n\n"
+             + "Sycophancy guard: when you see the player at a deeply naughty score and they\n"
+             + "suddenly turn sweet, that is suspicious — score it +0 or +1, not +5.\n\n"
+             + "Optional discipline tags (use SPARINGLY, only when warranted by accumulated score):\n"
              + "  <PUNISH:laxative>           - force-feed a laxative\n"
              + "  <PUNISH:leash>              - leash to your hand\n"
              + "  <PUNISH:binding>            - equip a binding-cursed diaper\n"
              + "  <PUNISH:hypno>              - speak a hypno trigger word\n"
              + "  <PUNISH:diaper:Nd>          - diaper-punishment for N Minecraft days (1-30)\n"
              + "  <REWARD:praise>             - suppress your next queued punishment for 5 minutes\n\n"
-             + "Use tags sparingly. Don't tag for trivial misbehavior. Most replies are\n"
-             + "just chat, no tag. A tag is the moment of consequence, not the threat.";
+             + "Examples of properly tagged replies:\n"
+             + "  '<SCORE:-3> Watch your tone.'\n"
+             + "  '<SCORE:+3> Good little one.'\n"
+             + "  '<SCORE:+0> <SKIP>'  (no engagement, no behavior signal)\n"
+             + "  '<SCORE:-10> Enough. <PUNISH:laxative>'\n"
+             + "Never reply WITHOUT a SCORE tag.";
     }
 
     private boolean isSoiledDiaperIcon(org.bukkit.inventory.ItemStack stack) {
@@ -1155,10 +1191,10 @@ public class NannyChatEngine implements Listener {
     // AI tag parsing — ParsedTag, ParseResult, parseTagsForTest
     // -------------------------------------------------------------------
 
-    /** A single structured tag extracted from an AI reply (e.g. {@code <PUNISH:laxative>}). */
+    /** A single structured tag extracted from an AI reply (e.g. {@code <PUNISH:laxative>}, {@code <SCORE:-5>}). */
     public static class ParsedTag {
-        public final String type;     // PUNISH or REWARD
-        public final String action;   // laxative, leash, binding, hypno, diaper, praise
+        public final String type;     // PUNISH, REWARD, or SCORE
+        public final String action;   // laxative/leash/binding/hypno/diaper/praise OR signed integer for SCORE
         public final Integer duration; // null unless tag was <PUNISH:diaper:Nd>
         public ParsedTag(String type, String action, Integer duration) {
             this.type = type;
@@ -1178,11 +1214,12 @@ public class NannyChatEngine implements Listener {
     }
 
     /**
-     * Regex: {@code <(PUNISH|REWARD):([a-z_]+)(?::(\d+)d)?>}
-     * Group 1 = type, group 2 = action, group 3 = duration digits (null if absent).
+     * Regex: {@code <(PUNISH|REWARD|SCORE):(-?\d+|[a-z_]+)(?::(\d+)d)?>}
+     * Group 1 = type (PUNISH/REWARD/SCORE), group 2 = action (named action for PUNISH/REWARD,
+     * signed integer for SCORE), group 3 = duration digits (only for {@code <PUNISH:diaper:Nd>}).
      */
     private static final java.util.regex.Pattern TAG_PATTERN =
-            java.util.regex.Pattern.compile("<(PUNISH|REWARD):([a-z_]+)(?::(\\d+)d)?>");
+            java.util.regex.Pattern.compile("<(PUNISH|REWARD|SCORE):(-?\\d+|[a-z_]+)(?::(\\d+)d)?>");
 
     /**
      * Parses {@code <PUNISH:...>} / {@code <REWARD:...>} tags out of an AI reply.

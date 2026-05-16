@@ -87,24 +87,75 @@ public class BehaviorSignals implements Listener {
     // Punch detection
     // -------------------------------------------------------------------------
 
+    /**
+     * Primary punch path — Citizens swallows {@code EntityDamageByEntityEvent} and
+     * {@code NPCLeftClickEvent} for protected Player NPCs (the Nanny is one), so we
+     * detect punches via the arm-swing animation + a 4-block ray-cast for the target.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerAnimation(org.bukkit.event.player.PlayerAnimationEvent event) {
+        try {
+            if (!Boolean.TRUE.equals(plugin.getGlobalConfig().get("Nanny_Behavior_enabled"))) return;
+            if (!plugin.citizensEnabled) return;
+            if (event.getAnimationType() != org.bukkit.event.player.PlayerAnimationType.ARM_SWING) return;
+            Player p = event.getPlayer();
+            org.bukkit.util.RayTraceResult rtr = p.getWorld().rayTraceEntities(
+                    p.getEyeLocation(), p.getEyeLocation().getDirection(), 4.0,
+                    e -> e != null && !e.equals(p) && e instanceof org.bukkit.entity.LivingEntity);
+            org.bukkit.entity.Entity target = rtr == null ? null : rtr.getHitEntity();
+            if (target == null || !CitizensAPI.getNPCRegistry().isNPC(target)) return;
+            applyPunchScore(p, target, "swing");
+        } catch (Throwable t) {
+            plugin.getLogger().warning("[BehaviorSignals] onPlayerAnimation error: "
+                    + t.getClass().getSimpleName() + ": " + t.getMessage());
+        }
+    }
+
+    /** Fallback path for non-protected NPCs (other plugins' Citizens NPCs we might hit). */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!Boolean.TRUE.equals(plugin.getGlobalConfig().get("Nanny_Behavior_enabled"))) return;
         if (!(event.getDamager() instanceof Player)) return;
         if (!plugin.citizensEnabled) return;
         if (!CitizensAPI.getNPCRegistry().isNPC(event.getEntity())) return;
+        applyPunchScore((Player) event.getDamager(), event.getEntity(), "damage");
+    }
 
-        Player puncher = (Player) event.getDamager();
+    private void applyPunchScore(Player puncher, org.bukkit.entity.Entity npcEntity, String via) {
         for (NannyEntity nanny : nannyManager.getActiveNannies().values()) {
-            if (!event.getEntity().equals(nanny.getNpcEntity())) continue;
+            if (!npcEntity.equals(nanny.getNpcEntity())) continue;
             NannyData data = nanny.getData();
+            int before = scoreboard.getScore(data, puncher.getUniqueId());
             scoreboard.record(data, puncher.getUniqueId(), "nanny_assaulted", -15);
+            int after = scoreboard.getScore(data, puncher.getUniqueId());
+            plugin.getLogger().info("[BehaviorSignals] punch (" + via + ") -> score "
+                    + before + " -> " + after + " on " + data.getName() + " by " + puncher.getName());
             plugin.getIntegrationsBus().fire(puncher, ActionId.NANNY_ASSAULTED, puncher,
                     java.util.Map.of("nanny", data.getNannyUUID().toString()));
-            // Cosmetic hurt anim
+            // Visual + audio feedback. Player NPCs ignore EntityEffect.HURT — Paper's
+            // playHurtAnimation sends the proper packet for any entity including players,
+            // but is not in spigot-api so we call it reflectively.
             try {
-                org.bukkit.entity.Entity npcEntity = nanny.getNpcEntity();
-                if (npcEntity != null) npcEntity.playEffect(org.bukkit.EntityEffect.HURT);
+                org.bukkit.Location loc = npcEntity.getLocation();
+                if (loc.getWorld() != null) {
+                    loc.getWorld().playSound(loc, org.bukkit.Sound.ENTITY_PLAYER_HURT, 1.0f, 1.0f);
+                    loc.getWorld().spawnParticle(org.bukkit.Particle.DAMAGE_INDICATOR,
+                            loc.clone().add(0, 1, 0), 5, 0.2, 0.4, 0.2, 0.0);
+                }
+                // Knockback — away from puncher, slight upward pop.
+                org.bukkit.util.Vector away = npcEntity.getLocation().toVector()
+                        .subtract(puncher.getLocation().toVector());
+                if (away.lengthSquared() > 0.0001) {
+                    away.normalize().multiply(0.5).setY(0.25);
+                    npcEntity.setVelocity(away);
+                }
+                try {
+                    float yaw = puncher.getLocation().getYaw();
+                    java.lang.reflect.Method m = npcEntity.getClass().getMethod("playHurtAnimation", float.class);
+                    m.invoke(npcEntity, yaw);
+                } catch (NoSuchMethodException nsm) {
+                    // Spigot fallback — no hurt-anim packet API. Sound+particle still fire.
+                }
             } catch (Throwable ignored) {}
             return;
         }
@@ -114,7 +165,9 @@ public class BehaviorSignals implements Listener {
     // Chat sentiment
     // -------------------------------------------------------------------------
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    // No ignoreCancelled — VentureChat cancels AsyncPlayerChatEvent and reposts
+    // its own VentureChatEvent; we still want to score the speaker's words.
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         if (!Boolean.TRUE.equals(plugin.getGlobalConfig().get("Nanny_Behavior_enabled"))) return;
         Player speaker = event.getPlayer();
@@ -138,12 +191,20 @@ public class BehaviorSignals implements Listener {
             if (here.distanceSquared(speaker.getLocation()) > (double) radius * radius) continue;
             NannyData data = nanny.getData();
             if (naughty && checkThrottle(speaker.getUniqueId(), "naughty", NAUGHTY_THROTTLE_MS)) {
+                int before = scoreboard.getScore(data, speaker.getUniqueId());
                 scoreboard.record(data, speaker.getUniqueId(), "chat_naughty", -3);
+                int after = scoreboard.getScore(data, speaker.getUniqueId());
+                plugin.getLogger().info("[BehaviorSignals] chat naughty -> score "
+                        + before + " -> " + after + " on " + data.getName() + " by " + speaker.getName());
                 plugin.getIntegrationsBus().fire(speaker, ActionId.BEHAVIOR_NAUGHTY, speaker,
                         java.util.Map.of("delta", -3));
             }
             if (nice && checkThrottle(speaker.getUniqueId(), "nice", NICE_THROTTLE_MS)) {
+                int before = scoreboard.getScore(data, speaker.getUniqueId());
                 scoreboard.record(data, speaker.getUniqueId(), "chat_nice", +2);
+                int after = scoreboard.getScore(data, speaker.getUniqueId());
+                plugin.getLogger().info("[BehaviorSignals] chat nice -> score "
+                        + before + " -> " + after + " on " + data.getName() + " by " + speaker.getName());
                 plugin.getIntegrationsBus().fire(speaker, ActionId.BEHAVIOR_NICE, speaker,
                         java.util.Map.of("delta", 2));
             }

@@ -31,6 +31,16 @@ public class BehaviorScoreboard {
 
     public static final long STREAK_HALF_LIFE_MS = 60_000L;
 
+    /**
+     * Score-toward-zero drift cadence. The score moves 1 toward 0 every
+     * SCORE_DRIFT_INTERVAL_MS of real time, lazily on access. Default 20 minutes
+     * = one Minecraft day (matches the documented Score_Decay_Per_MCDay knob).
+     */
+    public static final long SCORE_DRIFT_INTERVAL_MS = 20L * 60_000L;
+
+    /** Per-ward last-drift timestamp. Not persisted — resets to "now" on plugin restart. */
+    private final java.util.Map<UUID, Long> scoreDriftLastTs = new java.util.concurrent.ConcurrentHashMap<>();
+
     private final LongSupplier nowSupplier;
 
     public BehaviorScoreboard(LongSupplier nowSupplier) {
@@ -52,6 +62,7 @@ public class BehaviorScoreboard {
      */
     public void record(NannyData data, UUID ward, String signal, int rawDelta) {
         applyStreakDecay(data, ward);
+        applyScoreDrift(data, ward);
         int score = data.getBehaviorScore().getOrDefault(ward, 0);
         int streak = data.getBehaviorStreak().getOrDefault(ward, 0);
 
@@ -84,12 +95,41 @@ public class BehaviorScoreboard {
 
     public int getScore(NannyData data, UUID ward) {
         applyStreakDecay(data, ward);
+        applyScoreDrift(data, ward);
         return data.getBehaviorScore().getOrDefault(ward, 0);
     }
 
     public int getStreak(NannyData data, UUID ward) {
         applyStreakDecay(data, ward);
         return data.getBehaviorStreak().getOrDefault(ward, 0);
+    }
+
+    /**
+     * Drift the per-ward score 1 step toward 0 for every elapsed
+     * {@link #SCORE_DRIFT_INTERVAL_MS} of real time since the last drift tick.
+     * No-op when the score is already 0. Lazy on access; idempotent under no
+     * elapsed time.
+     */
+    private void applyScoreDrift(NannyData data, UUID ward) {
+        long now = nowSupplier.getAsLong();
+        Long last = scoreDriftLastTs.get(ward);
+        if (last == null) {
+            scoreDriftLastTs.put(ward, now);
+            return;
+        }
+        long elapsed = now - last;
+        if (elapsed < SCORE_DRIFT_INTERVAL_MS) return;
+
+        int ticks = (int) (elapsed / SCORE_DRIFT_INTERVAL_MS);
+        int score = data.getBehaviorScore().getOrDefault(ward, 0);
+        int sign = Integer.signum(score);
+        int magnitude = Math.abs(score);
+        int newMagnitude = Math.max(0, magnitude - ticks);
+        int newScore = sign * newMagnitude;
+        if (newScore != score) {
+            data.getBehaviorScore().put(ward, newScore);
+        }
+        scoreDriftLastTs.put(ward, last + (long) ticks * SCORE_DRIFT_INTERVAL_MS);
     }
 
     /**
