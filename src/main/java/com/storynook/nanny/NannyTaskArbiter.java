@@ -5,6 +5,7 @@ import com.storynook.nanny.tasks.NannyTask;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import org.bukkit.entity.Player;
 
 /**
@@ -54,7 +55,13 @@ public class NannyTaskArbiter {
                 if (c != null) out.add(new ScoredCandidate(task, c));
             }
         }
-        out.sort(Comparator.comparingInt(ScoredCandidate::priority).reversed());
+        UUID ownerUUID = data == null ? null : data.getOwnerUUID();
+        out.sort(Comparator
+                .comparingInt(ScoredCandidate::priority).reversed()
+                .thenComparing((ScoredCandidate sc) -> {
+                    if (ownerUUID == null || sc.ward() == null) return 1;
+                    return sc.ward().getUniqueId().equals(ownerUUID) ? 0 : 1;
+                }));
         return out;
     }
 }
