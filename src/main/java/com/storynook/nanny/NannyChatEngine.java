@@ -751,8 +751,17 @@ public class NannyChatEngine implements Listener {
         NannyData.MoodTier voiceTier = (mood == NannyData.MoodTier.CUSTOM)
                 ? data.getCustomTone() : mood;
         String moodLabel = voiceTier.name().toLowerCase();
-        String wardName = (ward == null || ward.getDisplayName() == null)
-                ? "little one" : ward.getDisplayName();
+        SpeakerRelationship speakerRel = (data == null || ward == null)
+                ? SpeakerRelationship.VISITOR
+                : data.relationshipOf(ward.getUniqueId());
+        String speakerName = (ward == null || ward.getDisplayName() == null)
+                ? "someone" : ward.getDisplayName();
+        // Kept for backward-compat with the existing prompt string that still
+        // references "your little is named X". For VISITOR / OWNER we still
+        // want a sensible name in that slot so the model has a handle on who
+        // it's talking to; the relationship block below tells it how to treat
+        // them.
+        String wardName = speakerName;
 
         StringBuilder sb = new StringBuilder();
         // Hard rules first — these take priority over character.
@@ -791,6 +800,31 @@ public class NannyChatEngine implements Listener {
         sb.append("You do not perform actions in your reply — the plugin handles care, ");
         sb.append("crafting, and inventory automatically. Speak only about what you would ");
         sb.append("say, not what you do.\n\n");
+        // Relationship-aware addressing. The Nanny now hears chat from anyone
+        // within local-channel range, not just owner+wards. Tell the model who
+        // it is talking to so it picks the right register.
+        sb.append("\nThe current speaker is: ").append(speakerName).append(".\n");
+        sb.append("Their relationship to you: ").append(speakerRel.name()).append(".\n");
+        switch (speakerRel) {
+            case LITTLE:
+                sb.append("They are your little. React in character as their caregiver — ");
+                sb.append("discipline, comfort, and behavior tags are all on the table. ");
+                sb.append("Address them by name (\"").append(speakerName).append("\").\n\n");
+                break;
+            case OWNER:
+                sb.append("They are your owner — the human who placed you here. Reply with ");
+                sb.append("respect and a touch more detail; treat their words as instructions ");
+                sb.append("you should consider. Do not apply discipline or behavior tags to them. ");
+                sb.append("Address them by name (\"").append(speakerName).append("\").\n\n");
+                break;
+            case VISITOR:
+            default:
+                sb.append("They are a visitor — not your little, not your owner. Reply briefly ");
+                sb.append("and politely if a reply is warranted at all. Do NOT apply discipline ");
+                sb.append("or behavior tags to them. Address them by name (\"").append(speakerName);
+                sb.append("\"), not as \"little one\" or any caregiver pet-name.\n\n");
+                break;
+        }
         sb.append("CRUCIAL: do NOT use phrases that imply an action is happening right ");
         sb.append("now unless the little explicitly asked for that action. Banned: ");
         sb.append("\"down the hatch\", \"eat up\", \"open wide\", \"here you go\", ");
