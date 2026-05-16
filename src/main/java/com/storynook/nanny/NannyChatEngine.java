@@ -600,7 +600,6 @@ public class NannyChatEngine implements Listener {
                 plugin.getLogger().warning("[NannyChat] VentureChat broadcast failed ("
                         + t.getClass().getSimpleName() + ": " + t.getMessage()
                         + ") — falling back to direct send.");
-                delivered = false;
             }
         }
         if (!delivered) {
