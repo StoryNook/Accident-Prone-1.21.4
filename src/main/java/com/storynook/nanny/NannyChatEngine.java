@@ -37,6 +37,10 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 
+import mineverse.Aust1n46.chat.api.MineverseChatAPI;
+import mineverse.Aust1n46.chat.api.MineverseChatPlayer;
+import mineverse.Aust1n46.chat.channel.ChatChannel;
+
 import com.storynook.Plugin;
 
 /**
@@ -649,11 +653,53 @@ public class NannyChatEngine implements Listener {
      * or isn't distance-bounded — both indicate a misconfigured admin, and
      * we'd rather fall back than broadcast server-wide.
      *
-     * <p>Stub for now — Task 5 implements the body.
+     * <p>Iterates online VentureChat players, filters to those listening on the
+     * configured local channel within the channel's distance radius, and sends
+     * the formatted Nanny line. Falls back (returns {@code false}) when the
+     * channel is missing or is not distance-bounded, to avoid broadcasting
+     * server-wide.
      */
     private boolean ventureChatBroadcast(NannyEntity nanny, NannyData data,
                                          String formatted, Player primary, Location here) {
-        return false;
+        String channelName = configString("Nanny_Chat_VC_Channel_Name", "Local");
+        ChatChannel channel = ChatChannel.getChannel(channelName);
+        if (channel == null) {
+            plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
+                    + "' not found — falling back to direct send. Set Nanny.Chat.VC_Channel_Name "
+                    + "in config.yml to a channel that exists in VentureChat's channels.yml.");
+            return false;
+        }
+        Boolean hasDist = channel.hasDistance();
+        if (hasDist == null || !hasDist) {
+            plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
+                    + "' is not distance-bounded — refusing to broadcast Nanny lines server-wide. "
+                    + "Configure the channel with a distance value or point VC_Channel_Name at a "
+                    + "local channel.");
+            return false;
+        }
+        double dist = channel.getDistance() == null ? 0.0 : channel.getDistance();
+        double d2 = dist * dist;
+
+        java.util.Set<UUID> alreadySent = new java.util.HashSet<>();
+        for (MineverseChatPlayer mcp : MineverseChatAPI.getOnlineMineverseChatPlayers()) {
+            if (mcp == null) continue;
+            Player p = mcp.getPlayer();
+            if (p == null || !p.isOnline()) continue;
+            if (!mcp.isListening(channelName)) continue;
+            if (p.getWorld() != here.getWorld()) continue;
+            if (p.getLocation().distanceSquared(here) > d2) continue;
+            p.sendMessage(formatted);
+            alreadySent.add(p.getUniqueId());
+        }
+
+        // Primary may be tuned to a different channel (they were addressed
+        // directly via /msg-style chat, or just listening to global). Send
+        // anyway — they're the conversational target.
+        if (primary != null && primary.isOnline()
+                && !alreadySent.contains(primary.getUniqueId())) {
+            primary.sendMessage(formatted);
+        }
+        return true;
     }
 
     private long randomAmbientDelay() {
