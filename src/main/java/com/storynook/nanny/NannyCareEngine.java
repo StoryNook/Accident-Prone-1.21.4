@@ -21,6 +21,7 @@ import com.storynook.nanny.tasks.ChangeTask;
 import com.storynook.nanny.tasks.EquipDiaperTask;
 import com.storynook.nanny.tasks.FeedTask;
 import com.storynook.nanny.tasks.HydrateTask;
+import com.storynook.nanny.tasks.RefillBottleTask;
 import com.storynook.nanny.tasks.Result;
 
 /**
@@ -32,10 +33,11 @@ import com.storynook.nanny.tasks.Result;
  * via {@link NannyTaskArbiter}. The four care behaviors (change, equip, feed,
  * hydrate) are registered as task classes under {@code com.storynook.nanny.tasks}.
  *
- * <p>Background tasks ({@code tryRefillBottles}, {@code tryDepositSoiled}) and
- * the no-care branch ({@code doPlaceInCrib}, {@code tryDisciplineActions},
- * {@code tryReactiveScans}, {@code tryOreSpotting}) still live inline in this
- * file — Phases C/D extract them into task classes.
+ * <p>Background task {@code tryDepositSoiled} and the no-care branch
+ * ({@code doPlaceInCrib}, {@code tryDisciplineActions}, {@code tryReactiveScans},
+ * {@code tryOreSpotting}) still live inline in this file. {@code tryRefillBottles}
+ * is dispatched via {@link com.storynook.nanny.tasks.RefillBottleTask}.
+ * Phases C/D extract the remainder into task classes.
  *
  * <p>See spec docs/superpowers/specs/2026-05-16-nanny-task-dispatch-design.md.
  */
@@ -77,6 +79,8 @@ public class NannyCareEngine {
         arbiter.register(new FeedTask(plugin, this));
         this.hydrateTask = new HydrateTask(plugin, this);
         arbiter.register(this.hydrateTask);
+        // Phase C Task 18: background refill is now first-class.
+        arbiter.register(new RefillBottleTask(plugin, this));
     }
 
     // ---------------------------------------------------------------
@@ -157,10 +161,8 @@ public class NannyCareEngine {
         PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
         if (stats == null) return;
 
-        // Background tasks — these run regardless of whether the ward needs care.
-        // Internal guards (range, inventory, threshold) prevent unnecessary work.
-        // Phase C extracts these to RefillBottleTask / DepositSoiledTask.
-        tryRefillBottles(entity, data, ward);
+        // Background task: tryDepositSoiled still inline pending Task 19.
+        // RefillBottleTask is now dispatched through the arbiter at priority 40.
         tryDepositSoiled(entity, data, ward);
 
         // Build candidates across all registered tasks. Currently: change, equip,
@@ -706,100 +708,15 @@ public class NannyCareEngine {
     }
 
     /**
-     * If the Nanny has empty glass bottles and a water source is within reach,
-     * walk to it and fill one bottle per tick. Skips toilet cauldrons (CAULDRON
-     * with an IRON_TRAPDOOR above). Stays within ~32 blocks of the ward so she
-     * doesn't wander off — refill is opportunistic, not a quest.
-     */
-    private void tryRefillBottles(NannyEntity entity, NannyData data, Player ward) {
-        if (inventoryManager.countAvailable(data, NannyInventoryManager::isEmptyGlassBottle) <= 0) return;
-        Location nannyLoc = entity.getLocation();
-        if (nannyLoc == null || !nannyLoc.getWorld().equals(ward.getWorld())) return;
-        if (nannyLoc.distanceSquared(ward.getLocation()) > data.getHomeRadius() * data.getHomeRadius()) return;
-
-        // If she is literally standing IN water right now (any water block, source
-        // or flowing), short-circuit straight to the fill code below using the block
-        // at her feet. Avoids the "source-only scan misses the flowing water she's
-        // already submerged in" problem.
-        org.bukkit.block.Block atFeet = nannyLoc.getBlock();
-        org.bukkit.block.Block water;
-        if (atFeet.getType() == Material.WATER) {
-            water = atFeet;
-            plugin.getLogger().info("[refill] " + data.getName() + " standing in water — direct fill");
-        } else {
-            water = findWaterRefillSource(nannyLoc, 4);
-        }
-        if (water == null) return;
-        int dyToWater = water.getY() - nannyLoc.getBlockY();
-        if (dyToWater < -1 || dyToWater > 1) return;
-
-        double waterDistSq = water.getLocation().add(0.5, 0, 0.5).distanceSquared(nannyLoc);
-        boolean alreadyAtSource = waterDistSq <= 4.0;
-
-        if (!alreadyAtSource) {
-            Location target;
-            if (water.getType() == Material.WATER) {
-                org.bukkit.block.Block adjacent = findAdjacentStandable(water);
-                if (adjacent == null) return;
-                target = adjacent.getLocation().add(0.5, 0, 0.5);
-            } else {
-                target = water.getLocation().add(0.5, 0, 0.5);
-            }
-            if (target.distanceSquared(ward.getLocation()) > data.getHomeRadius() * data.getHomeRadius()) return;
-            NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
-            if (nav == null) return;
-            // Only re-issue when not already pathing toward this water tile.
-            // Avoids the cancel/restart cycle that pins Citizens in re-plan
-            // mode, but still overrides a stale entity-follow target.
-            if (!nav.isNavigatingToward(target, 3.0)) {
-                plugin.getLogger().info("[refill] " + data.getName() + " heading to water at "
-                        + target.getBlockX() + "," + target.getBlockY() + "," + target.getBlockZ());
-                nav.navigateToAllowWater(target);
-            }
-            return;
-        }
-
-        // Within reach — fill one bottle this tick.
-        if (water.getType() == Material.WATER_CAULDRON) {
-            org.bukkit.block.data.BlockData bd = water.getBlockData();
-            if (bd instanceof org.bukkit.block.data.Levelled) {
-                org.bukkit.block.data.Levelled lv = (org.bukkit.block.data.Levelled) bd;
-                if (lv.getLevel() > 1) {
-                    lv.setLevel(lv.getLevel() - 1);
-                    water.setBlockData(lv);
-                } else {
-                    water.setType(Material.CAULDRON);
-                }
-            }
-        }
-        inventoryManager.takeOne(data, NannyInventoryManager::isEmptyGlassBottle);
-        ItemStack waterBottle = new ItemStack(Material.POTION, 1);
-        org.bukkit.inventory.meta.PotionMeta pm = (org.bukkit.inventory.meta.PotionMeta) waterBottle.getItemMeta();
-        if (pm != null) {
-            // 1.20.5+: PotionData is deprecated; setBasePotionType is the replacement.
-            // The old API silently failed to mark the base type on 1.21.4 — bottles
-            // came out as Mundane Potions and isWaterBottle missed them.
-            pm.setBasePotionType(org.bukkit.potion.PotionType.WATER);
-            waterBottle.setItemMeta(pm);
-        }
-        inventoryManager.addToPersonalInventory(data, waterBottle);
-        entity.faceLocation(water.getLocation().add(0.5, 0, 0.5));
-
-        // After filling, re-engage follow-target so she returns to the ward rather
-        // than standing idle at the water source. Only fires if follow mode is on.
-        if (data.isFollowMode()) {
-            NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
-            if (nav != null) nav.setFollowTarget(ward);
-        }
-    }
-
-    /**
      * Finds the nearest fillable water source in a {@code radius}-block box around
      * {@code origin}. Accepts WATER_CAULDRON blocks and source-level WATER blocks.
      * Skips toilet cauldrons — identified by an IRON_TRAPDOOR placed directly above
      * the cauldron block (see Toilet.java for placement).
+     *
+     * <p>Public so {@link com.storynook.nanny.tasks.RefillBottleTask} can call it
+     * during evaluate(). Task 24 (Phase F) reviews whether this can be re-privatised.
      */
-    private org.bukkit.block.Block findWaterRefillSource(Location origin, int radius) {
+    public org.bukkit.block.Block findWaterRefillSource(Location origin, int radius) {
         World w = origin.getWorld();
         if (w == null) return null;
         int cx = origin.getBlockX(), cy = origin.getBlockY(), cz = origin.getBlockZ();
@@ -966,8 +883,11 @@ public class NannyCareEngine {
      * block is air or passable, the block above it is air or passable, and the
      * block below it is solid (so she has somewhere to stand). Returns null when
      * no neighbor satisfies — the source is fully submerged / surrounded by water.
+     *
+     * <p>Public so {@link com.storynook.nanny.tasks.RefillBottleTask} can call it
+     * during evaluate(). Task 24 (Phase F) reviews whether this can be re-privatised.
      */
-    private org.bukkit.block.Block findAdjacentStandable(org.bukkit.block.Block water) {
+    public org.bukkit.block.Block findAdjacentStandable(org.bukkit.block.Block water) {
         org.bukkit.block.BlockFace[] horizontals = {
                 org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH,
                 org.bukkit.block.BlockFace.EAST,  org.bukkit.block.BlockFace.WEST
@@ -985,7 +905,11 @@ public class NannyCareEngine {
         return null;
     }
 
-    private boolean isToiletCauldron(org.bukkit.block.Block b) {
+    /**
+     * Public so {@link com.storynook.nanny.tasks.RefillBottleTask}'s water-scan
+     * filter can call it. Task 24 (Phase F) reviews whether this can be re-privatised.
+     */
+    public boolean isToiletCauldron(org.bukkit.block.Block b) {
         Material type = b.getType();
         if (type != Material.CAULDRON && type != Material.WATER_CAULDRON) return false;
         return b.getRelative(org.bukkit.block.BlockFace.UP).getType() == Material.IRON_TRAPDOOR;
