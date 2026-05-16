@@ -17,6 +17,7 @@ import com.storynook.PlayerStatsManagement.PlayerStats;
 import com.storynook.Event_Listeners.FeedingAction;
 import com.storynook.Commands.EquipArmor;
 import com.storynook.nanny.tasks.ChangeTask;
+import com.storynook.nanny.tasks.CribPlacementTask;
 import com.storynook.nanny.tasks.DepositSoiledTask;
 import com.storynook.nanny.tasks.EquipDiaperTask;
 import com.storynook.nanny.tasks.FeedTask;
@@ -84,6 +85,8 @@ public class NannyCareEngine {
         arbiter.register(new RefillBottleTask(plugin, this));
         // Phase C Task 19: background pail deposit is now first-class.
         arbiter.register(new DepositSoiledTask(plugin, this));
+        // Phase C Task 20: crib placement is now first-class.
+        arbiter.register(new CribPlacementTask(plugin, this));
     }
 
     // ---------------------------------------------------------------
@@ -186,16 +189,9 @@ public class NannyCareEngine {
         }
         arbiter.tickTransientTTL();
 
-        // No care needed → no-care branch: still inline. Phase C/D extract
-        // doPlaceInCrib and tryDisciplineActions into CribPlacementTask /
-        // DisciplineTask. tryReactiveScans / tryOreSpotting stay in the engine.
-        if (ward.getFoodLevel() <= 6 && NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) {
-            if (isWithinActionRange(entity, ward)) {
-                doPlaceInCrib(entity, data, ward);
-            } else {
-                tryApproachWard(entity, data, ward);
-            }
-        }
+        // No care needed → no-care branch. CribPlacementTask now handles
+        // crib placement via the arbiter; tryDisciplineActions stays inline
+        // pending Task 21. tryReactiveScans / tryOreSpotting stay in the engine.
         tryDisciplineActions(entity, data, ward);
         checkSeekArrival(entity, data, ward);
         tryReactiveScans(entity, data, ward);
@@ -205,101 +201,6 @@ public class NannyCareEngine {
     // ---------------------------------------------------------------
     // Action methods
     // ---------------------------------------------------------------
-
-    /**
-     * Phase 5a / Crib Redesign Task 23: places a tired ward in the nearest crib.
-     * Branches on new-system cribs (via CribRegistry) vs. legacy "Crib"-named
-     * ArmorStands. Kill-switch {@code Crib_New_System=false} forces legacy-only path.
-     */
-    private void doPlaceInCrib(NannyEntity entity, NannyData data, Player ward) {
-        if (!NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) return;
-        if (ward.getVehicle() != null) return;
-
-        Location wardLoc = ward.getLocation();
-        if (wardLoc == null || wardLoc.getWorld() == null) return;
-
-        com.storynook.furniture.CribRegistry registry = manager.getPlugin().getCribRegistry();
-        if (registry == null) {
-            // Registry not yet wired (Plugin.onEnable hasn't run Task 26 yet — defensive).
-            // Fall back to legacy scan.
-            legacyCribFallback(data, ward, wardLoc);
-            return;
-        }
-        Object killSwitch = manager.getPlugin().getGlobalConfig().get("Crib_New_System");
-        boolean newSystemEnabled = !(killSwitch instanceof Boolean) || ((Boolean) killSwitch);
-
-        com.storynook.furniture.CribLookupResult lookup =
-            newSystemEnabled
-                ? registry.findNearestCrib(wardLoc, data.getHomeRadius())
-                : findLegacyCribOnly(wardLoc, data.getHomeRadius());
-
-        if (lookup instanceof com.storynook.furniture.CribLookupResult.NewCribResult newRes) {
-            com.storynook.furniture.Crib crib = newRes.crib();
-            if (!crib.hasBed()) return;
-            Location target = crib.bedHeadLocation();
-            if (target == null) return;
-            ward.teleport(target);
-            registry.containWard(ward.getUniqueId(), crib.id());
-            com.storynook.PlayerStatsManagement.PlayerStats wardStats =
-                    manager.getPlugin().getPlayerStats(ward.getUniqueId());
-            if (wardStats != null) wardStats.setContainedInCribId(crib.id());
-
-            NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-            if (log != null) {
-                log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(), "crib_placement_new");
-            }
-            speakPostAction(ward, "tucked_in");
-            return;
-        }
-
-        if (lookup instanceof com.storynook.furniture.CribLookupResult.LegacyCribResult legacyRes) {
-            org.bukkit.entity.ArmorStand armor = legacyRes.armorStand();
-            ward.teleport(armor.getLocation().add(0, 0.5, 0));
-            armor.addPassenger(ward);
-            NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-            if (log != null) {
-                log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(), "crib_placement_legacy");
-            }
-            speakPostAction(ward, "tucked_in");
-            return;
-        }
-        // None — no crib found
-    }
-
-    private com.storynook.furniture.CribLookupResult findLegacyCribOnly(Location origin, double radius) {
-        org.bukkit.entity.ArmorStand best = null;
-        double bestDistSq = radius * radius;
-        for (org.bukkit.entity.Entity e : origin.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
-            if (!(e instanceof org.bukkit.entity.ArmorStand as)) continue;
-            if (as.getCustomName() == null || !"Crib".equals(as.getCustomName())) continue;
-            double d2 = as.getLocation().distanceSquared(origin);
-            if (d2 < bestDistSq) { bestDistSq = d2; best = as; }
-        }
-        return best == null
-            ? com.storynook.furniture.CribLookupResult.None.INSTANCE
-            : new com.storynook.furniture.CribLookupResult.LegacyCribResult(best);
-    }
-
-    private void legacyCribFallback(NannyData data, Player ward, Location wardLoc) {
-        org.bukkit.entity.ArmorStand nearest = null;
-        double bestDistSq = Double.MAX_VALUE;
-        double r = data.getHomeRadius();
-        for (org.bukkit.entity.Entity e : wardLoc.getWorld().getNearbyEntities(wardLoc, r, r, r)) {
-            if (!(e instanceof org.bukkit.entity.ArmorStand)) continue;
-            org.bukkit.entity.ArmorStand as = (org.bukkit.entity.ArmorStand) e;
-            if (as.getCustomName() == null || !"Crib".equals(as.getCustomName())) continue;
-            double d = as.getLocation().distanceSquared(wardLoc);
-            if (d < bestDistSq) { bestDistSq = d; nearest = as; }
-        }
-        if (nearest == null) return;
-        ward.teleport(nearest.getLocation().add(0, 0.5, 0));
-        nearest.addPassenger(ward);
-        NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-        if (log != null) {
-            log.log(NannyEventLog.NannyEventType.PLACED_IN_CRIB, ward.getUniqueId(), "crib_placement");
-        }
-        speakPostAction(ward, "tucked_in");
-    }
 
     private void doForceFeedLaxative(NannyEntity entity, NannyData data, Player ward) {
         if (!NannyPolicy.allows(data, Capability.FORCE_FEED_LAXATIVE)) return;
