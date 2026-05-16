@@ -53,6 +53,18 @@ The largest feature in the plugin. Citizens2-backed NPC caregiver that watches o
 
 ---
 
+## Task dispatch (2026-05-16) — supersedes the implicit cascade
+
+As of [the task-dispatch design](../superpowers/specs/2026-05-16-nanny-task-dispatch-design.md), the Nanny's autonomous behavior loop is driven by `NannyTaskArbiter` + 10 first-class `NannyTask` classes under `src/main/java/com/storynook/nanny/tasks/`: `ChangeTask`, `EquipDiaperTask`, `FeedTask`, `HydrateTask`, `RefillBottleTask`, `DepositSoiledTask`, `CribPlacementTask`, `DisciplineTask`, `ReactiveDisciplineTask`, and the future furniture/laundry tasks reserved for follow-up PRs. The arbiter builds a candidate list across (registered + transient) tasks × wards each tick, sorts by `(priority desc, owner-tie-break, distance asc)`, applies a hybrid latch (incumbent wins ties; only strictly-higher priority preempts; ineligible incumbent falls through), and is the **single** caller of `NannyNavigator.navigateTo` for task-driven nav.
+
+This fixes the long-standing bug where multiple background passes (refill, deposit, approach-ward) all called `setTarget` on the same tick and overwrote each other's paths — leaving the Nanny standing still in re-plan mode. With the arbiter as the only caller, only one nav goal is set per tick.
+
+The legacy `tryApproachWard` / `tryDisciplineActions` / `tryRefillBottles` / `tryDepositSoiled` / `doPlaceInCrib` methods in `NannyCareEngine` are gone; the four `doChange/doEquipDiaper/doFeed/doHydrate` bodies moved into their respective task classes. The `evaluateAndAct` body is now ~25 lines: bind navigator → build candidates → applyLatch → act-or-navigate → tickTransientTTL → side-effects (chat scans). See the spec for the per-task priority table and gating rules.
+
+`ReactiveDisciplineTask` (transient, priority 100 + mood) is injected by `BehaviorSignals.applyPunchScore` whenever a ward punches a Nanny — TTL 3 ticks, mood modifier scales from `SWEET` (-15) through `WARDEN` (+10).
+
+Sections below are kept for historical context; line numbers may not match current code.
+
 ## Phase 3 — Navigation (shipped)
 
 - `NannyNavigator` (in `com.storynook.nanny`) — per-Nanny Citizens2 Navigator wrapper; one instance is created/started in `NannyManager.spawnNanny` and stopped/removed in `despawnNanny`. Exposes `navigateTo(Location)`, `setFollowTarget(Player)` (entity-follow, no fixed target), `seekTo(Player)` (navigate + mark seekingWardUUID + log SEEKING_WARD), `cancelNavigation()`, `isNavigating()`, `getSeekingWardUUID()`, `clearSeekingWard()`. Runs a 10-tick `BukkitTask` that does two things: (1) **stuck-teleport fallback** — if `currentTarget` is set but Citizens2 is no longer navigating (cancelled by `stationaryTicks(600)` or arrival) AND the NPC is > 3 blocks from target, teleport to target and log STUCK_TELEPORT; (2) **door/lever scan** — 2-block radius around the NPC for `Material.OAK_DOOR`/`SPRUCE_DOOR`/`BIRCH_DOOR`/`JUNGLE_DOOR`/`ACACIA_DOOR`/`DARK_OAK_DOOR`/`CRIMSON_DOOR`/`WARPED_DOOR`/`IRON_DOOR` and `LEVER`. Doors → `Openable.setOpen(true)`, auto-close after 60 ticks. Levers → toggle `Powerable.setPowered`, auto-restore after 60 ticks. Iron door without an adjacent lever → wait 100 ticks then teleport past `currentTarget`. `pendingRestore` set keys (`world,x,y,z`) prevent double-toggling. All Citizens2 calls behind `plugin.citizensEnabled`; `navigateTo`/`setFollowTarget` fall back to teleport when disabled.
