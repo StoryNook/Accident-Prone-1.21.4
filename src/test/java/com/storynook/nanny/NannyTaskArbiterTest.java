@@ -421,6 +421,40 @@ public class NannyTaskArbiterTest {
         @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
     }
 
+    @Test
+    public void cooldown_isPerTargetNotPerTaskId_failedTargetExcludedOthersEligible() {
+        PlayerMock ward = server.addPlayer();
+        World world = server.addSimpleWorld("test");
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        Location nannyLoc = new Location(world, 0, 64, 0);
+
+        // Two task instances sharing the same id ("laundry_load") + same priority but
+        // pointing at different target blocks (Washer A vs. Washer B). The cooldown map keys
+        // by (taskId, target-coords) — failing one target must not block the other.
+        Location washerA = new Location(world, 0, 64, 0);
+        Location washerB = new Location(world, 50, 64, 0);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        arbiter.register(new FixedTargetTask("laundry_load", 50, ward, washerA));
+        arbiter.register(new FixedTargetTask("laundry_load", 50, ward, washerB));
+
+        // Tick 1: distance tie-break picks washerA (closer to nannyLoc).
+        arbiter.applyLatch(
+                arbiter.buildAndSortCandidatesAt(nannyLoc, null, data, List.of((Player) ward)));
+        assertEquals("laundry_load", arbiter.activeTaskId());
+        assertEquals(washerA.getBlockX(), arbiter.getActiveTarget().getBlockX());
+
+        // Fail-giveup → only the (laundry_load, washerA) tuple goes on cooldown.
+        arbiter.applyActResult(Result.FAIL_GIVEUP);
+        assertNull(arbiter.activeTaskId());
+
+        // Tick 2: washerA is on cooldown, washerB candidate remains. The Washer B instance
+        // must still win arbitration — proves cooldown is per-target, not per-taskId.
+        arbiter.applyLatch(
+                arbiter.buildAndSortCandidatesAt(nannyLoc, null, data, List.of((Player) ward)));
+        assertEquals("laundry_load", arbiter.activeTaskId());
+        assertEquals(washerB.getBlockX(), arbiter.getActiveTarget().getBlockX());
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }
