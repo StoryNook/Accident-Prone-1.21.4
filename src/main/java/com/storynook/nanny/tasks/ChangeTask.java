@@ -2,10 +2,16 @@ package com.storynook.nanny.tasks;
 
 import com.storynook.Plugin;
 import com.storynook.PlayerStatsManagement.PlayerStats;
+import com.storynook.Event_Listeners.Changing;
+import com.storynook.Event_Listeners.DiaperPail;
+import com.storynook.nanny.Capability;
 import com.storynook.nanny.NannyCareEngine;
 import com.storynook.nanny.NannyData;
 import com.storynook.nanny.NannyEntity;
+import com.storynook.nanny.NannyEventLog;
+import com.storynook.nanny.NannyPolicy;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * Care task: change a ward's diaper when wetness or fullness exceeds the
@@ -23,8 +29,7 @@ import org.bukkit.entity.Player;
 public final class ChangeTask implements NannyTask {
 
     private final java.util.function.Function<java.util.UUID, PlayerStats> statsLookup;
-    private final NannyCareEngine engine; // for delegated helpers during act()
-    @SuppressWarnings("unused") // reserved for act() additions (data folder, etc.)
+    private final NannyCareEngine engine;
     private final Plugin plugin;
 
     public ChangeTask(Plugin plugin, NannyCareEngine engine) {
@@ -66,7 +71,70 @@ public final class ChangeTask implements NannyTask {
 
     @Override
     public Result act(NannyEntity nanny, NannyData data, Player ward) {
-        // Body filled in Task 13 (when ChangeTask is wired to the arbiter end-to-end).
-        return Result.FAIL_RETRY;
+        PlayerStats stats = statsLookup.apply(ward.getUniqueId());
+        if (stats == null) return Result.FAIL_RETRY;
+
+        com.storynook.nanny.NannyInventoryManager inv = engine.getInventoryManager();
+        ItemStack cleanDiaper = inv.takeOne(data, com.storynook.nanny.NannyInventoryManager::isCleanDiaper);
+        if (cleanDiaper == null) {
+            cleanDiaper = inv.tryCraftDiaper(data);
+            if (cleanDiaper == null) {
+                engine.warnLowSupplies(data, ward, "diapers");
+                return Result.FAIL_RETRY;
+            }
+        }
+
+        // Snapshot pre-change state for the soiled-pail item and the event log.
+        // Must capture underwearType + rashPoints too — these feed the soiled
+        // factory dispatch in Changing.createDirtyDiaperItem, which mirrors
+        // the player-side flow (so AI Nanny and player change produce the
+        // same item).
+        int preType = stats.getUnderwearType();
+        int preWet = (int) stats.getDiaperWetness();
+        int preMess = (int) stats.getDiaperFullness();
+        int preRash = (int) stats.getRashPoints();
+
+        // Phase 5a: unlock armor around the change so applyChange + the
+        // leggings-slot mutation don't trip ArmorLockListener
+        Boolean wasLocked = data.getLockedArmor().get(ward.getUniqueId());
+        boolean armorLockingActive = NannyPolicy.allows(data, Capability.ARMOR_LOCK)
+                && wasLocked != null && wasLocked;
+        if (armorLockingActive) {
+            data.getLockedArmor().put(ward.getUniqueId(), false);
+        }
+        Changing.applyChange(ward, cleanDiaper);
+
+        // Build the soiled stand-in via the shared Changing helper so the
+        // Nanny's pail/inventory drop is the same item the player-side change
+        // flow produces. Returns null when the ward was already clean (nothing
+        // to stash).
+        ItemStack soiled = Changing.createDirtyDiaperItem(ward, preType, preWet, preMess, preRash);
+        if (soiled != null) {
+            inv.addToPersonalInventory(data, soiled);
+            if (soiled.getAmount() > 0) {
+                // No room in the Nanny's inventory — try a nearby DiaperPail.
+                // If none, hand to the ward; leftover drops at their feet.
+                boolean pailed = DiaperPail.deposit(ward.getLocation(), 30.0, soiled);
+                if (!pailed) {
+                    java.util.Map<Integer, ItemStack> leftover = ward.getInventory().addItem(soiled);
+                    for (ItemStack drop : leftover.values()) {
+                        ward.getWorld().dropItemNaturally(ward.getLocation(), drop);
+                    }
+                }
+            }
+        }
+        nanny.faceLocation(ward.getEyeLocation());
+        if (armorLockingActive) {
+            data.getLockedArmor().put(ward.getUniqueId(), true);
+            data.save(plugin.getDataFolder());
+        }
+
+        NannyEventLog log = engine.getManager().getEventLog(data.getNannyUUID());
+        if (log != null) {
+            log.log(NannyEventLog.NannyEventType.CHANGED_WARD, ward.getUniqueId(),
+                    "wetness=" + preWet + " fullness=" + preMess);
+        }
+        engine.speakPostAction(ward, "changed_ward");
+        return Result.DONE;
     }
 }

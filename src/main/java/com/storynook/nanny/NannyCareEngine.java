@@ -19,6 +19,8 @@ import com.storynook.Event_Listeners.Changing;
 import com.storynook.Event_Listeners.FeedingAction;
 import com.storynook.Event_Listeners.DiaperPail;
 import com.storynook.Commands.EquipArmor;
+import com.storynook.nanny.tasks.ChangeTask;
+import com.storynook.nanny.tasks.Result;
 
 /**
  * Per-tick polling loop that drives autonomous Nanny care actions.
@@ -41,6 +43,7 @@ public class NannyCareEngine {
     private final Plugin plugin;
     private final NannyManager manager;
     private final NannyInventoryManager inventoryManager;
+    private final NannyTaskArbiter arbiter = new NannyTaskArbiter();
     /** wardUUID → epoch millis of last hypnotize attempt; throttle to once per 5 min. */
     private final java.util.Map<java.util.UUID, Long> lastHypnotize = new java.util.HashMap<>();
     /** wardUUID → epoch millis of last punishment-mode water overdose. */
@@ -58,7 +61,24 @@ public class NannyCareEngine {
         this.plugin = plugin;
         this.manager = manager;
         this.inventoryManager = inventoryManager;
+        // Phase B Task 13: route the change behavior through the arbiter. Other care
+        // tasks still flow through the legacy cascade in evaluateAndAct until Tasks 14–17.
+        arbiter.register(new ChangeTask(plugin, this));
     }
+
+    // ---------------------------------------------------------------
+    // Public engine surface for extracted task classes (Tasks 13–21).
+    // Each getter is consumed by one or more *Task classes in the
+    // com.storynook.nanny.tasks package; the engine still owns the
+    // underlying field. Task 24 considers re-privatising any helper
+    // not used outside the engine after the extraction is complete.
+    // ---------------------------------------------------------------
+
+    public NannyInventoryManager getInventoryManager() { return inventoryManager; }
+
+    public NannyManager getManager() { return manager; }
+
+    public NannyTaskArbiter getArbiter() { return arbiter; }
 
     public void start() {
         if (task != null) return;
@@ -129,22 +149,35 @@ public class NannyCareEngine {
         tryRefillBottles(entity, data, ward);
         tryDepositSoiled(entity, data, ward);
 
-        // Diaper-punished wards: change-threshold raised to 100/100 (both stats).
-        // Punishment is meant to make them sit in their mess until full.
-        boolean needsChange;
-        if (stats.isDiaperPunishment()) {
-            needsChange = stats.getDiaperWetness() >= 100 && stats.getDiaperFullness() >= 100;
-        } else {
-            needsChange = stats.getDiaperWetness() > data.getChangeThreshold()
-                    || stats.getDiaperFullness() > data.getChangeThreshold();
+        // Phase B Task 13: route the change behavior through the arbiter. Other care
+        // tasks still flow through the legacy cascade below until Tasks 14–17.
+        java.util.List<NannyTaskArbiter.ScoredCandidate> sorted =
+                arbiter.buildAndSortCandidatesAt(entity.getLocation(), entity, data, java.util.List.of(ward));
+        boolean arbitratedWon = !sorted.isEmpty() && "change".equals(sorted.get(0).task().id());
+        if (arbitratedWon) {
+            arbiter.applyLatch(sorted);
+            NannyTaskArbiter.ActiveTaskRef active = arbiter.getActiveTask();
+            if (active != null) {
+                if (isWithinActionRange(entity, ward)) {
+                    Result r = active.task().act(entity, data, ward);
+                    arbiter.applyActResult(r);
+                } else {
+                    tryApproachWard(entity, data, ward);
+                }
+            }
+            arbiter.tickTransientTTL();
+            return;
         }
-        boolean needsEquip  = !needsChange && stats.getUnderwearType() == 0;
-        boolean needsFeed   = !needsChange && !needsEquip
+        arbiter.tickTransientTTL();
+
+        // Legacy cascade (deleted in Task 17 once equip/feed/hydrate are also extracted).
+        boolean needsEquip   = stats.getUnderwearType() == 0;
+        boolean needsFeed    = !needsEquip
                 && ward.getFoodLevel() < data.getFeedThreshold();
-        boolean needsHydrate = !needsChange && !needsEquip && !needsFeed
+        boolean needsHydrate = !needsEquip && !needsFeed
                 && stats.getHydration() < data.getHydrationThreshold();
 
-        if (!needsChange && !needsEquip && !needsFeed && !needsHydrate) {
+        if (!needsEquip && !needsFeed && !needsHydrate) {
             // Phase 5a: bedtime trigger — tired ward gets placed in crib
             if (ward.getFoodLevel() <= 6 && NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) {
                 if (isWithinActionRange(entity, ward)) {
@@ -165,7 +198,6 @@ public class NannyCareEngine {
             return;
         }
 
-        if (needsChange)  { doChange(entity, data, ward, stats); return; }
         if (needsEquip)   { doEquipDiaper(entity, data, ward);   return; }
         if (needsFeed)    { doFeed(entity, data, ward);           return; }
         doHydrate(entity, data, ward);
@@ -174,69 +206,6 @@ public class NannyCareEngine {
     // ---------------------------------------------------------------
     // Action methods
     // ---------------------------------------------------------------
-
-    private void doChange(NannyEntity entity, NannyData data, Player ward, PlayerStats stats) {
-        ItemStack cleanDiaper = inventoryManager.takeOne(data, NannyInventoryManager::isCleanDiaper);
-        if (cleanDiaper == null) {
-            cleanDiaper = inventoryManager.tryCraftDiaper(data);
-            if (cleanDiaper == null) {
-                warnLowSupplies(data, ward, "diapers");
-                return;
-            }
-        }
-
-        // Snapshot pre-change state for the soiled-pail item and the event log.
-        // Must capture underwearType + rashPoints too — these feed the soiled
-        // factory dispatch in Changing.createDirtyDiaperItem, which mirrors
-        // the player-side flow (so AI Nanny and player change produce the
-        // same item).
-        int preType = stats.getUnderwearType();
-        int preWet = (int) stats.getDiaperWetness();
-        int preMess = (int) stats.getDiaperFullness();
-        int preRash = (int) stats.getRashPoints();
-
-        // Phase 5a: unlock armor around the change so applyChange + the
-        // leggings-slot mutation don't trip ArmorLockListener
-        Boolean wasLocked = data.getLockedArmor().get(ward.getUniqueId());
-        boolean armorLockingActive = NannyPolicy.allows(data, Capability.ARMOR_LOCK)
-                && wasLocked != null && wasLocked;
-        if (armorLockingActive) {
-            data.getLockedArmor().put(ward.getUniqueId(), false);
-        }
-        Changing.applyChange(ward, cleanDiaper);
-
-        // Build the soiled stand-in via the shared Changing helper so the
-        // Nanny's pail/inventory drop is the same item the player-side change
-        // flow produces. Returns null when the ward was already clean (nothing
-        // to stash).
-        ItemStack soiled = Changing.createDirtyDiaperItem(ward, preType, preWet, preMess, preRash);
-        if (soiled != null) {
-            inventoryManager.addToPersonalInventory(data, soiled);
-            if (soiled.getAmount() > 0) {
-                // No room in the Nanny's inventory — try a nearby DiaperPail.
-                // If none, hand to the ward; leftover drops at their feet.
-                boolean pailed = DiaperPail.deposit(ward.getLocation(), 30.0, soiled);
-                if (!pailed) {
-                    java.util.Map<Integer, ItemStack> leftover = ward.getInventory().addItem(soiled);
-                    for (ItemStack drop : leftover.values()) {
-                        ward.getWorld().dropItemNaturally(ward.getLocation(), drop);
-                    }
-                }
-            }
-        }
-        entity.faceLocation(ward.getEyeLocation());
-        if (armorLockingActive) {
-            data.getLockedArmor().put(ward.getUniqueId(), true);
-            data.save(plugin.getDataFolder());
-        }
-
-        NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-        if (log != null) {
-            log.log(NannyEventLog.NannyEventType.CHANGED_WARD, ward.getUniqueId(),
-                    "wetness=" + preWet + " fullness=" + preMess);
-        }
-        speakPostAction(ward, "changed_ward");
-    }
 
     private void doEquipDiaper(NannyEntity entity, NannyData data, Player ward) {
         ItemStack diaper = inventoryManager.takeOne(data, NannyInventoryManager::isCleanDiaper);
@@ -558,8 +527,13 @@ public class NannyCareEngine {
                 NannyChatEngine.PRI_DISCIPLINE);
     }
 
-    /** Mood-keyed line spoken after a successful care action. Shared 30s throttle per category. */
-    private void speakPostAction(Player ward, String category) {
+    /**
+     * Mood-keyed line spoken after a successful care action. Shared 30s throttle per category.
+     *
+     * <p>Public so extracted *Task classes can call it after a successful act().
+     * Task 24 (Phase F) reviews whether this can be re-privatised.
+     */
+    public void speakPostAction(Player ward, String category) {
         if (ward == null || category == null) return;
         NannyChatEngine ce = manager.getChatEngine();
         if (ce != null) {
@@ -1092,7 +1066,13 @@ public class NannyCareEngine {
         return b.getRelative(org.bukkit.block.BlockFace.UP).getType() == Material.IRON_TRAPDOOR;
     }
 
-    private void warnLowSupplies(NannyData data, Player ward, String missing) {
+    /**
+     * Mood-keyed local broadcast warning the ward and owner that the Nanny ran out
+     * of something. Public so extracted *Task classes can call it when their act()
+     * bails for lack of supplies. Task 24 (Phase F) reviews whether this can be
+     * re-privatised.
+     */
+    public void warnLowSupplies(NannyData data, Player ward, String missing) {
         // Mood-keyed local broadcast (throttled per-(nanny, missing, ward) inside speakIfNearby)
         NannyChatEngine ce = manager.getChatEngine();
         if (ce != null && ward != null) {
