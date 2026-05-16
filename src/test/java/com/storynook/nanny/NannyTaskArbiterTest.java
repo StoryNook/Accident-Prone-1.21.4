@@ -3,6 +3,7 @@ package com.storynook.nanny;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.storynook.nanny.tasks.Candidate;
@@ -195,6 +196,41 @@ public class NannyTaskArbiterTest {
             return eligible ? new Candidate(priority, w, null, "test") : null;
         }
         @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
+    }
+
+    @Test
+    public void applyActResult_DONE_clearsActiveTask() {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        PlayerMock ward = server.addPlayer();
+        arbiter.register(new FixedPriorityTask("x", 50));
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("x", arbiter.activeTaskId());
+        arbiter.applyActResult(Result.DONE);
+        assertNull(arbiter.activeTaskId());
+    }
+
+    @Test
+    public void applyActResult_CONTINUE_keepsActiveTask() {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        PlayerMock ward = server.addPlayer();
+        arbiter.register(new FixedPriorityTask("x", 50));
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        arbiter.applyActResult(Result.CONTINUE);
+        assertEquals("x", arbiter.activeTaskId());
+    }
+
+    @Test
+    public void applyActResult_FAIL_GIVEUP_clearsAndSetsCooldown() {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        PlayerMock ward = server.addPlayer();
+        arbiter.register(new FixedPriorityTask("x", 50));
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        arbiter.applyActResult(Result.FAIL_GIVEUP);
+        assertNull(arbiter.activeTaskId());
+        // The (taskId, target=null) tuple should now be on cooldown — verified in Task 10 test.
     }
 
     /** Minimal test fixture — a task that never evaluates to anything. */

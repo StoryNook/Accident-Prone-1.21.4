@@ -2,6 +2,7 @@ package com.storynook.nanny;
 
 import com.storynook.nanny.tasks.Candidate;
 import com.storynook.nanny.tasks.NannyTask;
+import com.storynook.nanny.tasks.Result;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -92,6 +93,32 @@ public class NannyTaskArbiter {
         if (a == null || b == null) return false;
         if (a.getWorld() != b.getWorld()) return false;
         return a.distanceSquared(b) < 1.0;
+    }
+
+    /**
+     * Process the Result of activeTask.act(). Mutates activeTask and (for
+     * FAIL_GIVEUP) failureCooldown.
+     */
+    public void applyActResult(Result result) {
+        if (activeTask == null) return;
+        switch (result) {
+            case DONE -> activeTask = null;
+            case CONTINUE -> { /* keep activeTask */ }
+            case FAIL_RETRY -> { /* keep activeTask */ }
+            case FAIL_GIVEUP -> {
+                long expiry = System.currentTimeMillis() + activeTask.task().failureCooldownMs();
+                failureCooldown.put(cooldownKey(activeTask.task().id(), activeTask.target()), expiry);
+                activeTask = null;
+            }
+        }
+    }
+
+    private final java.util.Map<String, Long> failureCooldown = new java.util.HashMap<>();
+
+    private static String cooldownKey(String taskId, Location target) {
+        if (target == null) return taskId + "@<no-target>";
+        return taskId + "@" + target.getWorld().getName()
+                + "," + target.getBlockX() + "," + target.getBlockY() + "," + target.getBlockZ();
     }
 
     /**
