@@ -274,6 +274,50 @@ public class NannyTaskArbiterTest {
         assertNull(arbiter.activeTaskId());
     }
 
+    @Test
+    public void latch_sameTaskSameTargetLowerPriority_doesNotRegressPriority() {
+        PlayerMock ward = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+
+        // Same id + same target (null), priority drops from 95 → 50 across ticks.
+        VariablePriorityTask varTask = new VariablePriorityTask("var", 95, 50);
+        arbiter.register(varTask);
+
+        // Tick 1: var evaluates to 95 → activeTask priority=95
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("var", arbiter.activeTaskId());
+
+        // Tick 2: var evaluates to 50 (same id+target) → rule 4 fires. Stored priority must
+        // stay 95, otherwise a priority-60 challenger could preempt.
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("var", arbiter.activeTaskId());
+
+        // Tick 3: register a priority-60 task. If rule 4 had regressed activeTask.priority to 50,
+        // the new task would preempt. With the fix, "var" (still stored at 95) holds the latch.
+        arbiter.register(new FixedPriorityTask("challenger60", 60));
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("var", arbiter.activeTaskId());
+    }
+
+    /** Test fixture: same id + same target, but priority varies between ticks. */
+    static class VariablePriorityTask implements NannyTask {
+        private final String id;
+        private final int[] priorities;
+        private int tick = 0;
+        VariablePriorityTask(String id, int... priorities) {
+            this.id = id;
+            this.priorities = priorities;
+        }
+        @Override public String id() { return id; }
+        @Override public Candidate evaluate(NannyEntity n, NannyData d, Player w) {
+            int p = priorities[Math.min(tick, priorities.length - 1)];
+            tick++;
+            return new Candidate(p, w, null, "test");
+        }
+        @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }

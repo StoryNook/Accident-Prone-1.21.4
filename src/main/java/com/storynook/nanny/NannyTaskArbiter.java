@@ -78,10 +78,16 @@ public class NannyTaskArbiter {
             activeTask = toActive(winner);
             return;
         }
-        // Same task & same target as activeTask → stay (refresh target, ward may have moved)
+        // Same task & same target as activeTask → stay. Do NOT overwrite activeTask with the
+        // winner's (possibly lower) priority — that would weaken the preemption barrier for
+        // the next tick. Only refresh the ward reference if it has changed.
         if (winner.task().id().equals(activeTask.task().id())
                 && sameTarget(winner.candidate().target(), activeTask.target())) {
-            activeTask = toActive(winner);
+            Player winnerWard = winner.ward();
+            if (winnerWard != activeTask.ward()) {
+                activeTask = new ActiveTaskRef(
+                        activeTask.task(), winnerWard, activeTask.target(), activeTask.priority());
+            }
             return;
         }
         // Incumbent still present in the sorted list → stay
