@@ -44,6 +44,34 @@ public class DiaperPail implements Listener {
     public DiaperPail() { this.plugin = null; }
     public DiaperPail(com.storynook.Plugin plugin) { this.plugin = plugin; }
 
+    /** Legacy soiled-diaper CMDs produced by the pre-registry static factories
+     *  in {@code com.storynook.items.underwear} (Stinky Diaper, Wet Diaper, Wet
+     *  Pullup, Wet Thick Diaper, Wet Undies, Dirty Undies, Ruined Undies). All
+     *  are {@code Material.SLIME_BALL}. New designs go through
+     *  {@link com.storynook.DesignRegistry} and are picked up via
+     *  {@code DesignRegistry.isAnySoiledCmd}. */
+    private static final java.util.Set<Integer> LEGACY_SOILED_CMDS = new java.util.HashSet<>(
+        java.util.Arrays.asList(626004, 626005, 626010, 626011, 626019, 626020, 626021)
+    );
+
+    /**
+     * True for items the diaper pail accepts — the soiled-diaper SLIME_BALL
+     * stand-ins handed to the actor's inventory after a change. Single source
+     * of truth for "is this item a dirty diaper": callers in the Nanny code
+     * and pail handling delegate here. Covers both the legacy hardcoded
+     * factories and any wet/dirty/wetDirty state of a registered design, so
+     * new designs added via {@link com.storynook.DesignRegistry#register} are
+     * picked up automatically without touching this method.
+     */
+    public static boolean isPailDepositable(ItemStack item) {
+        if (item == null || item.getType() != Material.SLIME_BALL) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasCustomModelData()) return false;
+        int cmd = meta.getCustomModelData();
+        return LEGACY_SOILED_CMDS.contains(cmd)
+            || com.storynook.DesignRegistry.isAnySoiledCmd(cmd);
+    }
+
     //Opening of the Diaper Pail, creates inventory file on open if it doesn't exist yet
     @EventHandler
     public void OpenDiaperPail(PlayerInteractEvent event) {
@@ -66,7 +94,9 @@ public class DiaperPail implements Listener {
                     
                     if (name != null && name.startsWith("Pail_")) {
                         try {
-                            UUID pailId = UUID.fromString(name.substring(6));
+                            // "Pail_" is 5 chars — substring(5) starts at the UUID.
+                            // substring(6) would chop the first hex char and throw.
+                            UUID pailId = UUID.fromString(name.substring(5));
                             Inventory inventory = pailInventories.get(pailId);
                             
                             // Create empty inventory if it doesn't exist

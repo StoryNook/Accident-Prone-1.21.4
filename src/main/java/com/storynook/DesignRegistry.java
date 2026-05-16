@@ -157,6 +157,22 @@ public class DesignRegistry {
         return false;
     }
 
+    /**
+     * True if the given CustomModelData is a wet, dirty, or wetDirty state of
+     * any registered design — i.e. any "soiled" state, excluding clean. New
+     * designs registered later are picked up automatically. Pair with the
+     * legacy hardcoded set for items produced by the pre-registry static
+     * factories in {@code com.storynook.items.underwear}.
+     */
+    public static boolean isAnySoiledCmd(int cmd) {
+        for (DesignDef def : all) {
+            if (cmd == def.wetCmd || cmd == def.dirtyCmd || cmd == def.wetDirtyCmd) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Lookup a design by category + giveKey (used by /debug give). */
     public static DesignDef findByGiveKey(int category, String giveKey) {
         if (giveKey == null) return null;

@@ -189,6 +189,11 @@ public class BehaviorSignals implements Listener {
                     }
                 }
             }
+            // Punishment escalation: if the puncher is serving a diaper-punishment
+            // from THIS Nanny, react by dosing them with water + laxative. Cooldowns
+            // inside triggerPunishmentOverdose prevent spam.
+            NannyCareEngine care = nannyManager.getCareEngine();
+            if (care != null) care.triggerPunishmentOverdose(data, puncher);
             return;
         }
     }
@@ -230,6 +235,10 @@ public class BehaviorSignals implements Listener {
                         + before + " -> " + after + " on " + data.getName() + " by " + speaker.getName());
                 plugin.getIntegrationsBus().fire(speaker, ActionId.BEHAVIOR_NAUGHTY, speaker,
                         java.util.Map.of("delta", -3));
+                // Punishment escalation: naughty chat during active diaper-punishment
+                // triggers an extra dose. Cooldowns inside the method gate spam.
+                NannyCareEngine care = nannyManager.getCareEngine();
+                if (care != null) care.triggerPunishmentOverdose(data, speaker);
             }
             if (nice && checkThrottle(speaker.getUniqueId(), "nice", NICE_THROTTLE_MS)) {
                 int before = scoreboard.getScore(data, speaker.getUniqueId());

@@ -43,6 +43,12 @@ public class NannyCareEngine {
     private final NannyInventoryManager inventoryManager;
     /** wardUUID → epoch millis of last hypnotize attempt; throttle to once per 5 min. */
     private final java.util.Map<java.util.UUID, Long> lastHypnotize = new java.util.HashMap<>();
+    /** wardUUID → epoch millis of last punishment-mode water overdose. */
+    private final java.util.Map<java.util.UUID, Long> lastOverdoseWater = new java.util.HashMap<>();
+    /** wardUUID → epoch millis of last punishment-mode laxative overdose. */
+    private final java.util.Map<java.util.UUID, Long> lastOverdoseLax   = new java.util.HashMap<>();
+    private static final long OVERDOSE_WATER_COOLDOWN_MS = 20_000L;
+    private static final long OVERDOSE_LAX_COOLDOWN_MS   = 60_000L;
     /** "nannyUUID:missing" → epoch millis of last low-supplies warning; throttle to once per 5 min. */
     private final java.util.Map<String, Long> lastLowSupplyWarn = new java.util.HashMap<>();
     private static final long LOW_SUPPLY_COOLDOWN_MS = 5 * 60 * 1000L;
@@ -118,13 +124,20 @@ public class NannyCareEngine {
         PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
         if (stats == null) return;
 
-        // Refill bottles every tick regardless of busy state — having empty bottles
-        // is a background concern, not blocked by the ward needing care. Internal
-        // guards (countAvailable, distance) prevent unnecessary work.
+        // Background tasks — these run regardless of whether the ward needs care.
+        // Internal guards (range, inventory, threshold) prevent unnecessary work.
         tryRefillBottles(entity, data, ward);
+        tryDepositSoiled(entity, data, ward);
 
-        boolean needsChange = stats.getDiaperWetness() > data.getChangeThreshold()
-                || stats.getDiaperFullness() > data.getChangeThreshold();
+        // Diaper-punished wards: change-threshold raised to 100/100 (both stats).
+        // Punishment is meant to make them sit in their mess until full.
+        boolean needsChange;
+        if (stats.isDiaperPunishment()) {
+            needsChange = stats.getDiaperWetness() >= 100 && stats.getDiaperFullness() >= 100;
+        } else {
+            needsChange = stats.getDiaperWetness() > data.getChangeThreshold()
+                    || stats.getDiaperFullness() > data.getChangeThreshold();
+        }
         boolean needsEquip  = !needsChange && stats.getUnderwearType() == 0;
         boolean needsFeed   = !needsChange && !needsEquip
                 && ward.getFoodLevel() < data.getFeedThreshold();
@@ -805,9 +818,20 @@ public class NannyCareEngine {
         if (inventoryManager.countAvailable(data, NannyInventoryManager::isEmptyGlassBottle) <= 0) return;
         Location nannyLoc = entity.getLocation();
         if (nannyLoc == null || !nannyLoc.getWorld().equals(ward.getWorld())) return;
-        if (nannyLoc.distanceSquared(ward.getLocation()) > 8 * 8) return;
+        if (nannyLoc.distanceSquared(ward.getLocation()) > data.getHomeRadius() * data.getHomeRadius()) return;
 
-        org.bukkit.block.Block water = findWaterRefillSource(nannyLoc, 4);
+        // If she is literally standing IN water right now (any water block, source
+        // or flowing), short-circuit straight to the fill code below using the block
+        // at her feet. Avoids the "source-only scan misses the flowing water she's
+        // already submerged in" problem.
+        org.bukkit.block.Block atFeet = nannyLoc.getBlock();
+        org.bukkit.block.Block water;
+        if (atFeet.getType() == Material.WATER) {
+            water = atFeet;
+            plugin.getLogger().info("[refill] " + data.getName() + " standing in water — direct fill");
+        } else {
+            water = findWaterRefillSource(nannyLoc, 4);
+        }
         if (water == null) return;
         int dyToWater = water.getY() - nannyLoc.getBlockY();
         if (dyToWater < -1 || dyToWater > 1) return;
@@ -824,12 +848,17 @@ public class NannyCareEngine {
             } else {
                 target = water.getLocation().add(0.5, 0, 0.5);
             }
-            if (target.distanceSquared(ward.getLocation()) > 8 * 8) return;
+            if (target.distanceSquared(ward.getLocation()) > data.getHomeRadius() * data.getHomeRadius()) return;
             NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
             if (nav == null) return;
-            // Don't re-issue navigateTo every tick — Citizens resets pathfinding
-            // each call. Only issue when she isn't already on the way somewhere.
-            if (!nav.isNavigating()) nav.navigateTo(target);
+            // Only re-issue when not already pathing toward this water tile.
+            // Avoids the cancel/restart cycle that pins Citizens in re-plan
+            // mode, but still overrides a stale entity-follow target.
+            if (!nav.isNavigatingToward(target, 3.0)) {
+                plugin.getLogger().info("[refill] " + data.getName() + " heading to water at "
+                        + target.getBlockX() + "," + target.getBlockY() + "," + target.getBlockZ());
+                nav.navigateToAllowWater(target);
+            }
             return;
         }
 
@@ -899,6 +928,138 @@ public class NannyCareEngine {
             }
         }
         return null;
+    }
+
+    /**
+     * Autonomous task: if she has soiled diapers in her personal inventory and a
+     * pail is reachable within homeRadius of the ward, navigate to it and deposit.
+     * Mirrors tryRefillBottles structure. Uses {@link DiaperPail#deposit} which
+     * handles the actual transfer to the nearest pail ArmorStand.
+     */
+    private void tryDepositSoiled(NannyEntity entity, NannyData data, Player ward) {
+        int soiledCount = inventoryManager.countAvailable(data, NannyInventoryManager::isSoiledDiaper);
+        if (soiledCount <= 0) return;
+        Location nannyLoc = entity.getLocation();
+        if (nannyLoc == null || !nannyLoc.getWorld().equals(ward.getWorld())) {
+            plugin.getLogger().info("[deposit] " + data.getName() + " has " + soiledCount
+                    + " soiled but nannyLoc=" + (nannyLoc == null ? "null" : "diff world from ward"));
+            return;
+        }
+        double wardDistSq = nannyLoc.distanceSquared(ward.getLocation());
+        double homeR = data.getHomeRadius();
+        if (wardDistSq > homeR * homeR) {
+            plugin.getLogger().info("[deposit] " + data.getName() + " has " + soiledCount
+                    + " soiled but " + String.format("%.1f", Math.sqrt(wardDistSq))
+                    + " blocks from ward (homeRadius=" + homeR + ")");
+            return;
+        }
+
+        // Search the full home radius for a pail — players place pails in fixed
+        // nursery spots, not within arm's reach of where she happens to be.
+        Location pail = findNearestPail(nannyLoc, homeR);
+        if (pail == null) {
+            plugin.getLogger().info("[deposit] " + data.getName() + " has " + soiledCount
+                    + " soiled item(s) but no Pail_ ArmorStand found within " + homeR + " blocks of "
+                    + nannyLoc.getBlockX() + "," + nannyLoc.getBlockY() + "," + nannyLoc.getBlockZ());
+            return;
+        }
+
+        double pailDistSq = pail.distanceSquared(nannyLoc);
+        if (pailDistSq > 4.0) {
+            NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
+            if (nav == null) {
+                plugin.getLogger().info("[deposit] " + data.getName() + " has navigator=null");
+                return;
+            }
+            // Only re-issue when we're not already pathing to this pail.
+            // Repeatedly calling setTarget cancels and restarts the path each
+            // tick, which can leave Citizens stuck in re-plan mode without
+            // actually moving. Allow re-issue if she's currently in
+            // entity-follow mode (follow makes isNavigating always true).
+            boolean alreadyHeaded = nav.isNavigatingToward(pail, 4.0);
+            if (!alreadyHeaded) {
+                plugin.getLogger().info("[deposit] " + data.getName() + " heading to pail at "
+                        + pail.getBlockX() + "," + pail.getBlockY() + "," + pail.getBlockZ()
+                        + " (distSq=" + String.format("%.1f", pailDistSq) + ")");
+                nav.navigateTo(pail);
+            } else {
+                plugin.getLogger().info("[deposit] " + data.getName() + " already heading to pail (distSq="
+                        + String.format("%.1f", pailDistSq) + ")");
+            }
+            return;
+        }
+
+        // Adjacent — deposit one soiled item this tick.
+        ItemStack soiled = inventoryManager.takeOne(data, NannyInventoryManager::isSoiledDiaper);
+        if (soiled == null) return;
+        boolean ok = DiaperPail.deposit(nannyLoc, 3.0, soiled);
+        if (!ok) {
+            inventoryManager.addToPersonalInventory(data, soiled);
+        } else {
+            plugin.getLogger().info("[deposit] " + data.getName() + " dropped a soiled item in the pail");
+            // After deposit, re-engage follow so she returns to the ward.
+            if (data.isFollowMode()) {
+                NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
+                if (nav != null) nav.setFollowTarget(ward);
+            }
+        }
+    }
+
+    /**
+     * Punishment-mode overdose, triggered by a misbehavior signal (punch /
+     * naughty chat) from a ward who is currently serving a diaper-punishment
+     * sentence. Pushes one water bottle and one laxative per call, each gated
+     * by their own cooldown so rapid-fire signals don't cascade into dozens of
+     * doses. No-op when the ward isn't in punishment, the Nanny isn't in
+     * range, or the cooldown is active. Returns true if anything fired.
+     */
+    public boolean triggerPunishmentOverdose(NannyData data, Player ward) {
+        if (ward == null || data == null) return false;
+        PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
+        if (stats == null || !stats.isDiaperPunishment()) return false;
+        NannyEntity entity = manager.getActiveNannies().get(data.getNannyUUID());
+        if (entity == null || !entity.isSpawned()) return false;
+        if (!isWithinActionRange(entity, ward)) return false;
+
+        long now = System.currentTimeMillis();
+        boolean fired = false;
+
+        Long lastWater = lastOverdoseWater.get(ward.getUniqueId());
+        if (lastWater == null || now - lastWater >= OVERDOSE_WATER_COOLDOWN_MS) {
+            int bottles = inventoryManager.countAvailable(data, NannyInventoryManager::isWaterBottle);
+            int melons  = inventoryManager.countAvailable(data, NannyInventoryManager::isMelonSlice);
+            if (bottles > 0 || melons > 0) {
+                doHydrate(entity, data, ward);
+                lastOverdoseWater.put(ward.getUniqueId(), now);
+                fired = true;
+            }
+        }
+
+        Long lastLax = lastOverdoseLax.get(ward.getUniqueId());
+        if (lastLax == null || now - lastLax >= OVERDOSE_LAX_COOLDOWN_MS) {
+            if (NannyPolicy.allows(data, Capability.FORCE_FEED_LAXATIVE)) {
+                doForceFeedLaxative(entity, data, ward);
+                lastOverdoseLax.put(ward.getUniqueId(), now);
+                fired = true;
+            }
+        }
+        return fired;
+    }
+
+    /** Scan for the nearest Pail_ ArmorStand within radius. Returns its location or null. */
+    private Location findNearestPail(Location origin, double radius) {
+        if (origin == null || origin.getWorld() == null) return null;
+        org.bukkit.entity.ArmorStand nearest = null;
+        double nearestSq = Double.MAX_VALUE;
+        for (org.bukkit.entity.Entity e : origin.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
+            if (!(e instanceof org.bukkit.entity.ArmorStand)) continue;
+            org.bukkit.entity.ArmorStand stand = (org.bukkit.entity.ArmorStand) e;
+            String name = stand.getCustomName();
+            if (name == null || !name.startsWith("Pail_")) continue;
+            double d = stand.getLocation().distanceSquared(origin);
+            if (d < nearestSq) { nearestSq = d; nearest = stand; }
+        }
+        return nearest == null ? null : nearest.getLocation();
     }
 
     /**

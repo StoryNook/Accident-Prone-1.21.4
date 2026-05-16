@@ -177,11 +177,28 @@ public class DisciplineDispatcher {
             plugin.getLogger().info("[Discipline] tag " + tagAction + " disallowed by policy");
             return;
         }
-        if (isInCooldown(data, ward, capName)) {
+        if (isInCooldown(data, ward, capName) && !bypassCooldown(ward, capName)) {
             plugin.getLogger().info("[Discipline] tag " + tagAction + " on cooldown");
             return;
         }
         enact(data, ward, capName, duration);
+    }
+
+    /**
+     * Per-action overrides on the standard discipline cooldown. While the
+     * ward is serving an active diaper-punishment:
+     *   - FORCE_FEED_LAXATIVE is uncapped (the whole point of the sentence is
+     *     to make them mess themselves; a 5-min throttle defeats it).
+     *   - HYPNOSIS_USE is uncapped (lets the Nanny reach for the trigger word
+     *     when the ward is being defiant during their sentence).
+     */
+    private boolean bypassCooldown(Player ward, String capName) {
+        if (!"FORCE_FEED_LAXATIVE".equals(capName) && !"HYPNOSIS_USE".equals(capName)) {
+            return false;
+        }
+        com.storynook.PlayerStatsManagement.PlayerStats stats =
+                plugin.getPlayerStats(ward.getUniqueId());
+        return stats != null && stats.isDiaperPunishment();
     }
 
     // -------------------------------------------------------------------------

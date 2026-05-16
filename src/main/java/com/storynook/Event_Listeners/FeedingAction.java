@@ -59,11 +59,25 @@ public class FeedingAction implements Listener {
                 new NamespacedKey(plugin, "laxative_effect"),
                 PersistentDataType.BYTE)) {
             if (stats.getMessing()) {
-                if (stats.getLaxEffectDelay() == 0) {
+                boolean wasIdle = stats.getLaxEffectDelay() == 0 && stats.getLaxEffectDuration() == 0;
+                if (stats.getLaxEffectDelay() == 0 && wasIdle) {
                     stats.setLaxEffectDelay((int) (Math.random() * (300 - 175 + 1)) + 175);
                     UpdateStats.Startingdelay.put(target.getUniqueId(), stats.getLaxEffectDelay());
                 }
                 stats.increaseLaxEffectDuration(30);
+                // Each dose also stacks intensity. The severity formula in
+                // UpdateStats is base * (1 + (intensity - 1) * 0.4) — so dose 2
+                // = 1.4×, dose 3 = 1.8×, etc. Uncapped per user preference.
+                stats.setLaxEffectIntensity(Math.max(1, stats.getLaxEffectIntensity()) + 1);
+                // If lax is already active (rate already boosted from a prior
+                // dose), multiply the current rate by 1.4 so the new dose
+                // feels stronger live instead of waiting for the next session.
+                // The initial severity is applied by UpdateStats when delay
+                // reaches 0 (covers wasIdle path); only the stacking case
+                // needs live multiplication.
+                if (!wasIdle && stats.getLaxEffectDelay() == 0) {
+                    stats.setBowelFillRate(stats.getBowelFillRate() * 1.4);
+                }
             }
         } else if (food.getType() == Material.MELON_SLICE) {
             UpdateStats.HydrationSpike.put(target.getUniqueId(), 10);

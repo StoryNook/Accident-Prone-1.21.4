@@ -93,6 +93,29 @@ public class BehaviorScoreboard {
         data.getBehaviorStreak().put(ward, newStreak);
     }
 
+    /**
+     * Records an earned score change that bypasses the sycophancy gate.
+     * Use for explicit milestone credits (e.g. serving out a diaper punishment)
+     * where the ward genuinely earned the points and dampening would feel like
+     * the system reneging on the reward. Still applies streak decay/drift and
+     * still clamps to the score floor/ceiling; only the dampen step is skipped.
+     */
+    public void recordRaw(NannyData data, UUID ward, String signal, int rawDelta) {
+        applyStreakDecay(data, ward);
+        applyScoreDrift(data, ward);
+        int score = data.getBehaviorScore().getOrDefault(ward, 0);
+        int streak = data.getBehaviorStreak().getOrDefault(ward, 0);
+
+        if ((rawDelta > 0 && streak < 0) || (rawDelta < 0 && streak > 0)) {
+            streak = 0;
+        }
+        int newStreak = clamp(streak + rawDelta, STREAK_FLOOR, STREAK_CEIL);
+        int newScore = clamp(score + rawDelta, SCORE_FLOOR, SCORE_CEIL);
+
+        data.getBehaviorScore().put(ward, newScore);
+        data.getBehaviorStreak().put(ward, newStreak);
+    }
+
     public int getScore(NannyData data, UUID ward) {
         applyStreakDecay(data, ward);
         applyScoreDrift(data, ward);

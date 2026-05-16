@@ -115,6 +115,29 @@ public class NannyNavigator {
     }
 
     /**
+     * Same as {@link #navigateTo(Location)} but allows pathing through water.
+     * Used by water-refill specifically — Citizens NPCs sink in water but the
+     * dunk is brief and she fills + returns. Without this, paths to water
+     * banks across other water never succeed.
+     */
+    public void navigateToAllowWater(Location dest) {
+        if (dest == null) return;
+        if (!plugin.citizensEnabled || !entity.isSpawned()) {
+            entity.teleportTo(dest);
+            return;
+        }
+        NPC npc = entity.getNpc();
+        if (npc == null) return;
+        currentTarget = dest;
+        npc.getNavigator().getLocalParameters()
+            .range(128)
+            .speedModifier(1.0f)
+            .stationaryTicks(600)
+            .avoidWater(false);
+        npc.getNavigator().setTarget(dest);
+    }
+
+    /**
      * Enters entity-follow mode (NPC walks beside the player continuously).
      * Does not set {@code currentTarget} — there is no fixed destination.
      * Falls back to teleport when Citizens2 is absent.
@@ -171,6 +194,20 @@ public class NannyNavigator {
         if (!plugin.citizensEnabled || !entity.isSpawned()) return false;
         NPC npc = entity.getNpc();
         return npc != null && npc.getNavigator().isNavigating();
+    }
+
+    /**
+     * True when the navigator currently has a fixed-Location target within
+     * {@code radius} blocks of {@code target}. False during entity-follow mode
+     * (because {@code currentTarget} is null) and false when idle. Lets callers
+     * avoid the cancel/restart cycle of re-issuing {@code navigateTo} every tick
+     * while still letting them override a stale entity-follow target.
+     */
+    public boolean isNavigatingToward(Location target, double radius) {
+        if (currentTarget == null || target == null) return false;
+        if (currentTarget.getWorld() == null
+                || !currentTarget.getWorld().equals(target.getWorld())) return false;
+        return currentTarget.distanceSquared(target) <= radius * radius;
     }
 
     public UUID getSeekingWardUUID() { return seekingWardUUID; }

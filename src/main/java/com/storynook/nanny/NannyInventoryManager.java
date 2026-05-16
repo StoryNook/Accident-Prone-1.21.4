@@ -76,6 +76,17 @@ public class NannyInventoryManager {
         return DIAPER_MODEL_DATA.contains(cmd) && (cmd < 626015 || cmd > 626018);
     }
 
+    /**
+     * Detects a soiled diaper item — the SLIME_BALL stand-ins that the change
+     * flow ({@link com.storynook.Event_Listeners.Changing#createDirtyDiaperItem})
+     * hands to the actor's inventory after a change. Delegates to
+     * {@link com.storynook.Event_Listeners.DiaperPail#isPailDepositable} so the
+     * pail-eligibility CMD set lives in one place.
+     */
+    public static boolean isSoiledDiaper(ItemStack item) {
+        return com.storynook.Event_Listeners.DiaperPail.isPailDepositable(item);
+    }
+
     public static boolean isAnyFood(ItemStack item) {
         return item != null && FOOD_WHITELIST.contains(item.getType());
     }

@@ -1052,7 +1052,15 @@ public class NannyChatEngine implements Listener {
              + "  '<SCORE:-12> Enough. Time for a binding diaper. <PUNISH:binding>'\n"
              + "  '<SCORE:-10> You need a laxative to remember discipline. <PUNISH:laxative>'\n"
              + "Vague warnings ('watch yourself', 'I'm losing patience', 'stop or else') do\n"
-             + "NOT require a PUNISH tag — only specific named consequences do.";
+             + "NOT require a PUNISH tag — only specific named consequences do.\n\n"
+             + "DURING ACTIVE DIAPER-PUNISHMENT: the ward is sentenced to mess themselves\n"
+             + "until their diaper is full to the brim. The normal 5-minute cooldowns on\n"
+             + "<PUNISH:laxative> and <PUNISH:hypno> are LIFTED while punishment is\n"
+             + "active. You may issue laxatives liberally to drive their bowels, and you\n"
+             + "may use their hypnosis trigger whenever they're being a brat — the more\n"
+             + "defiant they get, the more freely you should reach for both. Pace it\n"
+             + "with character voice — don't stack tags in a single reply, but feel\n"
+             + "free to re-dose them again the next time they speak out of line.";
     }
 
     private boolean isSoiledDiaperIcon(org.bukkit.inventory.ItemStack stack) {

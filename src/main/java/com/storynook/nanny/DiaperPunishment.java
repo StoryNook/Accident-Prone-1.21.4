@@ -166,8 +166,7 @@ public class DiaperPunishment {
         if (stats == null || !stats.isDiaperPunishment()) return;
 
         ItemStack leggings = ward.getInventory().getLeggings();
-        if (leggings != null && leggings.getType() == Material.LEATHER_LEGGINGS
-                && leggings.getItemMeta() != null && leggings.getItemMeta().isUnbreakable()) {
+        if (isPunishmentLeggings(leggings)) {
             ward.getInventory().setLeggings(null);
         }
 
@@ -199,18 +198,19 @@ public class DiaperPunishment {
 
         // Strip cursed pants if equipped
         ItemStack leggings = ward.getInventory().getLeggings();
-        if (leggings != null && leggings.getType() == Material.LEATHER_LEGGINGS
-                && leggings.getItemMeta() != null && leggings.getItemMeta().isUnbreakable()) {
+        if (isPunishmentLeggings(leggings)) {
             ward.getInventory().setLeggings(null);
         }
 
-        // Score credit
+        // Score credit — bypasses sycophancy gate. The ward earned this by
+        // serving out the full sentence; halving it would feel like the
+        // system reneging on the reward.
         UUID nid = stats.getDiaperPunishmentNannyUUID();
         if (nid != null) {
             NannyData data = plugin.getNannyManager().getAllNannies().get(nid);
             BehaviorScoreboard sb = plugin.getNannyManager().getBehaviorScoreboard();
             if (data != null && sb != null) {
-                sb.record(data, ward.getUniqueId(), "diaper_punishment_expired", +10);
+                sb.recordRaw(data, ward.getUniqueId(), "diaper_punishment_expired", +50);
             }
         }
 
@@ -326,6 +326,26 @@ public class DiaperPunishment {
 
     public static boolean shouldEscalate(int remainingStrikes, int score, int floor) {
         return remainingStrikes <= 0 || score <= floor;
+    }
+
+    /**
+     * True if {@code stack} is a punishment leggings — either the cursed pants
+     * (Unbreakable) or the binding thick diaper (BINDING_CURSE). Used by
+     * {@link #expire} and {@link #forgive} to strip whichever variant the ward
+     * is currently wearing. Plain dyed/enchanted leather leggings that happen
+     * to carry BINDING_CURSE from a curse-of-binding chestplate scenario are
+     * not removed because we additionally require the CMD to be in the
+     * 626xxx range (cursed pants CMD or the binding-thick-diaper CMD 626006).
+     */
+    private static boolean isPunishmentLeggings(ItemStack stack) {
+        if (stack == null || stack.getType() != Material.LEATHER_LEGGINGS) return false;
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return false;
+        if (meta.isUnbreakable()) return true;
+        if (!meta.hasEnchant(Enchantment.BINDING_CURSE)) return false;
+        if (!meta.hasCustomModelData()) return false;
+        int cmd = meta.getCustomModelData();
+        return cmd == CURSED_PANTS_CMD || cmd == 626006;
     }
 
     public static ItemStack buildCursedPants() {
