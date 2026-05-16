@@ -66,6 +66,12 @@ public class NannyTaskArbiter {
 
     public String activeTaskId() { return activeTask == null ? null : activeTask.task().id(); }
 
+    /** Package-private test accessor — current activeTask target (may be null). */
+    Location getActiveTarget() { return activeTask == null ? null : activeTask.target(); }
+
+    /** Package-private test accessor — current activeTask priority, or -1 if idle. */
+    int getActivePriority() { return activeTask == null ? -1 : activeTask.priority(); }
+
     /**
      * Apply the hybrid latch rule against a sorted candidate list. Mutates activeTask.
      *
@@ -101,12 +107,17 @@ public class NannyTaskArbiter {
             }
             return;
         }
-        // Incumbent still present in the sorted list → stay
+        // Incumbent still present in the sorted list → stay (refreshing target only).
+        // The matching candidate may have a different target than activeTask.target (e.g.
+        // ward walked to a different ChangingTable); preserve priority + ward but refresh
+        // target so navigation points at the current intended block.
         for (ScoredCandidate sc : sorted) {
             if (sc.task().id().equals(activeTask.task().id())
                     && (activeTask.ward() == null
                         || (sc.ward() != null && sc.ward().getUniqueId().equals(activeTask.ward().getUniqueId())))) {
-                return;  // incumbent eligible, stay
+                activeTask = new ActiveTaskRef(activeTask.task(), activeTask.ward(),
+                        sc.candidate().target(), activeTask.priority());
+                return;
             }
         }
         // Incumbent gone → take winner

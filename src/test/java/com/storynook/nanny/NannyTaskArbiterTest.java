@@ -358,6 +358,69 @@ public class NannyTaskArbiterTest {
         @Override public long failureCooldownMs() { return cooldownMs; }
     }
 
+    @Test
+    public void latch_sameTaskSameWardNewTarget_refreshesTarget() {
+        PlayerMock ward = server.addPlayer();
+        World world = server.addSimpleWorld("test");
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+
+        Location target1 = new Location(world, 0, 64, 0);
+        Location target2 = new Location(world, 20, 64, 0);
+        MovableTargetTask movable = new MovableTargetTask("movable", 50, ward, target1, target2);
+        arbiter.register(movable);
+        // Add a second task with the same priority + same ward but different target so the
+        // incumbent has to win rule 5 (rule 4 is gated on same-target).
+        arbiter.register(new FixedTargetTask("decoy", 50, ward, new Location(world, 50, 64, 0)));
+
+        // Tick 1: movable evaluates to target1 (priority 50). It will win or tie; in case of
+        // tie, the latch will still pick one as activeTask.
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        // Force movable to be the activeTask by clearing and re-running deterministically:
+        // We'll just verify whichever wins and then for the next tick assert the right state.
+        // To keep this test deterministic, we re-set: if activeTask isn't "movable", switch
+        // the priority a tick to make it preempt.
+        if (!"movable".equals(arbiter.activeTaskId())) {
+            // Re-register movable at higher priority so it preempts.
+            arbiter = new NannyTaskArbiter();
+            movable = new MovableTargetTask("movable", 80, ward, target1, target2);
+            arbiter.register(movable);
+            arbiter.register(new FixedTargetTask("decoy", 50, ward, new Location(world, 50, 64, 0)));
+            arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        }
+        assertEquals("movable", arbiter.activeTaskId());
+        assertEquals(target1.getBlockX(), arbiter.getActiveTarget().getBlockX());
+        assertEquals(target1.getBlockZ(), arbiter.getActiveTarget().getBlockZ());
+        int priorityAfterTick1 = arbiter.getActivePriority();
+
+        // Tick 2: movable now reports target2. Same id + same ward → rule 5 should fire.
+        // Target must be refreshed; priority must be preserved.
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("movable", arbiter.activeTaskId());
+        assertEquals(target2.getBlockX(), arbiter.getActiveTarget().getBlockX());
+        assertEquals(target2.getBlockZ(), arbiter.getActiveTarget().getBlockZ());
+        assertEquals(priorityAfterTick1, arbiter.getActivePriority());
+    }
+
+    /** Test fixture: same id + same ward, but target moves between ticks. */
+    static class MovableTargetTask implements NannyTask {
+        private final String id;
+        private final int priority;
+        private final Player wardOverride;
+        private final Location[] targets;
+        private int tick = 0;
+        MovableTargetTask(String id, int priority, Player ward, Location... targets) {
+            this.id = id; this.priority = priority; this.wardOverride = ward; this.targets = targets;
+        }
+        @Override public String id() { return id; }
+        @Override public Candidate evaluate(NannyEntity n, NannyData d, Player w) {
+            Location t = targets[Math.min(tick, targets.length - 1)];
+            tick++;
+            return new Candidate(priority, wardOverride, t, "test");
+        }
+        @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }
