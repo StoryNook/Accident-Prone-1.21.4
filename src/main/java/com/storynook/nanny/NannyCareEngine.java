@@ -14,14 +14,13 @@ import org.bukkit.scheduler.BukkitTask;
 
 import com.storynook.Plugin;
 import com.storynook.PlayerStatsManagement.PlayerStats;
-import com.storynook.PlayerStatsManagement.UpdateStats;
-import com.storynook.Event_Listeners.Changing;
 import com.storynook.Event_Listeners.FeedingAction;
 import com.storynook.Event_Listeners.DiaperPail;
 import com.storynook.Commands.EquipArmor;
 import com.storynook.nanny.tasks.ChangeTask;
 import com.storynook.nanny.tasks.EquipDiaperTask;
 import com.storynook.nanny.tasks.FeedTask;
+import com.storynook.nanny.tasks.HydrateTask;
 import com.storynook.nanny.tasks.Result;
 
 /**
@@ -46,6 +45,14 @@ public class NannyCareEngine {
     private final NannyManager manager;
     private final NannyInventoryManager inventoryManager;
     private final NannyTaskArbiter arbiter = new NannyTaskArbiter();
+    /**
+     * HydrateTask instance held for direct invocation by
+     * {@link #triggerPunishmentOverdose(NannyData, Player)} — the punishment
+     * pathway forces hydration regardless of threshold and bypasses the
+     * arbiter. Still registered in arbiter (separate instance is fine; tasks
+     * are stateless).
+     */
+    private HydrateTask hydrateTask;
     /** wardUUID → epoch millis of last hypnotize attempt; throttle to once per 5 min. */
     private final java.util.Map<java.util.UUID, Long> lastHypnotize = new java.util.HashMap<>();
     /** wardUUID → epoch millis of last punishment-mode water overdose. */
@@ -63,12 +70,13 @@ public class NannyCareEngine {
         this.plugin = plugin;
         this.manager = manager;
         this.inventoryManager = inventoryManager;
-        // Phase B Tasks 13–15: route change + equip + feed through the arbiter.
-        // Hydrate still flows through the legacy cascade in evaluateAndAct until
-        // Tasks 16–17.
+        // Phase B Tasks 13–16: route all four care behaviors through the arbiter.
+        // The legacy cascade in evaluateAndAct is fully replaced in Task 17.
         arbiter.register(new ChangeTask(plugin, this));
         arbiter.register(new EquipDiaperTask(plugin, this));
         arbiter.register(new FeedTask(plugin, this));
+        this.hydrateTask = new HydrateTask(plugin, this);
+        arbiter.register(this.hydrateTask);
     }
 
     // ---------------------------------------------------------------
@@ -154,14 +162,15 @@ public class NannyCareEngine {
         tryRefillBottles(entity, data, ward);
         tryDepositSoiled(entity, data, ward);
 
-        // Phase B Tasks 13–15: route change + equip + feed through the arbiter.
-        // Hydrate still flows through the legacy cascade below until Tasks 16–17.
+        // Phase B Tasks 13–16: route all four care behaviors through the arbiter.
+        // The legacy cascade below collapses entirely in Task 17.
         java.util.List<NannyTaskArbiter.ScoredCandidate> sorted =
                 arbiter.buildAndSortCandidatesAt(entity.getLocation(), entity, data, java.util.List.of(ward));
         boolean arbitratedWon = !sorted.isEmpty()
                 && ("change".equals(sorted.get(0).task().id())
                         || "equip".equals(sorted.get(0).task().id())
-                        || "feed".equals(sorted.get(0).task().id()));
+                        || "feed".equals(sorted.get(0).task().id())
+                        || "hydrate".equals(sorted.get(0).task().id()));
         if (arbitratedWon) {
             arbiter.applyLatch(sorted);
             NannyTaskArbiter.ActiveTaskRef active = arbiter.getActiveTask();
@@ -178,10 +187,11 @@ public class NannyCareEngine {
         }
         arbiter.tickTransientTTL();
 
-        // Legacy cascade (deleted in Task 17 once hydrate is also extracted).
-        boolean needsHydrate = stats.getHydration() < data.getHydrationThreshold();
-
-        if (!needsHydrate) {
+        // Legacy cascade — every care need produces an arbiter candidate now. If
+        // the arbiter didn't win we are in the no-care branch unconditionally.
+        // Task 17 inlines this into evaluateAndAct (the `if (!needsX)` wrapper
+        // becomes dead and is deleted).
+        if (true) {
             // Phase 5a: bedtime trigger — tired ward gets placed in crib
             if (ward.getFoodLevel() <= 6 && NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) {
                 if (isWithinActionRange(entity, ward)) {
@@ -196,53 +206,11 @@ public class NannyCareEngine {
             tryOreSpotting(entity, data, ward);
             return;
         }
-
-        if (!isWithinActionRange(entity, ward)) {
-            tryApproachWard(entity, data, ward);
-            return;
-        }
-
-        doHydrate(entity, data, ward);
     }
 
     // ---------------------------------------------------------------
     // Action methods
     // ---------------------------------------------------------------
-
-    private void doHydrate(NannyEntity entity, NannyData data, Player ward) {
-        // Preferred: water bottle. Consume it, hydrate the ward, return the empty
-        // glass bottle to her inventory so she can refill at a water source.
-        ItemStack waterBottle = inventoryManager.takeOne(data, NannyInventoryManager::isWaterBottle);
-        if (waterBottle != null) {
-            PlayerStats wardStats = plugin.getPlayerStats(ward.getUniqueId());
-            if (wardStats != null) {
-                wardStats.increaseHydration(30);
-                UpdateStats.HydrationSpike.put(ward.getUniqueId(), 10);
-            }
-            inventoryManager.addToPersonalInventory(data, new ItemStack(Material.GLASS_BOTTLE, 1));
-            entity.faceLocation(ward.getEyeLocation());
-            NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-            if (log != null) {
-                log.log(NannyEventLog.NannyEventType.FED_WARD, ward.getUniqueId(), "water_bottle");
-            }
-            speakPostAction(ward, "hydrated_ward");
-            return;
-        }
-
-        // Fallback: melon slice (existing behavior)
-        ItemStack melon = inventoryManager.takeOne(data, NannyInventoryManager::isMelonSlice);
-        if (melon == null) {
-            warnLowSupplies(data, ward, "water");
-            return;
-        }
-        FeedingAction.applyFeed(ward, melon);  // melon-slice path triggers HydrationSpike
-        entity.faceLocation(ward.getEyeLocation());
-        NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-        if (log != null) {
-            log.log(NannyEventLog.NannyEventType.FED_WARD, ward.getUniqueId(), "melon");
-        }
-        speakPostAction(ward, "hydrated_ward");
-    }
 
     /**
      * Phase 5a / Crib Redesign Task 23: places a tired ward in the nearest crib.
@@ -965,7 +933,9 @@ public class NannyCareEngine {
             int bottles = inventoryManager.countAvailable(data, NannyInventoryManager::isWaterBottle);
             int melons  = inventoryManager.countAvailable(data, NannyInventoryManager::isMelonSlice);
             if (bottles > 0 || melons > 0) {
-                doHydrate(entity, data, ward);
+                // Punishment overdose ignores the threshold gate — call act() directly
+                // rather than re-routing through the arbiter.
+                hydrateTask.act(entity, data, ward);
                 lastOverdoseWater.put(ward.getUniqueId(), now);
                 fired = true;
             }
