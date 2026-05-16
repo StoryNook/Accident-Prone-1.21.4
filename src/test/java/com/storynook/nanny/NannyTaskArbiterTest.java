@@ -250,6 +250,30 @@ public class NannyTaskArbiterTest {
         assertEquals("b", arbiter.activeTaskId());
     }
 
+    @Test
+    public void transient_eligibleForTTLThenDropped() {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        PlayerMock ward = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+
+        // Inject a transient task with TTL = 2 ticks
+        arbiter.injectReactive(new FixedPriorityTask("transient", 100), 2);
+
+        // Tick 1: should win (priority 100)
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("transient", arbiter.activeTaskId());
+        arbiter.tickTransientTTL();
+
+        // Tick 2: still eligible
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("transient", arbiter.activeTaskId());
+        arbiter.tickTransientTTL();
+
+        // Tick 3: dropped
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertNull(arbiter.activeTaskId());
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }

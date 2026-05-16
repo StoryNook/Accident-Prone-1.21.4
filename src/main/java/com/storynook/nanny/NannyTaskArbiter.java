@@ -3,6 +3,7 @@ package com.storynook.nanny;
 import com.storynook.nanny.tasks.Candidate;
 import com.storynook.nanny.tasks.NannyTask;
 import com.storynook.nanny.tasks.Result;
+import com.storynook.nanny.tasks.TransientTask;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,9 +19,20 @@ import org.bukkit.entity.Player;
 public class NannyTaskArbiter {
 
     private final List<NannyTask> registered = new ArrayList<>();
+    private final List<TransientTask> transients = new ArrayList<>();
 
     public void register(NannyTask task) {
         registered.add(task);
+    }
+
+    public void injectReactive(NannyTask task, int ttlTicks) {
+        transients.add(new TransientTask(task, ttlTicks));
+    }
+
+    /** Decrement all transient TTLs by 1; remove expired. Call once per arbiter tick. */
+    public void tickTransientTTL() {
+        for (TransientTask t : transients) t.decrement();
+        transients.removeIf(TransientTask::expired);
     }
 
     public List<NannyTask> registered() {
@@ -143,6 +155,16 @@ public class NannyTaskArbiter {
                 if (expiry != null && expiry > now) continue;  // on cooldown
                 if (expiry != null && expiry <= now) failureCooldown.remove(cooldownKey(task.id(), c.target()));
                 out.add(new ScoredCandidate(task, c));
+            }
+        }
+        // Transient (event-injected) tasks
+        for (Player ward : wards) {
+            for (TransientTask t : transients) {
+                Candidate c = t.task().evaluate(nanny, data, ward);
+                if (c == null) continue;
+                Long expiry = failureCooldown.get(cooldownKey(t.task().id(), c.target()));
+                if (expiry != null && expiry > now) continue;
+                out.add(new ScoredCandidate(t.task(), c));
             }
         }
         UUID ownerUUID = data == null ? null : data.getOwnerUUID();
