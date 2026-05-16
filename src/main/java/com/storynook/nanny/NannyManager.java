@@ -219,9 +219,46 @@ public class NannyManager implements Listener {
                 // Re-engage follow if the Nanny was set to follow her owner.
                 // Spawn alone doesn't set a Citizens entity-follow target, so without
                 // this she'd just stand next to wherever she spawned.
-                if (data.isFollowMode() && isOwner && nannyEntity != null && nannyEntity.isSpawned()) {
-                    NannyNavigator nav = navigators.get(joinNannyUUID);
-                    if (nav != null) nav.setFollowTarget(player);
+                // Defer 10 ticks: Citizens spawn is not fully live the same tick we
+                // call NPC.spawn() — calling setTarget too early silently no-ops, so
+                // the player has to manually toggle follow off/on to take effect.
+                plugin.getLogger().info("[NannyManager] join: " + player.getName()
+                        + " followMode=" + data.isFollowMode()
+                        + " isOwner=" + isOwner
+                        + " nannyEntity=" + (nannyEntity != null));
+                if (data.isFollowMode() && isOwner && nannyEntity != null) {
+                    org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        NannyEntity ent = activeNannies.get(joinNannyUUID);
+                        if (ent == null || !ent.isSpawned()) {
+                            plugin.getLogger().info("[NannyManager] deferred follow: nanny not spawned (skipping)");
+                            return;
+                        }
+                        if (!player.isOnline()) {
+                            plugin.getLogger().info("[NannyManager] deferred follow: player offline (skipping)");
+                            return;
+                        }
+                        // Teleport close if far away — Citizens follow has range limits and
+                        // can fail to pathfind across long distances or world boundaries.
+                        Location nannyLoc = ent.getLocation();
+                        Location playerLoc = player.getLocation();
+                        boolean crossWorld = nannyLoc == null
+                                || nannyLoc.getWorld() == null
+                                || !nannyLoc.getWorld().equals(playerLoc.getWorld());
+                        double distSq = crossWorld
+                                ? Double.MAX_VALUE
+                                : nannyLoc.distanceSquared(playerLoc);
+                        if (crossWorld || distSq > 64.0) {  // 8 blocks away
+                            ent.teleportTo(playerLoc);
+                            plugin.getLogger().info("[NannyManager] deferred follow: teleported to player ("
+                                    + (crossWorld ? "cross-world" : "dist=" + Math.sqrt(distSq)) + ")");
+                        }
+                        NannyNavigator nav = navigators.get(joinNannyUUID);
+                        if (nav != null) {
+                            nav.setFollowTarget(player);
+                            plugin.getLogger().info("[NannyManager] deferred follow: setFollowTarget("
+                                    + player.getName() + ") fired");
+                        }
+                    }, 10L);
                 }
 
                 // Phase 3: seek the joining player if they are far from the Nanny
@@ -256,10 +293,24 @@ public class NannyManager implements Listener {
             }
         }
 
-        // Step 4: greeting line — fire once Nanny has settled and player is past the join screen
+        // Step 4: greeting line — fire once Nanny has settled and player is past the join screen.
+        // For AI-tier Nannies: route through fireTriggers as a synthetic "just joined" event so
+        // the greeting reflects current behavior context (score, active punishments, etc.) and
+        // varies naturally rather than repeating the same canned line.
         final Player joinPlayer = player;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (joinPlayer.isOnline() && chatEngine != null) {
+            if (!joinPlayer.isOnline() || chatEngine == null) return;
+            boolean anyAi = false;
+            for (NannyData d : allNannies.values()) {
+                if (d.getChatTier() == NannyData.ChatTier.AI
+                        && d.getOwnerUUID().equals(joinPlayer.getUniqueId())) {
+                    anyAi = true;
+                    break;
+                }
+            }
+            if (anyAi) {
+                chatEngine.fireTriggers(joinPlayer, "*has just logged back in — give them a brief in-character greeting that reflects the current state of your relationship*");
+            } else {
                 chatEngine.speakIfNearby(joinPlayer, "greeting",
                         "lifecycle_greeting", 60_000L,
                         NannyChatEngine.PRI_LIFECYCLE);

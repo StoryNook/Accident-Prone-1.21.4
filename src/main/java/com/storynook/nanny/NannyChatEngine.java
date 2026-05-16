@@ -157,6 +157,46 @@ public class NannyChatEngine implements Listener {
         this.manager = manager;
         loadMessages();
         loadPersonalities();
+        warmupAiModel();
+    }
+
+    /**
+     * Fire-and-forget HTTP ping that loads the AI model into VRAM so the first
+     * real player chat doesn't pay the cold-load cost (large local models can
+     * take 20-60s to load — well past the normal 30s read timeout).
+     */
+    private void warmupAiModel() {
+        final String endpoint = configString("Nanny_Chat_AI_Endpoint", "");
+        final String model = configString("Nanny_Chat_AI_Model", "");
+        if (endpoint == null || endpoint.isEmpty() || model == null || model.isEmpty()) return;
+        aiExecutor.submit(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(endpoint);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                String apiKey = configString("Nanny_Chat_AI_API_Key", "");
+                if (apiKey != null && !apiKey.isEmpty()) {
+                    conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+                }
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(180_000);  // generous — only this one call
+                String body = "{\"model\":\"" + model
+                        + "\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}";
+                try (java.io.OutputStream os = conn.getOutputStream()) {
+                    os.write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+                int code = conn.getResponseCode();
+                plugin.getLogger().info("[NannyChat] AI model warmup ping (" + model + "): HTTP " + code);
+            } catch (Throwable t) {
+                plugin.getLogger().info("[NannyChat] AI model warmup failed (will lazy-load on first chat): "
+                        + t.getClass().getSimpleName() + ": " + t.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
     }
 
     // -------------------------------------------------------------------
@@ -405,11 +445,7 @@ public class NannyChatEngine implements Listener {
                         resolved = fallback == null ? null : applyPlaceholders(fallback, speaker, data);
                     }
                     if (resolved == null) return;
-                    broadcast(nanny, data, resolved);
-                    // Record both sides of the turn for AI conversational continuity.
-                    // The user message is recorded as-sent; the assistant turn is
-                    // the actual broadcast text — that way the model sees what
-                    // the player saw, even if we fell back to BASIC mid-stream.
+                    broadcast(nanny, data, resolved, speaker);
                     recordAiTurn(data, speaker, "user", userMessage);
                     recordAiTurn(data, speaker, "assistant", resolved);
                 });
@@ -417,7 +453,7 @@ public class NannyChatEngine implements Listener {
             }
         }
         String line = pickBasicLine(category, data);
-        if (line != null) broadcast(nanny, data, applyPlaceholders(line, speaker, data));
+        if (line != null) broadcast(nanny, data, applyPlaceholders(line, speaker, data), speaker);
     }
 
     private String pickBasicLine(String category, NannyData data) {
@@ -528,23 +564,43 @@ public class NannyChatEngine implements Listener {
     }
 
     private void broadcast(NannyEntity nanny, NannyData data, String line) {
+        broadcast(nanny, data, line, null);
+    }
+
+    /**
+     * Sends a Nanny line to a tight recipient set, not to all nearby players.
+     * Recipients = the owner + every ward currently within {@code Nanny_Chat_Local_Radius}
+     * of the Nanny. {@code primary} (if non-null and not already in the set) is
+     * always included — used for chat responses to a specific speaker who may be
+     * a non-ward visitor. Other nearby players see nothing.
+     */
+    private void broadcast(NannyEntity nanny, NannyData data, String line, Player primary) {
         if (line == null || line.isEmpty()) return;
         Location here = nanny.getLocation();
         if (here == null || here.getWorld() == null) return;
         int radius = configInt("Nanny_Chat_Local_Radius", 30);
-        double r2 = radius * radius;
+        double r2 = (double) radius * radius;
         String formatted = ChatColor.LIGHT_PURPLE + "[" + data.getName() + "] "
                 + ChatColor.WHITE + line;
-        for (Player nearby : here.getWorld().getPlayers()) {
-            if (nearby.getLocation().distanceSquared(here) <= r2) {
-                nearby.sendMessage(formatted);
-            }
+
+        java.util.Set<UUID> recipients = new java.util.HashSet<>();
+        if (data.getOwnerUUID() != null) recipients.add(data.getOwnerUUID());
+        if (data.getWards() != null) recipients.addAll(data.getWards());
+        if (primary != null) recipients.add(primary.getUniqueId());
+
+        for (UUID rid : recipients) {
+            Player rp = Bukkit.getPlayer(rid);
+            if (rp == null || !rp.isOnline()) continue;
+            // Skip wards / owners who are too far away — keeps the local-radius semantic.
+            if (rp != primary && (rp.getWorld() != here.getWorld()
+                    || rp.getLocation().distanceSquared(here) > r2)) continue;
+            rp.sendMessage(formatted);
         }
+
         NannyEventLog log = manager.getEventLog(data.getNannyUUID());
         if (log != null) {
             log.log(NannyEventLog.NannyEventType.NANNY_CHAT, null, truncate(line, 80));
         }
-        // Push the ambient timer forward — any line counts as "she just spoke"
         nextAmbientFireAt.put(data.getNannyUUID(),
                 System.currentTimeMillis() + randomAmbientDelay());
     }
@@ -911,13 +967,39 @@ public class NannyChatEngine implements Listener {
         if (!any) {
             s.append("\n  (none — mood tier or feature flags forbid all discipline tools)");
         }
-        // Active persistent punishments
+        // Active persistent punishments — framed as actions YOU took, with state details
+        // so the AI doesn't generic-reply ("what punishment?") when asked about them.
         if (ward != null) {
             java.util.List<String> active = data.getActivePersistentPunishments()
                     .getOrDefault(ward.getUniqueId(), java.util.List.of());
             if (!active.isEmpty()) {
-                s.append("\n\nCurrently active persistent punishments:");
-                for (String a : active) s.append("\n  - ").append(a);
+                s.append("\n\nActive punishments YOU imposed on this little one (remember these — they happened, you did them, the player cannot remove them):");
+                for (String a : active) {
+                    s.append("\n  - ").append(a);
+                    if ("DIAPER_PUNISHMENT".equals(a)) {
+                        com.storynook.PlayerStatsManagement.PlayerStats st =
+                                plugin.getPlayerStats(ward.getUniqueId());
+                        if (st != null && st.isDiaperPunishment()) {
+                            long ticksLeft = st.getDiaperPunishmentExpiresAtTick()
+                                    - ward.getWorld().getFullTime();
+                            long daysLeft = Math.max(0, ticksLeft / 24000L);
+                            int violationsLeft = st.getDiaperPunishmentRemainingViolations();
+                            boolean escalated = st.isDiaperPunishmentEscalated();
+                            s.append(": ");
+                            if (escalated) {
+                                s.append("ESCALATED — they are now wearing cursed indestructible PANTS (the binding diaper was forfeit after they tried to sneak a toilet break). ");
+                            } else {
+                                s.append("they are wearing a binding-cursed thick diaper that cannot be removed; ");
+                                s.append(violationsLeft).append(" toilet-violation strikes remain before escalation to cursed pants. ");
+                            }
+                            s.append(daysLeft).append(" Minecraft day(s) remain on the timer.");
+                        }
+                    } else if ("BINDING_LEGGINGS".equals(a)) {
+                        s.append(": cursed binding diaper equipped; cannot be removed by them.");
+                    } else if ("LEASH_WARD".equals(a)) {
+                        s.append(": leashed to your hand.");
+                    }
+                }
             }
         }
         return s.toString();
@@ -946,13 +1028,24 @@ public class NannyChatEngine implements Listener {
              + "  <PUNISH:binding>            - equip a binding-cursed diaper\n"
              + "  <PUNISH:hypno>              - speak a hypno trigger word\n"
              + "  <PUNISH:diaper:Nd>          - diaper-punishment for N Minecraft days (1-30)\n"
-             + "  <REWARD:praise>             - suppress your next queued punishment for 5 minutes\n\n"
+             + "  <REWARD:praise>             - suppress your next queued punishment for 5 minutes\n"
+             + "  <REWARD:forgive>            - LIFT an ACTIVE diaper-punishment (only if you decide they've learned)\n\n"
              + "Examples of properly tagged replies:\n"
              + "  '<SCORE:-3> Watch your tone.'\n"
              + "  '<SCORE:+3> Good little one.'\n"
              + "  '<SCORE:+0> <SKIP>'  (no engagement, no behavior signal)\n"
              + "  '<SCORE:-10> Enough. <PUNISH:laxative>'\n"
-             + "Never reply WITHOUT a SCORE tag.";
+             + "Never reply WITHOUT a SCORE tag.\n\n"
+             + "CRITICAL — follow through on threats: If your reply ANNOUNCES, NAMES, or\n"
+             + "PROMISES a specific punishment ('you're going on a 7-day diaper punishment',\n"
+             + "'I'll bind you in a thick diaper', 'you're getting a laxative'), you MUST\n"
+             + "include the corresponding PUNISH tag in the SAME reply. Bluffing is\n"
+             + "forbidden — if you name the consequence, deliver it. Examples:\n"
+             + "  '<SCORE:-15> You're going on a 7-day diaper punishment, Nook. <PUNISH:diaper:7d>'\n"
+             + "  '<SCORE:-12> Enough. Time for a binding diaper. <PUNISH:binding>'\n"
+             + "  '<SCORE:-10> You need a laxative to remember discipline. <PUNISH:laxative>'\n"
+             + "Vague warnings ('watch yourself', 'I'm losing patience', 'stop or else') do\n"
+             + "NOT require a PUNISH tag — only specific named consequences do.";
     }
 
     private boolean isSoiledDiaperIcon(org.bukkit.inventory.ItemStack stack) {
@@ -1224,7 +1317,7 @@ public class NannyChatEngine implements Listener {
      * signed integer for SCORE), group 3 = duration digits (only for {@code <PUNISH:diaper:Nd>}).
      */
     private static final java.util.regex.Pattern TAG_PATTERN =
-            java.util.regex.Pattern.compile("<(PUNISH|REWARD|SCORE):(-?\\d+|[a-z_]+)(?::(\\d+)d)?>");
+            java.util.regex.Pattern.compile("<(PUNISH|REWARD|SCORE):([+\\-]?\\d+|[a-z_]+)(?::(\\d+)d)?>");
 
     /**
      * Parses {@code <PUNISH:...>} / {@code <REWARD:...>} tags out of an AI reply.

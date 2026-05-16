@@ -158,6 +158,14 @@ public class Toilet implements Listener{
         PlayerStats stats = plugin.getPlayerStats(player.getUniqueId());
         boolean falseAlarm = false;
 
+        // Diaper-punishment short-circuit. Single check covers both stats so the
+        // user gets one message + one strike per sit, not double-fire.
+        if (plugin.getDiaperPunishment() != null && plugin.getDiaperPunishment().isBlocked(player)) {
+            plugin.getDiaperPunishment().recordViolation(player);
+            player.sendMessage(org.bukkit.ChatColor.RED + "Your Nanny says you're not allowed.");
+            return;
+        }
+
         if (stats.getBladder() > 10) {
             int preBladder = (int) stats.getBladder();
             if (canRelieveOnToilet(player, stats, true)) {
@@ -263,9 +271,11 @@ public class Toilet implements Listener{
     // (threshold scales linearly from 100 at incon 1 to MinFill at incon 10).
     // When Accidents is off, the legacy "always relieve" behavior is preserved.
     private boolean canRelieveOnToilet(Player player, PlayerStats stats, boolean isBladder) {
+        // Diaper-punishment block is handled in the outer onPlayerInteract path
+        // BEFORE we call this method per-stat, so we don't double-message or
+        // double-record violations. Bladder + bowels both being above threshold
+        // would otherwise fire two messages and burn two strikes per sit.
         if (plugin.getDiaperPunishment() != null && plugin.getDiaperPunishment().isBlocked(player)) {
-            plugin.getDiaperPunishment().recordViolation(player);
-            player.sendMessage(org.bukkit.ChatColor.RED + "Your Nanny says you're not allowed.");
             return false;
         }
         if (!Boolean.TRUE.equals(plugin.getGlobalConfig().get("Accidents"))) {

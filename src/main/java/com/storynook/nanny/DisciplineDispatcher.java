@@ -142,7 +142,7 @@ public class DisciplineDispatcher {
     // -------------------------------------------------------------------------
 
     /**
-     * @param tagAction one of: laxative, leash, binding, hypno, diaper, praise
+     * @param tagAction one of: laxative, leash, binding, hypno, diaper, praise, forgive
      * @param duration  for "diaper" only — days, clamped to configured min/max; ignored otherwise
      */
     public void enactFromTag(NannyData data, Player ward, String tagAction, Integer duration) {
@@ -154,6 +154,20 @@ public class DisciplineDispatcher {
                         System.currentTimeMillis() + seconds * 1000L);
                 plugin.getLogger().info("[Discipline] praise grace set for "
                         + ward.getName() + " (" + seconds + "s)");
+                return;
+            }
+            if ("forgive".equals(tagAction)) {
+                // Nanny-initiated removal of an active diaper-punishment.
+                com.storynook.nanny.DiaperPunishment dp = plugin.getDiaperPunishment();
+                com.storynook.PlayerStatsManagement.PlayerStats stats =
+                        plugin.getPlayerStats(ward.getUniqueId());
+                if (dp != null && stats != null && stats.isDiaperPunishment()) {
+                    dp.forgive(ward);
+                    plugin.getLogger().info("[Discipline] forgive — diaper punishment lifted for "
+                            + ward.getName());
+                } else {
+                    plugin.getLogger().info("[Discipline] forgive tag fired but no active punishment");
+                }
                 return;
             }
             plugin.getLogger().info("[Discipline] unknown tag action: " + tagAction);

@@ -64,9 +64,15 @@ public class DiaperPunishment {
         stats.setDiaperPunishmentNannyUUID(data.getNannyUUID());
         stats.setDiaperPunishmentEscalated(false);
 
-        // Force-equip binding-cursed thick diaper (CMD 626006 baseline, with binding curse)
+        // Force-equip binding-cursed thick diaper. Bypass Changing.applyChange
+        // (which synthesizes a stats-typed diaper from the registry and would
+        // not equip our specific cursed item). Drop existing leggings on the floor.
         ItemStack dia = buildBindingThickDiaper();
-        com.storynook.Commands.EquipArmor.applyEquip(ward, dia);
+        ItemStack existing = ward.getInventory().getLeggings();
+        if (existing != null && existing.getType() != Material.AIR) {
+            ward.getWorld().dropItemNaturally(ward.getLocation(), existing);
+        }
+        ward.getInventory().setLeggings(dia);
         stats.setUnderwearType(3);
         stats.setLayers(4);
         com.storynook.PlayerStatsManagement.SavePlayerStats.savePlayerStats(ward);
@@ -121,8 +127,15 @@ public class DiaperPunishment {
         PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
         if (stats == null || stats.isDiaperPunishmentEscalated()) return;
 
+        // Cursed pants — bypass Changing.applyChange (which would synthesize a
+        // stats-typed diaper instead of equipping our specific cursed item).
+        // Drop any existing leggings on the floor before force-equipping.
         ItemStack pants = buildCursedPants();
-        com.storynook.Commands.EquipArmor.applyEquip(ward, pants);
+        ItemStack current = ward.getInventory().getLeggings();
+        if (current != null && current.getType() != Material.AIR) {
+            ward.getWorld().dropItemNaturally(ward.getLocation(), current);
+        }
+        ward.getInventory().setLeggings(pants);
         stats.setUnderwearType(0);
         stats.setLayers(0);
         stats.setDiaperPunishmentEscalated(true);
@@ -141,6 +154,43 @@ public class DiaperPunishment {
             }
         }
         plugin.getLogger().info("[DiaperPunishment] ESCALATED to cursed pants for " + ward.getName());
+    }
+
+    /**
+     * Nanny-initiated lift of an active diaper-punishment (via AI {@code <REWARD:forgive>}).
+     * Same end-state as {@link #expire} but no +10 score credit — being forgiven is
+     * leniency, not earned by serving time. Logs a distinct event.
+     */
+    public void forgive(Player ward) {
+        PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
+        if (stats == null || !stats.isDiaperPunishment()) return;
+
+        ItemStack leggings = ward.getInventory().getLeggings();
+        if (leggings != null && leggings.getType() == Material.LEATHER_LEGGINGS
+                && leggings.getItemMeta() != null && leggings.getItemMeta().isUnbreakable()) {
+            ward.getInventory().setLeggings(null);
+        }
+
+        UUID nid = stats.getDiaperPunishmentNannyUUID();
+        stats.setDiaperPunishment(false);
+        stats.setDiaperPunishmentExpiresAtTick(0L);
+        stats.setDiaperPunishmentRemainingViolations(3);
+        stats.setDiaperPunishmentScoreAtStart(0);
+        stats.setDiaperPunishmentNannyUUID(null);
+        stats.setDiaperPunishmentEscalated(false);
+
+        plugin.getIntegrationsBus().fire(ward, ActionId.DIAPER_PUNISHMENT_EXPIRED, ward,
+                java.util.Map.of("reason", "forgive"));
+        if (nid != null) {
+            NannyData fd = plugin.getNannyManager().getAllNannies().get(nid);
+            if (fd != null) {
+                NannyEventLog flog = plugin.getNannyManager().getEventLog(fd.getNannyUUID());
+                if (flog != null) flog.log(NannyEventLog.NannyEventType.DIAPER_PUNISHMENT_EXPIRED,
+                        ward.getUniqueId(), "forgive");
+            }
+        }
+        plugin.getLogger().info("[DiaperPunishment] forgiven for " + ward.getName());
+        com.storynook.PlayerStatsManagement.SavePlayerStats.savePlayerStats(ward);
     }
 
     private void expire(Player ward) {
@@ -191,6 +241,64 @@ public class DiaperPunishment {
             if (stats == null || !stats.isDiaperPunishment()) continue;
             if (p.getWorld().getFullTime() >= stats.getDiaperPunishmentExpiresAtTick()) {
                 expire(p);
+                continue;
+            }
+            ensurePunishmentGearEquipped(p, stats);
+        }
+    }
+
+    /**
+     * Re-equip cursed pants or binding diaper if the ward isn't currently wearing
+     * the appropriate punishment gear. Covers cases where the equip silently
+     * failed earlier (e.g., during plugin upgrades) or the player somehow
+     * removed it via dispenser, command, or another plugin.
+     */
+    private void ensurePunishmentGearEquipped(Player ward, PlayerStats stats) {
+        ItemStack current = ward.getInventory().getLeggings();
+        // Cursed pants progress through CMDs 626015..626018 as wetness/fullness
+        // climb (HandleAccident.changeLeggingsModel preserves meta on the swap).
+        // We accept the full range so overflow visuals aren't reset by this tick.
+        boolean wearingCursedPants = false;
+        if (current != null
+                && current.getType() == Material.LEATHER_LEGGINGS
+                && current.getItemMeta() != null
+                && current.getItemMeta().hasCustomModelData()) {
+            int cmd = current.getItemMeta().getCustomModelData();
+            boolean cmdInRange = cmd >= CURSED_PANTS_CMD && cmd <= CURSED_PANTS_CMD + 3;
+            // Also require the armor=0 modifier — old (pre-fix) cursed pants lacked it
+            // and would still be considered "valid" by CMD alone, blocking re-equip.
+            boolean hasArmorOverride = false;
+            try {
+                java.util.Collection<org.bukkit.attribute.AttributeModifier> mods =
+                        current.getItemMeta().getAttributeModifiers(org.bukkit.attribute.Attribute.ARMOR);
+                if (mods != null) {
+                    for (org.bukkit.attribute.AttributeModifier am : mods) {
+                        if (am.getAmount() == 0.0) { hasArmorOverride = true; break; }
+                    }
+                }
+            } catch (Throwable ignored) {}
+            wearingCursedPants = cmdInRange && hasArmorOverride;
+        }
+        boolean wearingBindingDiaper = current != null
+                && current.getType() == Material.LEATHER_LEGGINGS
+                && current.getItemMeta() != null
+                && current.getItemMeta().hasEnchant(Enchantment.BINDING_CURSE);
+
+        if (stats.isDiaperPunishmentEscalated()) {
+            if (!wearingCursedPants) {
+                if (current != null && current.getType() != Material.AIR) {
+                    ward.getWorld().dropItemNaturally(ward.getLocation(), current);
+                }
+                ward.getInventory().setLeggings(buildCursedPants());
+                plugin.getLogger().info("[DiaperPunishment] re-equipped cursed pants for " + ward.getName());
+            }
+        } else {
+            if (!wearingBindingDiaper) {
+                if (current != null && current.getType() != Material.AIR) {
+                    ward.getWorld().dropItemNaturally(ward.getLocation(), current);
+                }
+                ward.getInventory().setLeggings(buildBindingThickDiaper());
+                plugin.getLogger().info("[DiaperPunishment] re-equipped binding diaper for " + ward.getName());
             }
         }
     }
@@ -225,8 +333,21 @@ public class DiaperPunishment {
         ItemMeta meta = pants.getItemMeta();
         if (meta == null) return pants;
         meta.setCustomModelData(CURSED_PANTS_CMD);
+        // Equippable component pinned to the pants visual (mirrors pants.java).
+        try {
+            org.bukkit.inventory.meta.components.EquippableComponent equip = meta.getEquippable();
+            equip.setSlot(org.bukkit.inventory.EquipmentSlot.LEGS);
+            equip.setModel(org.bukkit.NamespacedKey.minecraft("pants"));
+            meta.setEquippable(equip);
+        } catch (Throwable ignored) { /* older API — best-effort */ }
         meta.addEnchant(Enchantment.BINDING_CURSE, 1, true);
         meta.setUnbreakable(true);
+        // Strip armor protection — the punishment item should not be armor.
+        org.bukkit.attribute.AttributeModifier armorMod = new org.bukkit.attribute.AttributeModifier(
+                java.util.UUID.randomUUID(), "generic.armor", 0,
+                org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER,
+                org.bukkit.inventory.EquipmentSlot.LEGS);
+        meta.addAttributeModifier(org.bukkit.attribute.Attribute.ARMOR, armorMod);
         meta.setDisplayName(org.bukkit.ChatColor.DARK_RED + "Cursed Pants");
         meta.setLore(java.util.List.of(
                 org.bukkit.ChatColor.GRAY + "Imposed by your Nanny as discipline.",
