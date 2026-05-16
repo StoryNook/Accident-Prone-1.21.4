@@ -677,7 +677,14 @@ public class NannyChatEngine implements Listener {
                     + "local channel.");
             return false;
         }
-        double dist = channel.getDistance() == null ? 0.0 : channel.getDistance();
+        Double distBoxed = channel.getDistance();
+        if (distBoxed == null) {
+            plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
+                    + "' reports hasDistance=true but getDistance() is null — inconsistent VC "
+                    + "state, falling back to direct send.");
+            return false;
+        }
+        double dist = distBoxed;
         double d2 = dist * dist;
 
         java.util.Set<UUID> alreadySent = new java.util.HashSet<>();
