@@ -27,17 +27,17 @@ import com.storynook.nanny.tasks.Result;
  * Per-tick polling loop that drives autonomous Nanny care actions.
  *
  * <p>Runs at 40 ticks (matching {@code UpdateStats}). For each active Nanny ×
- * each online ward, evaluates four priority-ordered conditions and dispatches
- * one task at a time:
- * <ol>
- *   <li>Soiled diaper above changeThreshold → {@code doChange}</li>
- *   <li>{@code underwearType == 0} → {@code doEquipDiaper}</li>
- *   <li>Hunger below feedThreshold → {@code doFeed}</li>
- *   <li>Hydration below hydrationThreshold → {@code doHydrate}</li>
- * </ol>
+ * each online ward, builds a candidate list from every registered
+ * {@link com.storynook.nanny.tasks.NannyTask} and dispatches the winning task
+ * via {@link NannyTaskArbiter}. The four care behaviors (change, equip, feed,
+ * hydrate) are registered as task classes under {@code com.storynook.nanny.tasks}.
  *
- * <p>No real navigation in Phase 2 — the Nanny teleports to the ward to act.
- * Phase 3 wires Citizens2 pathfinding.
+ * <p>Background tasks ({@code tryRefillBottles}, {@code tryDepositSoiled}) and
+ * the no-care branch ({@code doPlaceInCrib}, {@code tryDisciplineActions},
+ * {@code tryReactiveScans}, {@code tryOreSpotting}) still live inline in this
+ * file — Phases C/D extract them into task classes.
+ *
+ * <p>See spec docs/superpowers/specs/2026-05-16-nanny-task-dispatch-design.md.
  */
 public class NannyCareEngine {
 
@@ -159,19 +159,17 @@ public class NannyCareEngine {
 
         // Background tasks — these run regardless of whether the ward needs care.
         // Internal guards (range, inventory, threshold) prevent unnecessary work.
+        // Phase C extracts these to RefillBottleTask / DepositSoiledTask.
         tryRefillBottles(entity, data, ward);
         tryDepositSoiled(entity, data, ward);
 
-        // Phase B Tasks 13–16: route all four care behaviors through the arbiter.
-        // The legacy cascade below collapses entirely in Task 17.
+        // Build candidates across all registered tasks. Currently: change, equip,
+        // feed, hydrate. Phase C / D add refill, deposit, crib, discipline,
+        // reactive-discipline. Any registered task winning means we dispatch
+        // through the arbiter — no per-task whitelist needed.
         java.util.List<NannyTaskArbiter.ScoredCandidate> sorted =
                 arbiter.buildAndSortCandidatesAt(entity.getLocation(), entity, data, java.util.List.of(ward));
-        boolean arbitratedWon = !sorted.isEmpty()
-                && ("change".equals(sorted.get(0).task().id())
-                        || "equip".equals(sorted.get(0).task().id())
-                        || "feed".equals(sorted.get(0).task().id())
-                        || "hydrate".equals(sorted.get(0).task().id()));
-        if (arbitratedWon) {
+        if (!sorted.isEmpty()) {
             arbiter.applyLatch(sorted);
             NannyTaskArbiter.ActiveTaskRef active = arbiter.getActiveTask();
             if (active != null) {
@@ -187,25 +185,20 @@ public class NannyCareEngine {
         }
         arbiter.tickTransientTTL();
 
-        // Legacy cascade — every care need produces an arbiter candidate now. If
-        // the arbiter didn't win we are in the no-care branch unconditionally.
-        // Task 17 inlines this into evaluateAndAct (the `if (!needsX)` wrapper
-        // becomes dead and is deleted).
-        if (true) {
-            // Phase 5a: bedtime trigger — tired ward gets placed in crib
-            if (ward.getFoodLevel() <= 6 && NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) {
-                if (isWithinActionRange(entity, ward)) {
-                    doPlaceInCrib(entity, data, ward);
-                } else {
-                    tryApproachWard(entity, data, ward);
-                }
+        // No care needed → no-care branch: still inline. Phase C/D extract
+        // doPlaceInCrib and tryDisciplineActions into CribPlacementTask /
+        // DisciplineTask. tryReactiveScans / tryOreSpotting stay in the engine.
+        if (ward.getFoodLevel() <= 6 && NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) {
+            if (isWithinActionRange(entity, ward)) {
+                doPlaceInCrib(entity, data, ward);
+            } else {
+                tryApproachWard(entity, data, ward);
             }
-            tryDisciplineActions(entity, data, ward);
-            checkSeekArrival(entity, data, ward);
-            tryReactiveScans(entity, data, ward);
-            tryOreSpotting(entity, data, ward);
-            return;
         }
+        tryDisciplineActions(entity, data, ward);
+        checkSeekArrival(entity, data, ward);
+        tryReactiveScans(entity, data, ward);
+        tryOreSpotting(entity, data, ward);
     }
 
     // ---------------------------------------------------------------
