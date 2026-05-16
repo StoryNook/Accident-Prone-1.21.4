@@ -28,7 +28,70 @@ public class NannyTaskArbiter {
 
     /** True when no activeTask is set. The next tickFor will rebuild candidates from scratch. */
     public boolean isIdle() {
-        return true;  // placeholder until activeTask is added in a later task
+        return activeTask == null;
+    }
+
+    /**
+     * Per-Nanny active-task reference. In-memory only — re-evaluated on server
+     * restart, which is correct (don't try to resume a half-walked path that
+     * may no longer be reachable).
+     */
+    public record ActiveTaskRef(NannyTask task, Player ward, Location target, int priority) {}
+
+    private ActiveTaskRef activeTask;
+
+    public String activeTaskId() { return activeTask == null ? null : activeTask.task().id(); }
+
+    /**
+     * Apply the hybrid latch rule against a sorted candidate list. Mutates activeTask.
+     *
+     * Rules in order:
+     *   1. No activeTask → switch to winner.
+     *   2. No winner → clear activeTask.
+     *   3. winner.priority > activeTask.priority → PREEMPT.
+     *   4. winner is same task + same target as activeTask → stay (refresh).
+     *   5. activeTask still in candidates (same priority tier or below) → stay.
+     *   6. activeTask no longer in candidates → switch.
+     */
+    public void applyLatch(List<ScoredCandidate> sorted) {
+        if (sorted.isEmpty()) { activeTask = null; return; }
+        ScoredCandidate winner = sorted.get(0);
+
+        if (activeTask == null) {
+            activeTask = toActive(winner);
+            return;
+        }
+        if (winner.priority() > activeTask.priority()) {
+            activeTask = toActive(winner);
+            return;
+        }
+        // Same task & same target as activeTask → stay (refresh target, ward may have moved)
+        if (winner.task().id().equals(activeTask.task().id())
+                && sameTarget(winner.candidate().target(), activeTask.target())) {
+            activeTask = toActive(winner);
+            return;
+        }
+        // Incumbent still present in the sorted list → stay
+        for (ScoredCandidate sc : sorted) {
+            if (sc.task().id().equals(activeTask.task().id())
+                    && (activeTask.ward() == null
+                        || (sc.ward() != null && sc.ward().getUniqueId().equals(activeTask.ward().getUniqueId())))) {
+                return;  // incumbent eligible, stay
+            }
+        }
+        // Incumbent gone → take winner
+        activeTask = toActive(winner);
+    }
+
+    private ActiveTaskRef toActive(ScoredCandidate sc) {
+        return new ActiveTaskRef(sc.task(), sc.ward(), sc.candidate().target(), sc.priority());
+    }
+
+    private static boolean sameTarget(Location a, Location b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        if (a.getWorld() != b.getWorld()) return false;
+        return a.distanceSquared(b) < 1.0;
     }
 
     /**

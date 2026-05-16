@@ -2,6 +2,7 @@ package com.storynook.nanny;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.storynook.nanny.tasks.Candidate;
@@ -117,6 +118,28 @@ public class NannyTaskArbiterTest {
             return new Candidate(priority, wardOverride, target, "test");
         }
         @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
+    }
+
+    @Test
+    public void latch_incumbentWinsTies() {
+        PlayerMock owner = server.addPlayer();
+        PlayerMock other = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), owner.getUniqueId(), "TestNanny", null);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+
+        NannyTask incumbent = new FixedPriorityTask("incumbent", 50);
+        NannyTask challenger = new FixedPriorityTask("challenger", 50);
+        arbiter.register(incumbent);
+        arbiter.register(challenger);
+
+        // First tick: pick one as activeTask (priority-tie + non-owner → uses iteration order)
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) other)));
+        String firstWinner = arbiter.activeTaskId();
+        assertNotNull(firstWinner);
+
+        // Second tick: same candidates. Incumbent should stay.
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) other)));
+        assertEquals(firstWinner, arbiter.activeTaskId());
     }
 
     /** Minimal test fixture — a task that never evaluates to anything. */
