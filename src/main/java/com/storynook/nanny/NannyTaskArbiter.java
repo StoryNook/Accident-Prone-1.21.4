@@ -29,10 +29,21 @@ public class NannyTaskArbiter {
         transients.add(new TransientTask(task, ttlTicks));
     }
 
-    /** Decrement all transient TTLs by 1; remove expired. Call once per arbiter tick. */
+    /**
+     * Decrement all transient TTLs by 1; remove expired. Also sweep expired entries from
+     * the failure-cooldown map (otherwise entries for targets that stopped producing
+     * candidates — e.g. ward walked away, washer broken — would sit forever). Call once
+     * per arbiter tick.
+     */
     public void tickTransientTTL() {
         for (TransientTask t : transients) t.decrement();
         transients.removeIf(TransientTask::expired);
+        failureCooldown.entrySet().removeIf(e -> e.getValue() <= System.currentTimeMillis());
+    }
+
+    /** Package-private test accessor — current size of the failure-cooldown map. */
+    int failureCooldownSize() {
+        return failureCooldown.size();
     }
 
     public List<NannyTask> registered() {

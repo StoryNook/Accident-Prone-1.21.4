@@ -318,6 +318,46 @@ public class NannyTaskArbiterTest {
         @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
     }
 
+    @Test
+    public void cooldown_expiredEntriesAreSweptOnTickTransientTTL() throws InterruptedException {
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        PlayerMock ward = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TN", null);
+
+        // Task with a very short failure cooldown (20ms) so we can sleep past it cheaply.
+        arbiter.register(new ShortCooldownTask("flaky", 50, 20L));
+
+        // Tick 1: pick "flaky" as activeTask, then FAIL_GIVEUP → entry lands in cooldown map.
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("flaky", arbiter.activeTaskId());
+        arbiter.applyActResult(Result.FAIL_GIVEUP);
+        assertEquals(1, arbiter.failureCooldownSize());
+
+        // Sleep past the cooldown expiry.
+        Thread.sleep(40L);
+
+        // tickTransientTTL should sweep the expired entry even though nothing re-evaluated
+        // at that exact (taskId, target) key.
+        arbiter.tickTransientTTL();
+        assertEquals(0, arbiter.failureCooldownSize());
+    }
+
+    /** Test fixture with a configurable, short failure-cooldown duration. */
+    static class ShortCooldownTask implements NannyTask {
+        private final String id;
+        private final int priority;
+        private final long cooldownMs;
+        ShortCooldownTask(String id, int priority, long cooldownMs) {
+            this.id = id; this.priority = priority; this.cooldownMs = cooldownMs;
+        }
+        @Override public String id() { return id; }
+        @Override public Candidate evaluate(NannyEntity n, NannyData d, Player w) {
+            return new Candidate(priority, w, null, "test");
+        }
+        @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.FAIL_GIVEUP; }
+        @Override public long failureCooldownMs() { return cooldownMs; }
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }
