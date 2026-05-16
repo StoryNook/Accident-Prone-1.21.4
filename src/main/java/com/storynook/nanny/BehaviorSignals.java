@@ -194,6 +194,19 @@ public class BehaviorSignals implements Listener {
             // inside triggerPunishmentOverdose prevent spam.
             NannyCareEngine care = nannyManager.getCareEngine();
             if (care != null) care.triggerPunishmentOverdose(data, puncher);
+
+            // Reactive discipline: inject a transient task so the arbiter preempts
+            // whatever the Nanny is doing and runs DisciplineDispatcher on the next
+            // care tick. TTL=3 (~6s) is enough for the next 40-tick cycle to fire.
+            // Priority defaults to 100 + mood modifier (see ReactiveDisciplineTask).
+            if (care != null && care.getArbiter() != null) {
+                care.getArbiter().injectReactive(
+                        new com.storynook.nanny.tasks.ReactiveDisciplineTask(
+                                plugin, care, puncher.getUniqueId(),
+                                com.storynook.nanny.tasks.ReactiveDisciplineTask.Severity.MODERATE,
+                                "nanny_assaulted"),
+                        3);
+            }
             return;
         }
     }
