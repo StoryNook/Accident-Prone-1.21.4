@@ -291,6 +291,50 @@ See spec for the full list of 16 knobs. Most-tuned in practice: `Discipline_Cool
 
 ---
 
+## Punishment refinement (live-testing iteration)
+
+Following the initial discipline + diaper-punishment ship, in-game testing surfaced a set of gaps. These changes harden the punishment loop, the pail pipeline, and the cooldown model.
+
+### Pail pipeline
+
+- **`DiaperPail.isPailDepositable(ItemStack)`** — single source of truth for "is this item a dirty diaper that belongs in the pail." A SLIME_BALL with a CustomModelData that's either in the legacy seven-CMD set (`626004` Stinky / `626005` Wet Diaper / `626010` Wet Pullup / `626011` Wet Thick / `626019` Wet Undies / `626020` Dirty Undies / `626021` Ruined Undies) or matches any registered design's wet/dirty/wetDirty CMD via `DesignRegistry.isAnySoiledCmd`. New designs registered via `DesignRegistry.register(...)` are picked up automatically — no edit here per new design. `NannyInventoryManager.isSoiledDiaper` delegates to this.
+- **`NannyCareEngine.tryDepositSoiled`** — runs every care tick alongside `tryRefillBottles`. When the Nanny has any soiled items in personal inventory, scans the full `homeRadius` for the nearest `Pail_` ArmorStand and navigates to it. Deposits one item per tick when adjacent (≤ 2 blocks), then re-engages follow. Diagnostic logs (`[deposit]`) cover every drop-out point (no soiled items / out of range / no pail found / heading to pail / already heading / dropped a soiled item).
+- **`NannyNavigator.isNavigatingToward(Location, radius)`** — heading-toward check so `tryDepositSoiled` and `tryRefillBottles` don't re-issue `navigateTo` every tick. Calling `setTarget` on Citizens every 10 ticks cancels and restarts the path each cycle, pinning the NPC in re-plan mode without ever moving. Re-issue only when the current `currentTarget` is unset or further than `radius` from the destination. Still allows overriding a stale entity-follow target.
+- **Pail open/save UUID parse fix** — `DiaperPail.OpenDiaperPail` used `name.substring(6)` to parse the `Pail_<UUID>` ArmorStand name, chopping the first hex character and throwing `IllegalArgumentException` which was caught and silently swallowed. Fixed to `substring(5)`. Deposits were always being written under the right UUID; the symptom was that opening the pail in-game showed an empty inventory because the open path parsed garbage and never matched the saved file.
+
+### Expire / forgive
+
+- **`DiaperPunishment.isPunishmentLeggings(ItemStack)`** — recognises both punishment-leggings variants. Previously `expire` and `forgive` only stripped leggings where `isUnbreakable()` was true, so cursed pants (Unbreakable + BINDING_CURSE) were removed but the non-escalated binding thick diaper (BINDING_CURSE only) was not. New helper accepts either: Unbreakable leather leggings, OR leather leggings with `BINDING_CURSE` AND CMD in `{CURSED_PANTS_CMD, 626006}`. Both expire and forgive paths route through it.
+- **Bigger expire credit (+50, sycophancy bypass)** — `expire` now calls a new `BehaviorScoreboard.recordRaw(data, ward, signal, rawDelta)` that skips the sycophancy dampening gate. Diaper-punishment expire grants `+50` raw (was `+10` dampened to `+5` when score < 0). Earned by serving the sentence; halving felt like the system reneging on the reward. `recordRaw` still applies streak decay and floor/ceiling clamping.
+
+### Cooldown bypasses during active punishment
+
+`DisciplineDispatcher.bypassCooldown(Player ward, String capName)` returns true for laxative and hypnosis when the ward has `stats.isDiaperPunishment()`. The standard 5-minute throttle is lifted because:
+
+- **`FORCE_FEED_LAXATIVE`** — sentence is "mess yourself until the diaper is full," so a 5-min throttle defeats the point.
+- **`HYPNOSIS_USE`** — lets the Nanny reach for the trigger word when the ward is being defiant mid-sentence.
+
+The AI system prompt (in `NannyChatEngine.behaviorSection`) is updated to inform the model both cooldowns are lifted during active punishment and to encourage liberal use of both as defiance escalates.
+
+### Event-driven punishment overdose
+
+When the punished ward misbehaves (punches Nanny, naughty chat), `BehaviorSignals` calls `NannyCareEngine.triggerPunishmentOverdose(NannyData, Player)`. Each call dishes out one water bottle + one laxative, gated by independent per-ward cooldowns (`OVERDOSE_WATER_COOLDOWN_MS = 20s`, `OVERDOSE_LAX_COOLDOWN_MS = 60s`). No-op when ward isn't in punishment, Nanny isn't in `isWithinActionRange`, or cooldowns are active. The earlier per-tick auto-loop is gone — punishment escalation is now a reaction, not a metronome.
+
+### Laxative stacking
+
+`FeedingAction.applyFeed` previously stacked only the duration (+30 ticks per dose). The `LaxEffectIntensity` field existed and was read by `UpdateStats` (severity `base × (1 + (intensity − 1) × 0.4)`) but nothing ever incremented it. Now each laxative dose:
+
+- Increments `LaxEffectIntensity` by 1 (uncapped). Dose 2 = 1.4× base fill rate, dose 5 = 2.6×, dose 10 = 4.6×.
+- If lax is already active (not a fresh session), also multiplies `BowelFillRate` by `× 1.4` directly, so the new dose feels stronger live instead of waiting for the next session to apply intensity.
+
+So spam-dosing during punishment now compounds — both longer AND harder each time.
+
+### VentureChat async fix
+
+`VentureChatHook.onVentureChat` was calling `Hypno.fireTriggers` synchronously from the VentureChat async event thread. `fireTriggers` ultimately invokes `HandleAccident` which calls `getNearbyEntities` and other main-thread-only APIs, raising `IllegalStateException: Asynchronous getNearbyEntities!`. Wrapped in `Bukkit.getScheduler().runTask`, mirroring the `Hypno.onPlayerChat` bounce that already existed for `AsyncPlayerChatEvent`.
+
+---
+
 ## Pending work
 
 - **Autonomous washer use** — spec `docs/superpowers/specs/2026-05-14-nanny-washer-design.md` (draft, **not yet implemented**). Would teach the Nanny to carry soiled cloth pants (`626015–626018`) to a player-placed washer, load it, top up coal fuel, and retrieve washed pants (`626022–626033`) — mirroring the existing `DiaperPail.deposit` flow for disposable diapers. Adds `NannyCareEngine.tryDoLaundry`, `NannyInventoryManager.isSoiledPants`, a `WasherRegistry`, and `LAUNDRY_STARTED` / `LAUNDRY_RETRIEVED` event types.

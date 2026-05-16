@@ -223,10 +223,19 @@ List<DesignDef> defs        = DesignRegistry.getDesignsForCategory(category);
 ItemStack stack             = DesignRegistry.createItem(def);
 char[] stages               = DesignRegistry.getStages(category, designId, size);
 int cmd                     = DesignRegistry.getVisibleCmd(category, designId, wetness, fullness);
+boolean isClean             = DesignRegistry.isAnyCleanCmd(cmd);
+boolean isAnyState          = DesignRegistry.isAnyDesignCmd(cmd);
+boolean isSoiled            = DesignRegistry.isAnySoiledCmd(cmd);
 ```
 
 Falls back to `designId=0` (legacy sprites) when an unregistered design is
 requested. No NPEs from missing designs.
+
+`isAnySoiledCmd` returns true for any registered design's `wetCmd`, `dirtyCmd`,
+or `wetDirtyCmd` (excludes clean). Lets pail / laundry / Nanny code accept new
+designs' soiled variants without per-design code edits. Used by
+`DiaperPail.isPailDepositable` as the design-aware path next to the legacy
+hardcoded seven-CMD set from the pre-registry `underwear.java` factories.
 
 ## Files touched per new design
 
