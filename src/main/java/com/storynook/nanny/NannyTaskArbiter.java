@@ -134,10 +134,15 @@ public class NannyTaskArbiter {
     public List<ScoredCandidate> buildAndSortCandidatesAt(
             Location nannyLoc, NannyEntity nanny, NannyData data, List<Player> wards) {
         List<ScoredCandidate> out = new ArrayList<>();
+        long now = System.currentTimeMillis();
         for (Player ward : wards) {
             for (NannyTask task : registered) {
                 Candidate c = task.evaluate(nanny, data, ward);
-                if (c != null) out.add(new ScoredCandidate(task, c));
+                if (c == null) continue;
+                Long expiry = failureCooldown.get(cooldownKey(task.id(), c.target()));
+                if (expiry != null && expiry > now) continue;  // on cooldown
+                if (expiry != null && expiry <= now) failureCooldown.remove(cooldownKey(task.id(), c.target()));
+                out.add(new ScoredCandidate(task, c));
             }
         }
         UUID ownerUUID = data == null ? null : data.getOwnerUUID();
