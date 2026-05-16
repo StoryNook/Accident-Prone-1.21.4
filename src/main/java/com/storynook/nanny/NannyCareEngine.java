@@ -19,6 +19,7 @@ import com.storynook.Commands.EquipArmor;
 import com.storynook.nanny.tasks.ChangeTask;
 import com.storynook.nanny.tasks.CribPlacementTask;
 import com.storynook.nanny.tasks.DepositSoiledTask;
+import com.storynook.nanny.tasks.DisciplineTask;
 import com.storynook.nanny.tasks.EquipDiaperTask;
 import com.storynook.nanny.tasks.FeedTask;
 import com.storynook.nanny.tasks.HydrateTask;
@@ -34,12 +35,10 @@ import com.storynook.nanny.tasks.Result;
  * via {@link NannyTaskArbiter}. The four care behaviors (change, equip, feed,
  * hydrate) are registered as task classes under {@code com.storynook.nanny.tasks}.
  *
- * <p>The no-care branch ({@code doPlaceInCrib}, {@code tryDisciplineActions},
- * {@code tryReactiveScans}, {@code tryOreSpotting}) still lives inline.
- * Background refill/deposit are dispatched via
- * {@link com.storynook.nanny.tasks.RefillBottleTask} and
- * {@link com.storynook.nanny.tasks.DepositSoiledTask}.
- * Phases C/D extract the remainder into task classes.
+ * <p>All Phase C tasks (refill, deposit, crib placement, passive discipline) are
+ * now first-class {@link com.storynook.nanny.tasks.NannyTask} entries on the
+ * arbiter. {@code tryReactiveScans} and {@code tryOreSpotting} stay inline as
+ * observation/chat side-effects that don't compete for the navigator.
  *
  * <p>See spec docs/superpowers/specs/2026-05-16-nanny-task-dispatch-design.md.
  */
@@ -87,6 +86,8 @@ public class NannyCareEngine {
         arbiter.register(new DepositSoiledTask(plugin, this));
         // Phase C Task 20: crib placement is now first-class.
         arbiter.register(new CribPlacementTask(plugin, this));
+        // Phase C Task 21: passive discipline pulse at lowest priority.
+        arbiter.register(new DisciplineTask(plugin, this));
     }
 
     // ---------------------------------------------------------------
@@ -189,10 +190,7 @@ public class NannyCareEngine {
         }
         arbiter.tickTransientTTL();
 
-        // No care needed → no-care branch. CribPlacementTask now handles
-        // crib placement via the arbiter; tryDisciplineActions stays inline
-        // pending Task 21. tryReactiveScans / tryOreSpotting stay in the engine.
-        tryDisciplineActions(entity, data, ward);
+        // Side-effects (not arbitrated): seek-arrival check + chat-tag scans.
         checkSeekArrival(entity, data, ward);
         tryReactiveScans(entity, data, ward);
         tryOreSpotting(entity, data, ward);
@@ -584,29 +582,6 @@ public class NannyCareEngine {
     }
 
     /**
-     * Phase 5b: discipline pass. BASIC tier delegates to DisciplineDispatcher
-     * (score-banded picks with stacking-cap + per-action cooldowns).
-     * AI tier handles discipline directly in chat replies via {@code <PUNISH:...>}
-     * tags — skipped here.
-     */
-    private void tryDisciplineActions(NannyEntity entity, NannyData data, Player ward) {
-        com.storynook.PlayerStatsManagement.PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
-        if (stats == null) return;
-
-        if (!isWithinActionRange(entity, ward)) {
-            tryApproachWard(entity, data, ward);
-            return;
-        }
-
-        // BASIC tier delegates to DisciplineDispatcher (which uses behavior score + stacking cap).
-        // AI tier handles discipline directly in chat replies via <PUNISH:...> tags — skip here.
-        if (data.getChatTier() == NannyData.ChatTier.AI) return;
-
-        DisciplineDispatcher dispatcher = manager.getDisciplineDispatcher();
-        if (dispatcher == null) return;
-        dispatcher.pickAndEnactFromScore(data, ward);
-    }
-
     /**
      * Finds the nearest fillable water source in a {@code radius}-block box around
      * {@code origin}. Accepts WATER_CAULDRON blocks and source-level WATER blocks.
