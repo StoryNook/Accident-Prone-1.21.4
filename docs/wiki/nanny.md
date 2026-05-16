@@ -74,7 +74,7 @@ The largest feature in the plugin. Citizens2-backed NPC caregiver that watches o
 - `nanny_messages.yml` — fully populated: 14 categories (`care_reminder`, `keyword_wet/messy/hungry/thirsty/tired/cute`, `found_ward`, `arrived_home`, `low_supplies`, `discipline` (WARDEN-only), `greeting`, `farewell`, `idle_ambient`) × 4 mood tiers.
 - `HandleAccident.handleAccident` now logs `WARD_HAD_ACCIDENT` for every active Nanny whose ward list (or owner) matches the affected player. Wrapped in `try/catch (Throwable)` so logging cannot break the accident pipeline.
 - `NannyMenu` Behavior tab adds a "Chat Tier" toggle (slot 19): WRITABLE_BOOK when AI is unlocked for the menu opener (BOOK when locked). BASIC ↔ AI cycle on click; lore explains "AI tier requires membership" when locked. Click guard: only fires when stripped display name equals "Chat Tier" (avoids the "Tab: General" BOOK).
-- New `globalConfig` keys: `Nanny_Chat_Min_Words` (3), `Nanny_Chat_Ambient_Chance` (1, percent), `Nanny_Chat_AI_Endpoint` ("" disables AI even when unlocked).
+- New `globalConfig` keys: `Nanny_Chat_Min_Words` (3), `Nanny_Chat_Ambient_Chance` (1, percent), `Nanny_Chat_AI_Endpoint` ("" disables AI even when unlocked), `Nanny_Chat_VC_Channel_Name` ("Local") — name of the VentureChat local channel used for Nanny output when VentureChat is present; must be a distance-bounded channel, otherwise Nanny falls back to direct-message routing.
 - `NannyEventLog` actively logs `WARD_CHAT`, `NANNY_CHAT`, `WARD_HAD_ACCIDENT`. Other defined event types (LOCKED_WARD, FORCE_FED, LEASHED_WARD, HYPNOTIZED_WARD) remain reserved for Phase 5b. (PLACED_IN_CRIB now active in Phase 5a.)
 
 ---

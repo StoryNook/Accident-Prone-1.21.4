@@ -155,6 +155,11 @@ Nanny:
                               # or doesn't reply, so a coarse word-count gate
                               # mostly gets in the way
     Ambient_Chance: 1         # percent chance Nanny chimes in unprompted on a passing message
+    # VentureChat channel name used for Nanny output when VentureChat is present.
+    # Must be a *local* channel (i.e. one with a configured distance in VentureChat).
+    # If the named channel does not exist or has no distance configured, Nanny
+    # falls back to direct-message routing (owner + wards + primary speaker).
+    VC_Channel_Name: Local
     AI:
       Provider: OPENAI
       API_Key: ""
