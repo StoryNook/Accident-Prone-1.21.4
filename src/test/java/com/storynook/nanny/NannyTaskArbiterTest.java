@@ -142,6 +142,28 @@ public class NannyTaskArbiterTest {
         assertEquals(firstWinner, arbiter.activeTaskId());
     }
 
+    @Test
+    public void latch_preemptOnHigherPriority() {
+        PlayerMock ward = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TestNanny", null);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+
+        NannyTask low = new FixedPriorityTask("low", 30);
+        NannyTask high = new FixedPriorityTask("high", 70);
+        arbiter.register(low);
+
+        // Tick 1: only "low" is registered → it becomes activeTask
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("low", arbiter.activeTaskId());
+
+        // Add "high" mid-run
+        arbiter.register(high);
+
+        // Tick 2: high preempts low
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("high", arbiter.activeTaskId());
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }
