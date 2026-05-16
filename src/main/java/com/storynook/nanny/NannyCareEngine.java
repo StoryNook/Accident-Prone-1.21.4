@@ -20,6 +20,7 @@ import com.storynook.Event_Listeners.FeedingAction;
 import com.storynook.Event_Listeners.DiaperPail;
 import com.storynook.Commands.EquipArmor;
 import com.storynook.nanny.tasks.ChangeTask;
+import com.storynook.nanny.tasks.EquipDiaperTask;
 import com.storynook.nanny.tasks.Result;
 
 /**
@@ -61,9 +62,11 @@ public class NannyCareEngine {
         this.plugin = plugin;
         this.manager = manager;
         this.inventoryManager = inventoryManager;
-        // Phase B Task 13: route the change behavior through the arbiter. Other care
-        // tasks still flow through the legacy cascade in evaluateAndAct until Tasks 14–17.
+        // Phase B Tasks 13–14: route change + equip through the arbiter. Feed and
+        // hydrate still flow through the legacy cascade in evaluateAndAct until
+        // Tasks 15–17.
         arbiter.register(new ChangeTask(plugin, this));
+        arbiter.register(new EquipDiaperTask(plugin, this));
     }
 
     // ---------------------------------------------------------------
@@ -149,11 +152,13 @@ public class NannyCareEngine {
         tryRefillBottles(entity, data, ward);
         tryDepositSoiled(entity, data, ward);
 
-        // Phase B Task 13: route the change behavior through the arbiter. Other care
-        // tasks still flow through the legacy cascade below until Tasks 14–17.
+        // Phase B Tasks 13–14: route change + equip through the arbiter. Feed and
+        // hydrate still flow through the legacy cascade below until Tasks 15–17.
         java.util.List<NannyTaskArbiter.ScoredCandidate> sorted =
                 arbiter.buildAndSortCandidatesAt(entity.getLocation(), entity, data, java.util.List.of(ward));
-        boolean arbitratedWon = !sorted.isEmpty() && "change".equals(sorted.get(0).task().id());
+        boolean arbitratedWon = !sorted.isEmpty()
+                && ("change".equals(sorted.get(0).task().id())
+                        || "equip".equals(sorted.get(0).task().id()));
         if (arbitratedWon) {
             arbiter.applyLatch(sorted);
             NannyTaskArbiter.ActiveTaskRef active = arbiter.getActiveTask();
@@ -170,14 +175,12 @@ public class NannyCareEngine {
         }
         arbiter.tickTransientTTL();
 
-        // Legacy cascade (deleted in Task 17 once equip/feed/hydrate are also extracted).
-        boolean needsEquip   = stats.getUnderwearType() == 0;
-        boolean needsFeed    = !needsEquip
-                && ward.getFoodLevel() < data.getFeedThreshold();
-        boolean needsHydrate = !needsEquip && !needsFeed
+        // Legacy cascade (deleted in Task 17 once feed/hydrate are also extracted).
+        boolean needsFeed    = ward.getFoodLevel() < data.getFeedThreshold();
+        boolean needsHydrate = !needsFeed
                 && stats.getHydration() < data.getHydrationThreshold();
 
-        if (!needsEquip && !needsFeed && !needsHydrate) {
+        if (!needsFeed && !needsHydrate) {
             // Phase 5a: bedtime trigger — tired ward gets placed in crib
             if (ward.getFoodLevel() <= 6 && NannyPolicy.allows(data, Capability.CRIB_PLACEMENT)) {
                 if (isWithinActionRange(entity, ward)) {
@@ -198,7 +201,6 @@ public class NannyCareEngine {
             return;
         }
 
-        if (needsEquip)   { doEquipDiaper(entity, data, ward);   return; }
         if (needsFeed)    { doFeed(entity, data, ward);           return; }
         doHydrate(entity, data, ward);
     }
@@ -206,26 +208,6 @@ public class NannyCareEngine {
     // ---------------------------------------------------------------
     // Action methods
     // ---------------------------------------------------------------
-
-    private void doEquipDiaper(NannyEntity entity, NannyData data, Player ward) {
-        ItemStack diaper = inventoryManager.takeOne(data, NannyInventoryManager::isCleanDiaper);
-        if (diaper == null) {
-            diaper = inventoryManager.tryCraftDiaper(data);
-            if (diaper == null) {
-                warnLowSupplies(data, ward, "diapers");
-                return;
-            }
-        }
-        EquipArmor.applyEquip(ward, diaper);
-        entity.faceLocation(ward.getEyeLocation());
-        NannyEventLog log = manager.getEventLog(data.getNannyUUID());
-        if (log != null) {
-            log.log(NannyEventLog.NannyEventType.EQUIPPED_WARD, ward.getUniqueId(),
-                    "cmd=" + (diaper.getItemMeta() != null && diaper.getItemMeta().hasCustomModelData()
-                                ? diaper.getItemMeta().getCustomModelData() : 0));
-        }
-        speakPostAction(ward, "equipped_diaper");
-    }
 
     private void doFeed(NannyEntity entity, NannyData data, Player ward) {
         ItemStack food = inventoryManager.takeOne(data, NannyInventoryManager::isAnyFood);
