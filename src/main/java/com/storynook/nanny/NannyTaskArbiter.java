@@ -66,6 +66,9 @@ public class NannyTaskArbiter {
 
     public String activeTaskId() { return activeTask == null ? null : activeTask.task().id(); }
 
+    /** Current activeTask reference (may be null if idle). Consumed by Phase E nav integration. */
+    public ActiveTaskRef getActiveTask() { return activeTask; }
+
     /** Package-private test accessor — current activeTask target (may be null). */
     Location getActiveTarget() { return activeTask == null ? null : activeTask.target(); }
 
