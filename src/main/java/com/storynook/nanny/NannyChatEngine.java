@@ -410,7 +410,20 @@ public class NannyChatEngine implements Listener {
                     String cleanedText = parsed.cleanedText;
                     DisciplineDispatcher dispatcher = manager.getDisciplineDispatcher();
                     BehaviorScoreboard sb = manager.getBehaviorScoreboard();
+                    // Relationship gate for AI-emitted tags. The system prompt
+                    // already tells the model "do not apply discipline or behavior
+                    // tags to OWNER/VISITOR" — this is the enforcement: even if the
+                    // model disobeys, only a LITTLE's record can be moved by AI
+                    // SCORE / PUNISH / REWARD tags. Mirrors the BehaviorSignals gate.
+                    SpeakerRelationship aiTagRel = data.relationshipOf(speaker.getUniqueId());
+                    boolean tagsAllowed = aiTagRel == SpeakerRelationship.LITTLE;
                     for (ParsedTag tag : parsed.tags) {
+                        if (!tagsAllowed) {
+                            plugin.getLogger().info("[Discipline] AI " + tag.type
+                                    + " tag suppressed — speaker " + speaker.getName()
+                                    + " is " + aiTagRel + ", not LITTLE.");
+                            continue;
+                        }
                         if ("SCORE".equals(tag.type)) {
                             if (sb == null) continue;
                             try {
