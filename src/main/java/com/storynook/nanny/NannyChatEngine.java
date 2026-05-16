@@ -522,6 +522,11 @@ public class NannyChatEngine implements Listener {
         }
     }
 
+    /** Public adapter — lets other subsystems (BehaviorSignals punch path) have the Nanny say something. */
+    public void speak(NannyEntity nanny, NannyData data, String line) {
+        broadcast(nanny, data, line);
+    }
+
     private void broadcast(NannyEntity nanny, NannyData data, String line) {
         if (line == null || line.isEmpty()) return;
         Location here = nanny.getLocation();

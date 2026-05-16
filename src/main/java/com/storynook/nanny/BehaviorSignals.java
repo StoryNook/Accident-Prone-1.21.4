@@ -53,6 +53,20 @@ public class BehaviorSignals implements Listener {
 
     private static final long NAUGHTY_THROTTLE_MS = 30_000L;
     private static final long NICE_THROTTLE_MS    = 60_000L;
+    /** Min ms between two punch-response lines from the same Nanny (avoid spam on rapid punches). */
+    private static final long PUNCH_SPEAK_THROTTLE_MS = 4_000L;
+    /** Per-nanny last-punch-speak timestamp. */
+    private final Map<UUID, Long> lastPunchSpeak = new HashMap<>();
+    private static final java.util.List<String> PUNCH_LINES = java.util.List.of(
+            "Ow! That hurt!",
+            "Don't you dare hit Nanny!",
+            "Hands to yourself, young one.",
+            "I am not your punching bag.",
+            "Try that again and we'll have words.",
+            "That is NOT how we behave.",
+            "If you hit me again you'll be in serious trouble."
+    );
+    private final java.util.Random punchLineRandom = new java.util.Random();
 
     public BehaviorSignals(Plugin plugin, BehaviorScoreboard scoreboard, NannyManager nannyManager) {
         this.plugin = plugin;
@@ -157,6 +171,24 @@ public class BehaviorSignals implements Listener {
                     // Spigot fallback — no hurt-anim packet API. Sound+particle still fire.
                 }
             } catch (Throwable ignored) {}
+
+            // Verbal scold — throttled per-nanny so rapid punches don't spam chat.
+            // AI tier: route through the AI as a synthetic chat event so she scolds in character.
+            // BASIC tier: random pick from a fixed pool.
+            long now = System.currentTimeMillis();
+            Long last = lastPunchSpeak.get(data.getNannyUUID());
+            if (last == null || (now - last) >= PUNCH_SPEAK_THROTTLE_MS) {
+                lastPunchSpeak.put(data.getNannyUUID(), now);
+                NannyChatEngine chat = nannyManager.getChatEngine();
+                if (chat != null) {
+                    if (data.getChatTier() == NannyData.ChatTier.AI) {
+                        chat.fireTriggers(puncher, "*just punched you in the face*");
+                    } else {
+                        String line = PUNCH_LINES.get(punchLineRandom.nextInt(PUNCH_LINES.size()));
+                        chat.speak(nanny, data, line);
+                    }
+                }
+            }
             return;
         }
     }
