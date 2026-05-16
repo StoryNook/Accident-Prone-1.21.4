@@ -91,6 +91,13 @@ public class NannyData {
     // Constructor
     // -------------------------------------------------------------------------
 
+    /**
+     * No-arg constructor for lightweight, test-friendly construction. All fields
+     * are left at their Java defaults (null / 0 / false). Callers are responsible
+     * for populating required fields via setters before use.
+     */
+    public NannyData() {}
+
     public NannyData(UUID nannyUUID, UUID ownerUUID, String name, Plugin plugin) {
         this.nannyUUID = nannyUUID;
         this.ownerUUID = ownerUUID;
@@ -563,6 +570,22 @@ public class NannyData {
 
     public List<UUID> getWards() { return wards; }
     public void setWards(List<UUID> wards) { this.wards = wards; }
+
+    /**
+     * Returns this Nanny's relationship to the given speaker UUID. {@code null}
+     * speaker is treated as VISITOR. Used by chat / AI / scoring code that
+     * needs to branch on "who is talking to me".
+     */
+    public SpeakerRelationship relationshipOf(java.util.UUID speaker) {
+        if (speaker == null) return SpeakerRelationship.VISITOR;
+        if (ownerUUID != null && ownerUUID.equals(speaker)) {
+            return SpeakerRelationship.OWNER;
+        }
+        if (wards != null && wards.contains(speaker)) {
+            return SpeakerRelationship.LITTLE;
+        }
+        return SpeakerRelationship.VISITOR;
+    }
 
     public ChestMode getChestMode() { return chestMode; }
     public void setChestMode(ChestMode chestMode) { this.chestMode = chestMode; }
