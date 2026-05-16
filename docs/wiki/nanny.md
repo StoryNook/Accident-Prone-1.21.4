@@ -74,7 +74,7 @@ The largest feature in the plugin. Citizens2-backed NPC caregiver that watches o
 - `nanny_messages.yml` — fully populated: 14 categories (`care_reminder`, `keyword_wet/messy/hungry/thirsty/tired/cute`, `found_ward`, `arrived_home`, `low_supplies`, `discipline` (WARDEN-only), `greeting`, `farewell`, `idle_ambient`) × 4 mood tiers.
 - `HandleAccident.handleAccident` now logs `WARD_HAD_ACCIDENT` for every active Nanny whose ward list (or owner) matches the affected player. Wrapped in `try/catch (Throwable)` so logging cannot break the accident pipeline.
 - `NannyMenu` Behavior tab adds a "Chat Tier" toggle (slot 19): WRITABLE_BOOK when AI is unlocked for the menu opener (BOOK when locked). BASIC ↔ AI cycle on click; lore explains "AI tier requires membership" when locked. Click guard: only fires when stripped display name equals "Chat Tier" (avoids the "Tab: General" BOOK).
-- New `globalConfig` keys: `Nanny_Chat_Min_Words` (3), `Nanny_Chat_Ambient_Chance` (1, percent), `Nanny_Chat_AI_Endpoint` ("" disables AI even when unlocked), `Nanny_Chat_VC_Channel_Name` ("Local") — name of the VentureChat local channel used for Nanny output when VentureChat is present; must be a distance-bounded channel, otherwise Nanny falls back to direct-message routing.
+- New `globalConfig` keys: `Nanny_Chat_Min_Words` (3), `Nanny_Chat_Ambient_Chance` (1, percent), `Nanny_Chat_AI_Endpoint` ("" disables AI even when unlocked), `Nanny_Chat_VC_Channel_Name` ("Local") — VentureChat channel used for Nanny output when VentureChat is present; must be distance-bounded or Nanny falls back to direct-message routing. See *Chat routing and speaker-relationship awareness* below for full detail.
 - `NannyEventLog` actively logs `WARD_CHAT`, `NANNY_CHAT`, `WARD_HAD_ACCIDENT`. Other defined event types (LOCKED_WARD, FORCE_FED, LEASHED_WARD, HYPNOTIZED_WARD) remain reserved for Phase 5b. (PLACED_IN_CRIB now active in Phase 5a.)
 
 ---
@@ -217,6 +217,40 @@ Several refinements to how the AI tier actually decides when and how to reply:
 | `qwen3.5:9b` | ~6 GB | ~5-20s + reasoning | **Thinking model.** Works at `Max_Tokens: 4000+`. |
 
 Avoid pure reasoning models (`deepseek-r1`, etc.) on the OpenAI-compatible endpoint unless you bump `Max_Tokens` high — they shove their answer into a `reasoning` field that the standard extractor doesn't read.
+
+---
+
+## Chat routing and speaker-relationship awareness (shipped)
+
+### Chat routing — with VentureChat
+
+When VentureChat is present (`plugin.VentureChat == true`), every Nanny reply goes through the VentureChat channel named by `Nanny.Chat.VC_Channel_Name` (default `Local`). All players who are listening to that channel **and** within VentureChat's configured channel distance see the Nanny speak. The primary speaker (the player whose message triggered the reply) is always delivered to directly via `sendMessage` in case they are tuned to a different channel.
+
+The channel **must** be distance-bounded in `VentureChat/channels.yml`. If the channel is missing, has no distance limit, or is a global channel, the plugin falls back to the direct-message path described below and logs a warning. The fallback is silent to players — only the console log reveals it.
+
+Config key for the channel name:
+
+| Key | Default | Description |
+|---|---|---|
+| `Nanny.Chat.VC_Channel_Name` | `Local` | VentureChat channel used for Nanny output. Must be distance-bounded in VentureChat's config; otherwise falls back to direct `sendMessage`. |
+
+### Chat routing — without VentureChat
+
+When VentureChat is absent, Nanny replies are delivered via direct `sendMessage` to every player within `Nanny.Chat.Local_Radius` blocks of the Nanny (same world), plus the primary speaker regardless of distance.
+
+### Read radius vs write radius
+
+The **read** side of the chat pipeline (Nanny hearing incoming messages) still uses `Nanny.Chat.Local_Radius` to decide which speakers are close enough to be heard. The **write** side (broadcasting the Nanny's reply) uses VentureChat's own channel distance when VC is present. These two radii are independent — aligning them by setting `Local_Radius` to match VC's channel distance is recommended but is not enforced by the plugin. This alignment is future work.
+
+### Speaker-relationship awareness
+
+Not all nearby chat is treated equally. `NannyChatEngine.fireTriggers` now classifies each speaker against the Nanny's owner/ward list before deciding whether to score and respond:
+
+- **LITTLE** — a ward of this Nanny. Chat from a LITTLE moves their behavior score (`BehaviorScoreboard`) and can trigger discipline responses.
+- **OWNER** — the Nanny's owner (when the owner is not also in the ward list). Chat from the OWNER does not move behavior scores; the Nanny can still reply conversationally.
+- **VISITOR** — any other player. Chat from a VISITOR is never scored as a ward's behavior. The Nanny may still respond (depending on `chatRespondTo` settings) but no discipline consequence follows.
+
+This means a VISITOR misbehaving in chat cannot inadvertently tank a ward's behavior score, and the Nanny's AI system prompt receives a `relationship` block (`LITTLE / OWNER / VISITOR`) so the model knows whether discipline tags are appropriate and which name to address.
 
 ---
 
