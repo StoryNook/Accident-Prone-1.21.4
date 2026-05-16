@@ -140,6 +140,13 @@ public class NannyChatEngine implements Listener {
     private final Map<UUID, Long> nextAmbientFireAt = new HashMap<>();
 
     /**
+     * VentureChat channel-name → reason string. Tracks which (channel, failure-reason)
+     * pairs have already produced a console warning this session, so a misconfigured
+     * server doesn't flood the log every time a Nanny tries to speak.
+     */
+    private final java.util.Set<String> warnedVcChannels = java.util.Collections.synchronizedSet(new java.util.HashSet<>());
+
+    /**
      * Rolling AI chat history per (nanny, ward) pair. Each entry is a 2-tuple of
      * {role, content} where role is "user" (ward turn) or "assistant" (nanny turn).
      * Bounded to {@code Nanny_Chat_AI_Context_Chat_Count * 2} entries (one round
@@ -592,15 +599,21 @@ public class NannyChatEngine implements Listener {
     }
 
     /**
-     * Sends a Nanny line to a tight recipient set, not to all nearby players.
-     * Recipients = the owner + every ward currently within {@code Nanny_Chat_Local_Radius}
-     * of the Nanny. {@code primary} (if non-null and not already in the set) is
-     * always included — used for chat responses to a specific speaker who may be
-     * a non-ward visitor. Other nearby players see nothing.
-     *
-     * <p>Routes through VentureChat when present ({@link #ventureChatBroadcast});
-     * falls back to {@link #directBroadcast} on any exception or when VC declines
-     * (channel missing / not distance-bounded).
+     * Sends a Nanny line. Routing depends on whether VentureChat is loaded:
+     * <ul>
+     *   <li><b>With VC</b> → posts to every player listening to the channel named
+     *       by {@code Nanny_Chat_VC_Channel_Name} within VC's configured channel
+     *       distance, plus the {@code primary} speaker directly. See
+     *       {@link #ventureChatBroadcast}.</li>
+     *   <li><b>Without VC</b>, or when VC declines (channel missing / not
+     *       distance-bounded / API exception) → falls back to a tight recipient
+     *       set: owner + every ward within {@code Nanny_Chat_Local_Radius}, plus
+     *       the {@code primary} speaker. See {@link #directBroadcast}.</li>
+     * </ul>
+     * In both modes, {@code primary} is always delivered to (if online), so a
+     * non-ward speaker the Nanny is replying to never misses the response.
+     * Logging of {@code NANNY_CHAT} and the ambient-timer reset happen here once
+     * regardless of routing path.
      */
     private void broadcast(NannyEntity nanny, NannyData data, String line, Player primary) {
         if (line == null || line.isEmpty()) return;
@@ -672,29 +685,37 @@ public class NannyChatEngine implements Listener {
      * channel is missing or is not distance-bounded, to avoid broadcasting
      * server-wide.
      */
+    @SuppressWarnings("unused") // 'nanny' is held in the signature for symmetry with directBroadcast and for future per-Nanny channel selection if that restriction is ever lifted.
     private boolean ventureChatBroadcast(NannyEntity nanny, NannyData data,
                                          String formatted, Player primary, Location here) {
         String channelName = configString("Nanny_Chat_VC_Channel_Name", "Local");
         ChatChannel channel = ChatChannel.getChannel(channelName);
         if (channel == null) {
-            plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
-                    + "' not found — falling back to direct send. Set Nanny.Chat.VC_Channel_Name "
-                    + "in config.yml to a channel that exists in VentureChat's channels.yml.");
+            if (warnedVcChannels.add(channelName + ":missing")) {
+                plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
+                        + "' not found — falling back to direct send. Set Nanny.Chat.VC_Channel_Name "
+                        + "in config.yml to a channel that exists in VentureChat's channels.yml. "
+                        + "(This warning fires once per session per channel.)");
+            }
             return false;
         }
         Boolean hasDist = channel.hasDistance();
         if (hasDist == null || !hasDist) {
-            plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
-                    + "' is not distance-bounded — refusing to broadcast Nanny lines server-wide. "
-                    + "Configure the channel with a distance value or point VC_Channel_Name at a "
-                    + "local channel.");
+            if (warnedVcChannels.add(channelName + ":no_distance")) {
+                plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
+                        + "' is not distance-bounded — refusing to broadcast Nanny lines server-wide. "
+                        + "Configure the channel with a distance value or point VC_Channel_Name at a "
+                        + "local channel. (This warning fires once per session per channel.)");
+            }
             return false;
         }
         Double distBoxed = channel.getDistance();
         if (distBoxed == null) {
-            plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
-                    + "' reports hasDistance=true but getDistance() is null — inconsistent VC "
-                    + "state, falling back to direct send.");
+            if (warnedVcChannels.add(channelName + ":null_distance")) {
+                plugin.getLogger().warning("[NannyChat] VentureChat channel '" + channelName
+                        + "' reports hasDistance=true but getDistance() is null — inconsistent VC "
+                        + "state, falling back to direct send. (This warning fires once per session per channel.)");
+            }
             return false;
         }
         double dist = distBoxed;
