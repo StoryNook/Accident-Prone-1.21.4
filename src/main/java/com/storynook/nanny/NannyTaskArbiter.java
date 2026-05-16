@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 /**
@@ -39,15 +40,9 @@ public class NannyTaskArbiter {
         public Player ward() { return candidate.ward(); }
     }
 
-    /**
-     * Visible for tests. Iterates wards × registered tasks, calls evaluate,
-     * collects non-null candidates, sorts by priority desc.
-     *
-     * Owner tie-break and distance tie-break are added in later tasks; for
-     * now only the primary priority sort runs.
-     */
-    public List<ScoredCandidate> buildAndSortCandidates(
-            NannyEntity nanny, NannyData data, List<Player> wards) {
+    /** Caller-provided origin (Nanny location) for distance tie-break. */
+    public List<ScoredCandidate> buildAndSortCandidatesAt(
+            Location nannyLoc, NannyEntity nanny, NannyData data, List<Player> wards) {
         List<ScoredCandidate> out = new ArrayList<>();
         for (Player ward : wards) {
             for (NannyTask task : registered) {
@@ -58,10 +53,22 @@ public class NannyTaskArbiter {
         UUID ownerUUID = data == null ? null : data.getOwnerUUID();
         out.sort(Comparator
                 .comparingInt(ScoredCandidate::priority).reversed()
-                .thenComparing((ScoredCandidate sc) -> {
+                .thenComparingInt((ScoredCandidate sc) -> {
                     if (ownerUUID == null || sc.ward() == null) return 1;
                     return sc.ward().getUniqueId().equals(ownerUUID) ? 0 : 1;
+                })
+                .thenComparingDouble((ScoredCandidate sc) -> {
+                    Location t = sc.candidate().target();
+                    if (nannyLoc == null || t == null) return Double.MAX_VALUE;
+                    if (t.getWorld() != nannyLoc.getWorld()) return Double.MAX_VALUE;
+                    return t.distanceSquared(nannyLoc);
                 }));
         return out;
+    }
+
+    /** Convenience overload for tests that don't need distance tie-break. Delegates with null origin. */
+    public List<ScoredCandidate> buildAndSortCandidates(
+            NannyEntity nanny, NannyData data, List<Player> wards) {
+        return buildAndSortCandidatesAt(null, nanny, data, wards);
     }
 }

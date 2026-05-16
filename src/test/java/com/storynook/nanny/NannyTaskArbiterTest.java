@@ -9,6 +9,8 @@ import com.storynook.nanny.tasks.NannyTask;
 import com.storynook.nanny.tasks.Result;
 import java.util.List;
 import java.util.UUID;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +82,41 @@ public class NannyTaskArbiterTest {
         // Both tasks evaluate to priority 50. Owner-tie-break should put owner-target first.
         assertEquals(2, sorted.size());
         assertEquals(owner.getUniqueId(), sorted.get(0).ward().getUniqueId());
+    }
+
+    @Test
+    public void tieBreak_closerTargetWinsWhenWardAndPriorityTie() {
+        PlayerMock owner = server.addPlayer();
+        World world = server.addSimpleWorld("test");
+        NannyData data = new NannyData(UUID.randomUUID(), owner.getUniqueId(), "TestNanny", null);
+        // Pretend the Nanny is at origin
+        Location nannyLoc = new Location(world, 0, 64, 0);
+
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+        // Two tasks with same priority + same ward but different target distances
+        arbiter.register(new FixedTargetTask("far", 50, owner, new Location(world, 100, 64, 0)));
+        arbiter.register(new FixedTargetTask("near", 50, owner, new Location(world, 10, 64, 0)));
+
+        List<NannyTaskArbiter.ScoredCandidate> sorted =
+                arbiter.buildAndSortCandidatesAt(nannyLoc, null, data, List.of((Player) owner));
+
+        assertEquals(2, sorted.size());
+        assertEquals("near", sorted.get(0).task().id());
+    }
+
+    static class FixedTargetTask implements NannyTask {
+        private final String id;
+        private final int priority;
+        private final Player wardOverride;
+        private final Location target;
+        FixedTargetTask(String id, int priority, Player ward, Location target) {
+            this.id = id; this.priority = priority; this.wardOverride = ward; this.target = target;
+        }
+        @Override public String id() { return id; }
+        @Override public Candidate evaluate(NannyEntity n, NannyData d, Player w) {
+            return new Candidate(priority, wardOverride, target, "test");
+        }
+        @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
     }
 
     /** Minimal test fixture — a task that never evaluates to anything. */
