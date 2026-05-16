@@ -15,9 +15,9 @@ import org.bukkit.scheduler.BukkitTask;
 import com.storynook.Plugin;
 import com.storynook.PlayerStatsManagement.PlayerStats;
 import com.storynook.Event_Listeners.FeedingAction;
-import com.storynook.Event_Listeners.DiaperPail;
 import com.storynook.Commands.EquipArmor;
 import com.storynook.nanny.tasks.ChangeTask;
+import com.storynook.nanny.tasks.DepositSoiledTask;
 import com.storynook.nanny.tasks.EquipDiaperTask;
 import com.storynook.nanny.tasks.FeedTask;
 import com.storynook.nanny.tasks.HydrateTask;
@@ -33,10 +33,11 @@ import com.storynook.nanny.tasks.Result;
  * via {@link NannyTaskArbiter}. The four care behaviors (change, equip, feed,
  * hydrate) are registered as task classes under {@code com.storynook.nanny.tasks}.
  *
- * <p>Background task {@code tryDepositSoiled} and the no-care branch
- * ({@code doPlaceInCrib}, {@code tryDisciplineActions}, {@code tryReactiveScans},
- * {@code tryOreSpotting}) still live inline in this file. {@code tryRefillBottles}
- * is dispatched via {@link com.storynook.nanny.tasks.RefillBottleTask}.
+ * <p>The no-care branch ({@code doPlaceInCrib}, {@code tryDisciplineActions},
+ * {@code tryReactiveScans}, {@code tryOreSpotting}) still lives inline.
+ * Background refill/deposit are dispatched via
+ * {@link com.storynook.nanny.tasks.RefillBottleTask} and
+ * {@link com.storynook.nanny.tasks.DepositSoiledTask}.
  * Phases C/D extract the remainder into task classes.
  *
  * <p>See spec docs/superpowers/specs/2026-05-16-nanny-task-dispatch-design.md.
@@ -81,6 +82,8 @@ public class NannyCareEngine {
         arbiter.register(this.hydrateTask);
         // Phase C Task 18: background refill is now first-class.
         arbiter.register(new RefillBottleTask(plugin, this));
+        // Phase C Task 19: background pail deposit is now first-class.
+        arbiter.register(new DepositSoiledTask(plugin, this));
     }
 
     // ---------------------------------------------------------------
@@ -160,10 +163,6 @@ public class NannyCareEngine {
     private void evaluateAndAct(NannyEntity entity, NannyData data, Player ward) {
         PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
         if (stats == null) return;
-
-        // Background task: tryDepositSoiled still inline pending Task 19.
-        // RefillBottleTask is now dispatched through the arbiter at priority 40.
-        tryDepositSoiled(entity, data, ward);
 
         // Build candidates across all registered tasks. Currently: change, equip,
         // feed, hydrate. Phase C / D add refill, deposit, crib, discipline,
@@ -745,81 +744,6 @@ public class NannyCareEngine {
     }
 
     /**
-     * Autonomous task: if she has soiled diapers in her personal inventory and a
-     * pail is reachable within homeRadius of the ward, navigate to it and deposit.
-     * Mirrors tryRefillBottles structure. Uses {@link DiaperPail#deposit} which
-     * handles the actual transfer to the nearest pail ArmorStand.
-     */
-    private void tryDepositSoiled(NannyEntity entity, NannyData data, Player ward) {
-        int soiledCount = inventoryManager.countAvailable(data, NannyInventoryManager::isSoiledDiaper);
-        if (soiledCount <= 0) return;
-        Location nannyLoc = entity.getLocation();
-        if (nannyLoc == null || !nannyLoc.getWorld().equals(ward.getWorld())) {
-            plugin.getLogger().info("[deposit] " + data.getName() + " has " + soiledCount
-                    + " soiled but nannyLoc=" + (nannyLoc == null ? "null" : "diff world from ward"));
-            return;
-        }
-        double wardDistSq = nannyLoc.distanceSquared(ward.getLocation());
-        double homeR = data.getHomeRadius();
-        if (wardDistSq > homeR * homeR) {
-            plugin.getLogger().info("[deposit] " + data.getName() + " has " + soiledCount
-                    + " soiled but " + String.format("%.1f", Math.sqrt(wardDistSq))
-                    + " blocks from ward (homeRadius=" + homeR + ")");
-            return;
-        }
-
-        // Search the full home radius for a pail — players place pails in fixed
-        // nursery spots, not within arm's reach of where she happens to be.
-        Location pail = findNearestPail(nannyLoc, homeR);
-        if (pail == null) {
-            plugin.getLogger().info("[deposit] " + data.getName() + " has " + soiledCount
-                    + " soiled item(s) but no Pail_ ArmorStand found within " + homeR + " blocks of "
-                    + nannyLoc.getBlockX() + "," + nannyLoc.getBlockY() + "," + nannyLoc.getBlockZ());
-            return;
-        }
-
-        double pailDistSq = pail.distanceSquared(nannyLoc);
-        if (pailDistSq > 4.0) {
-            NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
-            if (nav == null) {
-                plugin.getLogger().info("[deposit] " + data.getName() + " has navigator=null");
-                return;
-            }
-            // Only re-issue when we're not already pathing to this pail.
-            // Repeatedly calling setTarget cancels and restarts the path each
-            // tick, which can leave Citizens stuck in re-plan mode without
-            // actually moving. Allow re-issue if she's currently in
-            // entity-follow mode (follow makes isNavigating always true).
-            boolean alreadyHeaded = nav.isNavigatingToward(pail, 4.0);
-            if (!alreadyHeaded) {
-                plugin.getLogger().info("[deposit] " + data.getName() + " heading to pail at "
-                        + pail.getBlockX() + "," + pail.getBlockY() + "," + pail.getBlockZ()
-                        + " (distSq=" + String.format("%.1f", pailDistSq) + ")");
-                nav.navigateTo(pail);
-            } else {
-                plugin.getLogger().info("[deposit] " + data.getName() + " already heading to pail (distSq="
-                        + String.format("%.1f", pailDistSq) + ")");
-            }
-            return;
-        }
-
-        // Adjacent — deposit one soiled item this tick.
-        ItemStack soiled = inventoryManager.takeOne(data, NannyInventoryManager::isSoiledDiaper);
-        if (soiled == null) return;
-        boolean ok = DiaperPail.deposit(nannyLoc, 3.0, soiled);
-        if (!ok) {
-            inventoryManager.addToPersonalInventory(data, soiled);
-        } else {
-            plugin.getLogger().info("[deposit] " + data.getName() + " dropped a soiled item in the pail");
-            // After deposit, re-engage follow so she returns to the ward.
-            if (data.isFollowMode()) {
-                NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
-                if (nav != null) nav.setFollowTarget(ward);
-            }
-        }
-    }
-
-    /**
      * Punishment-mode overdose, triggered by a misbehavior signal (punch /
      * naughty chat) from a ward who is currently serving a diaper-punishment
      * sentence. Pushes one water bottle and one laxative per call, each gated
@@ -862,8 +786,13 @@ public class NannyCareEngine {
         return fired;
     }
 
-    /** Scan for the nearest Pail_ ArmorStand within radius. Returns its location or null. */
-    private Location findNearestPail(Location origin, double radius) {
+    /**
+     * Scan for the nearest Pail_ ArmorStand within radius. Returns its location or null.
+     *
+     * <p>Public so {@link com.storynook.nanny.tasks.DepositSoiledTask} can call it
+     * during evaluate(). Task 24 (Phase F) reviews whether this can be re-privatised.
+     */
+    public Location findNearestPail(Location origin, double radius) {
         if (origin == null || origin.getWorld() == null) return null;
         org.bukkit.entity.ArmorStand nearest = null;
         double nearestSq = Double.MAX_VALUE;
