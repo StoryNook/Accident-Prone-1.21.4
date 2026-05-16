@@ -118,6 +118,11 @@ public class NannyCareEngine {
         PlayerStats stats = plugin.getPlayerStats(ward.getUniqueId());
         if (stats == null) return;
 
+        // Refill bottles every tick regardless of busy state — having empty bottles
+        // is a background concern, not blocked by the ward needing care. Internal
+        // guards (countAvailable, distance) prevent unnecessary work.
+        tryRefillBottles(entity, data, ward);
+
         boolean needsChange = stats.getDiaperWetness() > data.getChangeThreshold()
                 || stats.getDiaperFullness() > data.getChangeThreshold();
         boolean needsEquip  = !needsChange && stats.getUnderwearType() == 0;
@@ -137,7 +142,6 @@ public class NannyCareEngine {
             }
             tryDisciplineActions(entity, data, ward);
             checkSeekArrival(entity, data, ward);
-            tryRefillBottles(entity, data, ward);
             tryReactiveScans(entity, data, ward);
             tryOreSpotting(entity, data, ward);
             return;
@@ -801,15 +805,31 @@ public class NannyCareEngine {
         if (inventoryManager.countAvailable(data, NannyInventoryManager::isEmptyGlassBottle) <= 0) return;
         Location nannyLoc = entity.getLocation();
         if (nannyLoc == null || !nannyLoc.getWorld().equals(ward.getWorld())) return;
-        if (nannyLoc.distanceSquared(ward.getLocation()) > 32 * 32) return;
+        if (nannyLoc.distanceSquared(ward.getLocation()) > 8 * 8) return;
 
-        org.bukkit.block.Block water = findWaterRefillSource(nannyLoc, 8);
+        org.bukkit.block.Block water = findWaterRefillSource(nannyLoc, 4);
         if (water == null) return;
+        int dyToWater = water.getY() - nannyLoc.getBlockY();
+        if (dyToWater < -1 || dyToWater > 1) return;
 
-        Location target = water.getLocation().add(0.5, 0, 0.5);
-        if (nannyLoc.distanceSquared(target) > 4) {
+        double waterDistSq = water.getLocation().add(0.5, 0, 0.5).distanceSquared(nannyLoc);
+        boolean alreadyAtSource = waterDistSq <= 4.0;
+
+        if (!alreadyAtSource) {
+            Location target;
+            if (water.getType() == Material.WATER) {
+                org.bukkit.block.Block adjacent = findAdjacentStandable(water);
+                if (adjacent == null) return;
+                target = adjacent.getLocation().add(0.5, 0, 0.5);
+            } else {
+                target = water.getLocation().add(0.5, 0, 0.5);
+            }
+            if (target.distanceSquared(ward.getLocation()) > 8 * 8) return;
             NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
-            if (nav != null) nav.navigateTo(target);
+            if (nav == null) return;
+            // Don't re-issue navigateTo every tick — Citizens resets pathfinding
+            // each call. Only issue when she isn't already on the way somewhere.
+            if (!nav.isNavigating()) nav.navigateTo(target);
             return;
         }
 
@@ -837,7 +857,14 @@ public class NannyCareEngine {
             waterBottle.setItemMeta(pm);
         }
         inventoryManager.addToPersonalInventory(data, waterBottle);
-        entity.faceLocation(target);
+        entity.faceLocation(water.getLocation().add(0.5, 0, 0.5));
+
+        // After filling, re-engage follow-target so she returns to the ward rather
+        // than standing idle at the water source. Only fires if follow mode is on.
+        if (data.isFollowMode()) {
+            NannyNavigator nav = manager.getNavigator(data.getNannyUUID());
+            if (nav != null) nav.setFollowTarget(ward);
+        }
     }
 
     /**
@@ -850,8 +877,11 @@ public class NannyCareEngine {
         World w = origin.getWorld();
         if (w == null) return null;
         int cx = origin.getBlockX(), cy = origin.getBlockY(), cz = origin.getBlockZ();
+        // Restrict vertical scan to [-1, +1] — water at her feet or just above/below.
+        // Scanning deeper used to find cave pools and send her on long underground
+        // expeditions she couldn't get back from.
         for (int dx = -radius; dx <= radius; dx++) {
-            for (int dy = -2; dy <= 2; dy++) {
+            for (int dy = -1; dy <= 1; dy++) {
                 for (int dz = -radius; dz <= radius; dz++) {
                     org.bukkit.block.Block b = w.getBlockAt(cx + dx, cy + dy, cz + dz);
                     Material type = b.getType();
@@ -860,14 +890,37 @@ public class NannyCareEngine {
                         return b;
                     }
                     if (type == Material.WATER) {
-                        org.bukkit.block.data.BlockData bd = b.getBlockData();
-                        if (bd instanceof org.bukkit.block.data.Levelled
-                                && ((org.bukkit.block.data.Levelled) bd).getLevel() == 0) {
-                            return b;
-                        }
+                        // Accept any water block — source OR flowing — players might
+                        // bring her near a stream/river/sea where source-level blocks
+                        // are mixed with flowing edges. We just need water nearby.
+                        return b;
                     }
                 }
             }
+        }
+        return null;
+    }
+
+    /**
+     * Finds a walkable block adjacent to a water source. Walkable = the candidate
+     * block is air or passable, the block above it is air or passable, and the
+     * block below it is solid (so she has somewhere to stand). Returns null when
+     * no neighbor satisfies — the source is fully submerged / surrounded by water.
+     */
+    private org.bukkit.block.Block findAdjacentStandable(org.bukkit.block.Block water) {
+        org.bukkit.block.BlockFace[] horizontals = {
+                org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH,
+                org.bukkit.block.BlockFace.EAST,  org.bukkit.block.BlockFace.WEST
+        };
+        for (org.bukkit.block.BlockFace face : horizontals) {
+            org.bukkit.block.Block candidate = water.getRelative(face);
+            org.bukkit.block.Block above = candidate.getRelative(org.bukkit.block.BlockFace.UP);
+            org.bukkit.block.Block below = candidate.getRelative(org.bukkit.block.BlockFace.DOWN);
+            if (!candidate.isPassable()) continue;        // need to stand IN this block
+            if (!above.isPassable()) continue;             // and need head clearance
+            if (below.getType() == Material.AIR) continue; // need something to stand ON
+            if (below.getType() == Material.WATER) continue;
+            return candidate;
         }
         return null;
     }

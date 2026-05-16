@@ -109,7 +109,8 @@ public class NannyNavigator {
         npc.getNavigator().getLocalParameters()
             .range(128)
             .speedModifier(1.0f)
-            .stationaryTicks(600);
+            .stationaryTicks(600)
+            .avoidWater(true);  // autonomous tasks (refill, care) must not path through water
         npc.getNavigator().setTarget(dest);
     }
 
@@ -137,7 +138,8 @@ public class NannyNavigator {
             .range(128)
             .speedModifier(1.0f)
             .stationaryTicks(600)
-            .distanceMargin(2.5);
+            .distanceMargin(2.5)
+            .avoidWater(false);  // follow mode — accept entering water to stay with the ward
         npc.getNavigator().setTarget(ward, false);
     }
 

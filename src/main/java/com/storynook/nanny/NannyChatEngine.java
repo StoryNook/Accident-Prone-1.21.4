@@ -548,12 +548,19 @@ public class NannyChatEngine implements Listener {
             Long last = triggerThrottle.get(tk);
             if (last != null && (now - last) < throttleMs) continue;
 
+            triggerThrottle.put(tk, now);
+            lastResponse.put(nannyUUID, now);
+
+            // AI tier: route through fireTriggers as a synthetic event so the
+            // reaction is in-character and reflects current behavior context.
+            if (data.getChatTier() == NannyData.ChatTier.AI) {
+                fireTriggers(ward, "*event: " + category + " — react briefly in character*");
+                continue;
+            }
+
             String line = pickBasicLine(category, data);
             if (line == null) continue;
             line = applyPlaceholders(line, ward, data);
-
-            triggerThrottle.put(tk, now);
-            lastResponse.put(nannyUUID, now);
             broadcast(nanny, data, line);
         }
     }
