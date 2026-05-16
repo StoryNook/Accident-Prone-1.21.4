@@ -164,6 +164,39 @@ public class NannyTaskArbiterTest {
         assertEquals("high", arbiter.activeTaskId());
     }
 
+    @Test
+    public void latch_falsesIncumbentIfNoLongerEligible() {
+        PlayerMock ward = server.addPlayer();
+        NannyData data = new NannyData(UUID.randomUUID(), ward.getUniqueId(), "TestNanny", null);
+        NannyTaskArbiter arbiter = new NannyTaskArbiter();
+
+        // Use a toggleable task — eligible on first tick, not on second
+        ToggleableTask change = new ToggleableTask("change", 90);
+        NannyTask feed = new FixedPriorityTask("feed", 70);
+        arbiter.register(change);
+        arbiter.register(feed);
+
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("change", arbiter.activeTaskId());
+
+        change.setEligible(false);
+        arbiter.applyLatch(arbiter.buildAndSortCandidates(null, data, List.of((Player) ward)));
+        assertEquals("feed", arbiter.activeTaskId());
+    }
+
+    static class ToggleableTask implements NannyTask {
+        private final String id;
+        private final int priority;
+        private boolean eligible = true;
+        ToggleableTask(String id, int priority) { this.id = id; this.priority = priority; }
+        void setEligible(boolean v) { this.eligible = v; }
+        @Override public String id() { return id; }
+        @Override public Candidate evaluate(NannyEntity n, NannyData d, Player w) {
+            return eligible ? new Candidate(priority, w, null, "test") : null;
+        }
+        @Override public Result act(NannyEntity n, NannyData d, Player w) { return Result.DONE; }
+    }
+
     /** Minimal test fixture — a task that never evaluates to anything. */
     static class NoopTask implements NannyTask {
         @Override public String id() { return "noop"; }
