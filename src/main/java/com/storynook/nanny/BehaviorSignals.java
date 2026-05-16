@@ -227,6 +227,14 @@ public class BehaviorSignals implements Listener {
             if (here.getWorld() == null || !here.getWorld().equals(speaker.getWorld())) continue;
             if (here.distanceSquared(speaker.getLocation()) > (double) radius * radius) continue;
             NannyData data = nanny.getData();
+            // Speaker relationship gate. Now that VentureChat routing means the
+            // Nanny hears chat from anyone in local range (not just owner+wards),
+            // we must not score visitors against this Nanny — they aren't her
+            // little, and a behavior record for a non-little is meaningless.
+            // Owner chat is also unscored: the owner commands the Nanny, the
+            // little is the one being judged.
+            SpeakerRelationship rel = data.relationshipOf(speaker.getUniqueId());
+            if (rel != SpeakerRelationship.LITTLE) continue;
             if (naughty && checkThrottle(speaker.getUniqueId(), "naughty", NAUGHTY_THROTTLE_MS)) {
                 int before = scoreboard.getScore(data, speaker.getUniqueId());
                 scoreboard.record(data, speaker.getUniqueId(), "chat_naughty", -3);
